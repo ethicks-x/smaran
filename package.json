@@ -1,0 +1,26 @@
+{
+  "name": "cgamp",
+  "private": true,
+  "workspaces": [
+    "core/apps/web",
+    "core/apps/mobile",
+    "core/apps/packages/*"
+  ],
+  "devDependencies": {
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "turbo": "^2.0.0"
+  },
+  "scripts": {
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json}": [
+      "bunx @biomejs/biome check --write --no-errors-on-unmatched"
+    ],
+    "apps/api/**/*.py": [
+      "uv run --project core/apps/api ruff check --fix --force-exclude",
+      "uv run --project core/apps/api ruff format --force-exclude"
+    ]
+  }
+}

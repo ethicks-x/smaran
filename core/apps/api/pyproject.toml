@@ -1,0 +1,82 @@
+[project]
+name = "api"
+version = "0.1.0"
+description = "FastAPI backend services"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.4.0",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "asyncpg>=0.29.0",
+    "supabase>=2.6.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+]
+
+# ==========================================
+# Ruff Core Configuration
+# ==========================================
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+indent-width = 4
+extend-exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "alembic/versions",
+]
+
+# ==========================================
+# Ruff Linter Rules
+# ==========================================
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort (import sorting)
+    "B",     # flake8-bugbear (common bug patterns)
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade (modern Python syntax)
+    "ARG",   # flake8-unused-arguments
+    "SIM",   # flake8-simplify
+    "TCH",   # flake8-type-checking (move imports into TYPE_CHECKING)
+    "FAST",  # FastAPI specific rules
+]
+ignore = [
+    "B008",  # Do not perform function call in argument defaults (needed for FastAPI Depends)
+    "E501",  # Line length handled by the formatter
+]
+fixable = ["ALL"]
+unfixable = []
+
+# ==========================================
+# Import Sorting (isort replacement)
+# ==========================================
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+combine-as-imports = true
+lines-after-imports = 2
+
+# ==========================================
+# Ruff Formatter Rules (Black replacement)
+# ==========================================
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = 80

@@ -1,0 +1,76 @@
+version: '3'
+
+tasks:
+  # Initial project bootstrap for new team members
+  setup:
+    desc: Install all dependencies across Bun and UV environments
+    cmds:
+      - bun install
+      - cd core/apps/api && uv sync
+      - task: db:start
+      - task: db:gen-types
+
+  # Development orchestration
+  dev:
+    desc: Run local database and API/Web/Mobile dev servers
+    deps:
+      - dev:api
+      - dev:web
+
+  dev:api:
+    desc: Start FastAPI server with live reload
+    dir: core/apps/api
+    cmds:
+      - uv run uvicorn src.main:app --reload --port 8000
+
+  dev:web:
+    desc: Start Next.js development server
+    cmds:
+      - bun --filter web dev
+
+  dev:mobile:
+    desc: Start Expo development server
+    cmds:
+      - bun --filter mobile start
+
+  # Database & local service lifecycle
+  db:start:
+    desc: Start local Supabase instance
+    cmds:
+      - supabase start --workdir core/services/supabase
+
+  db:reset:
+    desc: Reset database and re-apply migrations and seed data
+    cmds:
+      - supabase db reset --workdir core/services/supabase
+
+  db:gen-types:
+    desc: Generate TypeScript types from Supabase SQL schemas
+    cmds:
+      - supabase gen types typescript --workdir core/services/supabase --local > packages/api-client/src/supabase.ts
+
+  # Code quality
+  lint:
+    desc: Lint both Python (Ruff) and TypeScript (Biome/ESLint)
+    cmds:
+      - cd core/apps/api && uv run ruff check .
+      - bun turbo lint
+
+  gen:api:
+    desc: Extract OpenAPI schema and generate TS client
+    deps:
+      - gen:api:schema
+    cmds:
+      - task: gen:api:client
+
+  gen:api:schema:
+    desc: Dump OpenAPI JSON locally from FastAPI
+    dir: core/apps/api
+    cmds:
+      - uv run python utils/export_openapi.py
+
+  gen:api:client:
+    desc: Convert OpenAPI JSON to TypeScript types
+    dir: core/packages/api-client
+    cmds:
+      - bun run generate

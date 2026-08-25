@@ -1,0 +1,17 @@
+{
+  "name": "@repo/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "generate": "bunx openapi-typescript ../../apps/api/openapi.json -o ./src/api-types.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.12.0"
+  }
+}
