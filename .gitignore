@@ -1,3 +1,114 @@
-node_modules/
+# ==========================================
+# Operating System Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 
+# ==========================================
+# Node.js & Bun Workspaces
+# ==========================================
+node_modules/
+bun.lockb
+.npm
+npm-debug.log*
+
+# ==========================================
+# Turborepo & Build Artifacts
+# ==========================================
+.turbo/
+dist/
+build/
+out/
+.tsbuildinfo
+
+# ==========================================
+# Next.js (apps/web)
+# ==========================================
+core/apps/web/.next/
+core/apps/web/out/
+core/apps/web/build/
+next-env.d.ts
+
+# ==========================================
+# Mobile (Expo / Lynx / React Native)
+# ==========================================
+core/apps/mobile/.expo/
+core/apps/mobile/dist/
+core/apps/mobile/web-build/
+core/apps/mobile/*.tsbuildinfo
+core/apps/mobile/.lynx/
+
+# Native builds (if using prebuild/bare workflow)
+apps/mobile/ios/
+apps/mobile/android/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# ==========================================
+# Python & UV (apps/api)
+# ==========================================
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.python_version
+.Python
+.venv/
+env/
+venv/
+ENV/
+.uv/
+
+# Python test, coverage & type checking
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ==========================================
+# Supabase & Local Services
+# ==========================================
+core/services/supabase/.branches/
+core/services/supabase/.temp/
+.supabase/
+
+# ==========================================
+# Environment Variables & Secrets (Keep .env.example tracked)
+# ==========================================
+.env
+.env.*
+!.env.example
+!.env.test
+*.local
+
+# ==========================================
+# IDEs & Developer Tools
+# ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# ==========================================
+# Generated Files (Contract Output)
+# ==========================================
+# Keep openapi.json untracked if generated at runtime, or track it if committing as a spec.
+apps/api/openapi.json
