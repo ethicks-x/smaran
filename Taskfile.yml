@@ -25,7 +25,7 @@ tasks:
     dir: apps/api
     cmds:
       - echo "Starting development API server..."
-      - uv run main.py
+      - uv run src/main.py
     silent: true
 
   dev:web:

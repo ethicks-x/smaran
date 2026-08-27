@@ -1,9 +1,9 @@
 import uvicorn
 from fastapi import FastAPI
 
-from features.auth.router import router as auth_router
-from features.user.router import router as user_router
-from features.dashboard.router import router as dashboard_router
+from apps.api.src.features.auth.router import router as auth_router
+from apps.api.src.features.user.router import router as user_router
+from apps.api.src.features.dashboard.router import router as dashboard_router
 
 
 app = FastAPI(
