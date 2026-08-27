@@ -18,8 +18,9 @@
       "bun run lint",
       "bun run format"
     ],
-    "apps/mobile/**/*.{ts,tsx,js,jsx,json}": [
-      "bun run lint"
+    "apps/mobile/**/*.{ts,tsx,js,jsx,json,css}": [
+      "bun run lint:fix",
+      "bun run format"
     ],
     "apps/api/**/*.py": [
       "uv run --project apps/api ruff check --fix --force-exclude",
