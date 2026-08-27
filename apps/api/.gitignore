@@ -1,0 +1,32 @@
+# UV & Python Environment
+.venv/
+.uv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# NOTE: Do NOT ignore uv.lock! 
+# According to the Astral UV documentation and community discussions on Stack Overflow, 
+# uv.lock should be committed to version control for reproducible deployments.
+
+# FastAPI & Application Environment
+.env
+.env.[a-zA-Z]*
+!.env.example
+*.log
+podman/
+instance/
+
+# Testing & Code Quality Tools
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+.black
+
+# IDEs & System Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

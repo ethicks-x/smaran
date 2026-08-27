@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  GREETING: Hello, world!
+
+tasks:
+  default:
+    desc: Print a greeting message
+    cmds:
+      - echo "{{.GREETING}}"
+    silent: true
+
+  dev:all:
+    desc: Start all development servers
+    deps:
+      - dev:api
+      - dev:web
+      - dev:mobile
+    silent: true
+
+  dev:api:
+    desc: Start the API server
+    dir: apps/api
+    cmds:
+      - echo "Starting development API server..."
+      - uv run main.py
+    silent: true
+
+  dev:web:
+    desc: Start the Caregiver Dashboard web server
+    dir: apps/web
+    cmds:
+      - echo "Starting development web server..."
+      - bun run dev
+    silent: true
+
+  dev:mobile:
+    desc: Start the Smaran mobile app server
+    dir: apps/mobile
+    cmds:
+      - echo "Starting development mobile server..."
+      - bun run start
+    silent: true
