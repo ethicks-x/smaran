@@ -15,12 +15,12 @@
   },
   "lint-staged": {
     "apps/web/**/*.{ts,tsx,js,jsx,json}": [
-      "bun run lint",
-      "bun run format"
+      "bun run --cwd apps/web lint:fix",
+      "bun run --cwd apps/web format"
     ],
     "apps/mobile/**/*.{ts,tsx,js,jsx,json,css}": [
-      "bun run lint:fix",
-      "bun run format"
+      "bun run --cwd apps/mobile lint:fix",
+      "bun run --cwd apps/mobile format"
     ],
     "apps/api/**/*.py": [
       "uv run --project apps/api ruff check --fix --force-exclude",
