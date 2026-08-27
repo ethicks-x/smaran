@@ -4,6 +4,7 @@ version: '3'
 
 vars:
   GREETING: Hello, world!
+  TMUX_SESSION: "smaran-dev"
 
 tasks:
   default:
@@ -13,12 +14,28 @@ tasks:
     silent: true
 
   dev:all:
-    desc: Start all development servers
-    deps:
-      - dev:api
-      - dev:web
-      - dev:mobile
-    silent: true
+    desc: Start all development servers in a termux server
+    cmds: 
+      - tmux kill-session -t {{.TMUX_SESSION}} 2>/dev/null || true
+      - tmux new-session -d -s {{.TMUX_SESSION}}:1 -n 'API' "task dev:api"
+      - tmux new-window -t {{.TMUX_SESSION}}:2 -n 'Web' "task dev:web"
+      - tmux new-window -t {{.TMUX_SESSION}}:3 -n 'Mobile' "task dev:mobile"
+      - tmux attach-session -t {{.TMUX_SESSION}}
+
+  dev:split:
+    desc: Start all servers side-by-side in a split 3-pane dashboard
+    cmds:
+      - tmux kill-session -t {{.TMUX_SESSION}} 2>/dev/null || true
+      - tmux new-session -d -s {{.TMUX_SESSION}} -n 'Dashboard' "task dev:api"
+      - tmux split-window -h -t {{.TMUX_SESSION}}:0 "task dev:web"
+      - tmux split-window -v -t {{.TMUX_SESSION}}:0.1 "task dev:mobile"
+      - tmux select-layout -t {{.TMUX_SESSION}}:0 tiled
+      - tmux attach-session -t {{.TMUX_SESSION}}
+
+  stop:
+    desc: Stop all development servers and kill the tmux session
+    cmds:
+      - tmux kill-session -t {{.TMUX_SESSION}}
 
   dev:api:
     desc: Start the API server
