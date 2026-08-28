@@ -7,6 +7,7 @@ import * as SystemUI from "expo-system-ui";
 import { useEffect, useMemo } from "react";
 
 import { AppearanceProvider, useAppearance } from "@/hooks/use-appearance";
+import { RecallProvider, useRecall } from "@/hooks/use-recall";
 import { useTheme } from "@/hooks/use-theme";
 import type { ThemeColors } from "@/theme";
 
@@ -30,7 +31,9 @@ export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <AppearanceProvider>
-        <RootNavigator />
+        <RecallProvider>
+          <RootNavigator />
+        </RecallProvider>
       </AppearanceProvider>
     </ClerkProvider>
   );
@@ -38,13 +41,14 @@ export default function RootLayout() {
 
 /**
  * Holds the splash screen until Clerk has restored the session and the reader's
- * appearance choices have been read back, then routes to the tabs or the
- * sign-in screen. Keeping the guard here means no screen ever renders in a
+ * appearance choices have been read back, then routes to the sign-in screen,
+ * the once-a-launch name recall, or the app itself. Keeping the guard here means no screen ever renders in a
  * half-authenticated state — or, for a frame, in the wrong theme.
  */
 function RootNavigator() {
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const { isLoaded: isAppearanceLoaded } = useAppearance();
+  const { isRecalled } = useRecall();
   const { isDark, colors } = useTheme();
 
   const isLoaded = isAuthLoaded && isAppearanceLoaded;
@@ -81,7 +85,11 @@ function RootNavigator() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <Stack.Protected guard={isSignedIn}>
+        <Stack.Protected guard={isSignedIn && !isRecalled}>
+          <Stack.Screen name="recall" />
+        </Stack.Protected>
+
+        <Stack.Protected guard={isSignedIn && isRecalled}>
           <Stack.Screen name="(tabs)" />
           {/* No `animation` override: each platform already knows what a
               pushed screen should do, and a phone's own transition is the one
