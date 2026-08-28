@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect, useMemo } from "react";
 
+import { AppearanceProvider, useAppearance } from "@/hooks/use-appearance";
 import { useTheme } from "@/hooks/use-theme";
 import type { ThemeColors } from "@/theme";
 
@@ -28,19 +29,25 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <RootNavigator />
+      <AppearanceProvider>
+        <RootNavigator />
+      </AppearanceProvider>
     </ClerkProvider>
   );
 }
 
 /**
- * Holds the splash screen until Clerk has restored the session, then routes to
- * the tabs or the sign-in screen. Keeping the guard here means no screen ever
- * renders in a half-authenticated state.
+ * Holds the splash screen until Clerk has restored the session and the reader's
+ * appearance choices have been read back, then routes to the tabs or the
+ * sign-in screen. Keeping the guard here means no screen ever renders in a
+ * half-authenticated state — or, for a frame, in the wrong theme.
  */
 function RootNavigator() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const { isLoaded: isAppearanceLoaded } = useAppearance();
   const { isDark, colors } = useTheme();
+
+  const isLoaded = isAuthLoaded && isAppearanceLoaded;
 
   const navigationTheme = useMemo(
     () => toNavigationTheme(colors, isDark),

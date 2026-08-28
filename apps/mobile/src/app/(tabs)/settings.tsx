@@ -18,8 +18,17 @@ import {
   SettingsRow,
   Text,
 } from "@/components/ui";
+import { useAppearance } from "@/hooks/use-appearance";
 import { useThemeColors } from "@/hooks/use-theme";
-import { HitSlop, Radius, Spacing, scale, TouchTarget } from "@/theme";
+import {
+  HitSlop,
+  Radius,
+  Spacing,
+  scale,
+  TextSizeOptions,
+  ThemeModeOptions,
+  TouchTarget,
+} from "@/theme";
 
 const AVATAR_SIZE = scale(140);
 const BADGE_SIZE = scale(50);
@@ -39,6 +48,7 @@ const HEADER_ICON_SIZE = scale(28);
 export default function SettingsScreen() {
   const { signOut } = useAuth();
 
+  const appearance = useAppearanceSummary();
   const version = Constants.expoConfig?.version ?? "1.0.0";
 
   return (
@@ -61,18 +71,13 @@ export default function SettingsScreen() {
             description="Reminder sounds and quiet hours"
             onPress={() => router.push("/account/notifications")}
           />
-          <SettingsRow
+          <SettingsLink
             icon="appearance"
             tint="accent"
             label="Appearance"
-            description="Text size, light and dark"
-          >
-            <Text variant="body" color="textSecondary">
-              Smaran follows your phone. Make the text larger in your phone's
-              display settings and everything here grows with it — and the app
-              turns dark when your phone does.
-            </Text>
-          </SettingsRow>
+            description={appearance}
+            onPress={() => router.push("/account/appearance")}
+          />
           <SettingsRow
             icon="language"
             tint="success"
@@ -146,6 +151,23 @@ export default function SettingsScreen() {
       </SettingsAccordion>
     </Screen>
   );
+}
+
+/**
+ * What the Appearance row says it is set to, so the current answer is readable
+ * without opening the screen.
+ */
+function useAppearanceSummary() {
+  const { themeMode, textSize } = useAppearance();
+
+  const brightness = ThemeModeOptions.find(
+    (option) => option.value === themeMode,
+  )?.label;
+  const size = TextSizeOptions.find(
+    (option) => option.value === textSize,
+  )?.label;
+
+  return `${brightness} · ${size} text`;
 }
 
 /**

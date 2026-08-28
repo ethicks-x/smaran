@@ -1,5 +1,7 @@
 export type { ActionButtonProps } from "./action-button";
 export { ActionButton } from "./action-button";
+export type { Choice, ChoiceGroupProps } from "./choice-group";
+export { ChoiceGroup } from "./choice-group";
 export type { EmptyStateProps } from "./empty-state";
 export { EmptyState } from "./empty-state";
 export type { AppIconName } from "./icons";

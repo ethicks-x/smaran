@@ -1,10 +1,11 @@
+import { useMemo } from "react";
 import {
   Text as RNText,
   type TextProps as RNTextProps,
   StyleSheet,
 } from "react-native";
 
-import { useThemeColors } from "@/hooks/use-theme";
+import { useTextScale, useThemeColors } from "@/hooks/use-theme";
 import { TextStyles, type TextVariant, type ThemeColor } from "@/theme";
 
 export type TextProps = RNTextProps & {
@@ -17,7 +18,8 @@ export type TextProps = RNTextProps & {
 
 /**
  * The only text component screens should use. Every string in the app goes
- * through the type scale, so nothing accidentally ships below the 18pt floor.
+ * through the type scale, so nothing accidentally ships below the 18pt floor —
+ * and the reader's text size choice lands on all of it from here.
  */
 export function Text({
   variant = "body",
@@ -27,6 +29,12 @@ export function Text({
   ...rest
 }: TextProps) {
   const colors = useThemeColors();
+  const textScale = useTextScale();
+
+  const sized = useMemo(
+    () => sizeFor(variant, textScale),
+    [variant, textScale],
+  );
 
   return (
     <RNText
@@ -34,6 +42,7 @@ export function Text({
       maxFontSizeMultiplier={1.8}
       style={[
         TextStyles[variant],
+        sized,
         { color: colors[color] },
         center && styles.center,
         style,
@@ -41,6 +50,20 @@ export function Text({
       {...rest}
     />
   );
+}
+
+/** Size and leading grow together, so long paragraphs keep their rhythm. */
+function sizeFor(variant: TextVariant, textScale: number) {
+  if (textScale === 1) {
+    return null;
+  }
+
+  const base = TextStyles[variant];
+
+  return {
+    fontSize: Math.round(base.fontSize * textScale),
+    lineHeight: Math.round(base.lineHeight * textScale),
+  };
 }
 
 const styles = StyleSheet.create({
