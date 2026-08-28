@@ -1,5 +1,7 @@
 import { Platform, type TextStyle } from "react-native";
 
+import { scale } from "./layout";
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */
@@ -24,25 +26,28 @@ export const Fonts = Platform.select({
 /**
  * Type scale.
  *
- * The floor is 18pt — roughly 1.3x a stock mobile app — and line heights are
- * loose, both of which measurably help readers with presbyopia. Weights stay at
- * 600 or below for body copy so glyphs keep their open counters.
+ * The base floor is 18pt — roughly 1.3x a stock mobile app — and line heights
+ * are loose, both of which measurably help readers with presbyopia. Weights stay
+ * at 600 or below for body copy so glyphs keep their open counters.
+ *
+ * Sizes run through `scale` so the app-wide `UIScale` dial moves type along with
+ * spacing and touch targets.
  */
 export const TextStyles = {
   /** One number or word that carries a whole screen. */
-  display: { fontSize: 44, lineHeight: 50, fontWeight: "700" },
+  display: { fontSize: scale(44), lineHeight: scale(50), fontWeight: "700" },
   /** Screen titles. */
-  title: { fontSize: 34, lineHeight: 42, fontWeight: "700" },
+  title: { fontSize: scale(34), lineHeight: scale(42), fontWeight: "700" },
   /** Card and section headings. */
-  heading: { fontSize: 26, lineHeight: 34, fontWeight: "600" },
+  heading: { fontSize: scale(26), lineHeight: scale(34), fontWeight: "600" },
   /** Prominent body copy — the default for anything the user must read. */
-  bodyLarge: { fontSize: 22, lineHeight: 32, fontWeight: "500" },
+  bodyLarge: { fontSize: scale(22), lineHeight: scale(32), fontWeight: "500" },
   /** Standard body copy. */
-  body: { fontSize: 20, lineHeight: 30, fontWeight: "400" },
+  body: { fontSize: scale(20), lineHeight: scale(30), fontWeight: "400" },
   /** Button and tab labels. */
-  label: { fontSize: 20, lineHeight: 26, fontWeight: "600" },
+  label: { fontSize: scale(20), lineHeight: scale(26), fontWeight: "600" },
   /** Supporting detail. Never used for anything essential. */
-  caption: { fontSize: 18, lineHeight: 26, fontWeight: "500" },
-} as const satisfies Record<string, TextStyle>;
+  caption: { fontSize: scale(18), lineHeight: scale(26), fontWeight: "500" },
+} satisfies Record<string, TextStyle>;
 
 export type TextVariant = keyof typeof TextStyles;

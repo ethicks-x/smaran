@@ -8,7 +8,9 @@ export {
   MaxContentWidth,
   Radius,
   Spacing,
+  scale,
   TouchTarget,
+  UIScale,
 } from "./layout";
 export type { TextVariant } from "./typography";
 export { Fonts, TextStyles } from "./typography";
