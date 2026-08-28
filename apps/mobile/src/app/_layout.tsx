@@ -62,8 +62,8 @@ function RootNavigator() {
         <Stack.Protected guard={isSignedIn}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
-            name="settings"
-            options={{ presentation: "modal", animation: "slide_from_bottom" }}
+            name="account"
+            options={{ animation: "slide_from_right" }}
           />
         </Stack.Protected>
 

@@ -1,10 +1,20 @@
+import { Icon } from "@expo/ui";
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppIcons } from "@/components/ui/icons";
+import { NativeHost } from "@/components/ui/native-host";
 import { Text } from "@/components/ui/text";
 import { useThemeColors } from "@/hooks/use-theme";
-import { MaxContentWidth, Spacing } from "@/theme";
+import {
+  HitSlop,
+  MaxContentWidth,
+  Radius,
+  Spacing,
+  scale,
+  TouchTarget,
+} from "@/theme";
 
 export type ScreenProps = {
   /** Large heading announced first by screen readers. */
@@ -13,6 +23,8 @@ export type ScreenProps = {
   subtitle?: string;
   /** Rendered next to the title — keep it to a single icon button. */
   headerAction?: ReactNode;
+  /** Shows a labelled back control above the title on pushed screens. */
+  onBack?: () => void;
   /** Set false for screens that manage their own scrolling or fill the frame. */
   scrollable?: boolean;
   /** Set false outside the tab navigator, where nothing covers the bottom
@@ -29,6 +41,7 @@ export function Screen({
   title,
   subtitle,
   headerAction,
+  onBack,
   scrollable = true,
   withTabBar = true,
   children,
@@ -37,18 +50,39 @@ export function Screen({
   const insets = useSafeAreaInsets();
 
   const header = (
-    <View style={styles.header}>
-      <View style={styles.headerText}>
-        <Text variant="title" accessibilityRole="header">
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text variant="bodyLarge" color="textSecondary">
-            {subtitle}
+    <View style={styles.headerBlock}>
+      {onBack ? (
+        <Pressable
+          onPress={onBack}
+          hitSlop={HitSlop}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={({ pressed }) => [
+            styles.back,
+            { backgroundColor: colors.surfaceMuted },
+            pressed && styles.pressed,
+          ]}
+        >
+          <NativeHost>
+            <Icon name={AppIcons.back} size={scale(26)} color={colors.text} />
+          </NativeHost>
+          <Text variant="label">Back</Text>
+        </Pressable>
+      ) : null}
+
+      <View style={styles.header}>
+        <View style={styles.headerText}>
+          <Text variant="title" accessibilityRole="header">
+            {title}
           </Text>
-        ) : null}
+          {subtitle ? (
+            <Text variant="bodyLarge" color="textSecondary">
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+        {headerAction}
       </View>
-      {headerAction}
     </View>
   );
 
@@ -98,6 +132,22 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     flexGrow: 1,
     gap: Spacing.xl,
+  },
+  headerBlock: {
+    gap: Spacing.lg,
+  },
+  back: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    minHeight: TouchTarget.min,
+    paddingLeft: Spacing.md,
+    paddingRight: Spacing.lg,
+    borderRadius: Radius.pill,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   header: {
     flexDirection: "row",

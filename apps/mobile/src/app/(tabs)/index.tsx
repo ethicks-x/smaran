@@ -25,28 +25,29 @@ export default function TodayScreen() {
   const colors = useThemeColors();
 
   const firstName = user?.firstName?.trim();
+  const salutation = `${getTimeSalutation()}${firstName ? `, ${firstName}` : ""}`;
 
   return (
     <Screen
-      title={firstName ? `Hello, ${firstName}` : "Hello"}
+      title={salutation}
       subtitle={formatToday()}
-      headerAction={
-        <Pressable
-          onPress={() => router.push("/settings")}
-          hitSlop={HitSlop}
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          style={({ pressed }) => [
-            styles.headerButton,
-            { backgroundColor: colors.surfaceMuted },
-            pressed && styles.pressed,
-          ]}
-        >
-          <NativeHost>
-            <Icon name={AppIcons.settings} size={26} color={colors.text} />
-          </NativeHost>
-        </Pressable>
-      }
+      // headerAction={
+      //   <Pressable
+      //     onPress={() => router.push("/settings")}
+      //     hitSlop={HitSlop}
+      //     accessibilityRole="button"
+      //     accessibilityLabel="Settings"
+      //     style={({ pressed }) => [
+      //       styles.headerButton,
+      //       { backgroundColor: colors.surfaceMuted },
+      //       pressed && styles.pressed,
+      //     ]}
+      //   >
+      //     <NativeHost>
+      //       <Icon name={AppIcons.settings} size={26} color={colors.text} />
+      //     </NativeHost>
+      //   </Pressable>
+      // }
     >
       <Section title="Next up">
         {/* TODO: render the next reminder here — time, what to do, and a single
@@ -76,6 +77,18 @@ export default function TodayScreen() {
       <View style={styles.spacer} />
     </Screen>
   );
+}
+
+function getTimeSalutation() {
+  const currentHour = new Date().getHours(); // Returns 0 - 23
+
+  if (currentHour < 12) {
+    return "Good morning";
+  } else if (currentHour < 17) {
+    return "Good afternoon";
+  } else {
+    return "Good evening";
+  }
 }
 
 function formatToday() {

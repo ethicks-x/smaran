@@ -17,7 +17,7 @@ const PILL_HEIGHT = scale(42);
 const TAB_ITEM_HEIGHT =
   PILL_HEIGHT + Spacing.xs + TextStyles.caption.lineHeight + Spacing.md;
 
-type TabIconName = "today" | "people" | "memories" | "help";
+type TabIconName = "today" | "people" | "memories" | "help" | "settings";
 
 /** What the tab bar hands the icon and label renderers for each state. */
 type TabStateProps = { focused: boolean; color: ColorValue };
@@ -115,6 +115,17 @@ export default function TabLayout() {
           title: "Help",
           tabBarIcon: (props: TabStateProps) => (
             <TabIcon name="help" {...props} />
+          ),
+          tabBarLabel: TabLabel,
+        }}
+      />
+
+      <TopTabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: (props: TabStateProps) => (
+            <TabIcon name="settings" {...props} />
           ),
           tabBarLabel: TabLabel,
         }}

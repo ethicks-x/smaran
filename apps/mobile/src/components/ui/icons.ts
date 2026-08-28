@@ -49,6 +49,62 @@ export const AppIcons = {
     ios: "exclamationmark.triangle.fill",
     android: require("@expo/material-symbols/emergency.xml"),
   }),
+  profile: Icon.select({
+    ios: "person.crop.circle.fill",
+    android: require("@expo/material-symbols/account_circle.xml"),
+  }),
+  edit: Icon.select({
+    ios: "pencil",
+    android: require("@expo/material-symbols/edit.xml"),
+  }),
+  chevronDown: Icon.select({
+    ios: "chevron.down",
+    android: require("@expo/material-symbols/keyboard_arrow_down.xml"),
+  }),
+  textSize: Icon.select({
+    ios: "textformat.size",
+    android: require("@expo/material-symbols/format_size.xml"),
+  }),
+  info: Icon.select({
+    ios: "info.circle.fill",
+    android: require("@expo/material-symbols/info.xml"),
+  }),
+  privacy: Icon.select({
+    ios: "lock.fill",
+    android: require("@expo/material-symbols/lock.xml"),
+  }),
+  signOut: Icon.select({
+    ios: "rectangle.portrait.and.arrow.right",
+    android: require("@expo/material-symbols/logout.xml"),
+  }),
+  chevronRight: Icon.select({
+    ios: "chevron.right",
+    android: require("@expo/material-symbols/chevron_right.xml"),
+  }),
+  back: Icon.select({
+    ios: "chevron.left",
+    android: require("@expo/material-symbols/arrow_back.xml"),
+  }),
+  appearance: Icon.select({
+    ios: "paintpalette.fill",
+    android: require("@expo/material-symbols/palette.xml"),
+  }),
+  language: Icon.select({
+    ios: "globe",
+    android: require("@expo/material-symbols/language.xml"),
+  }),
+  security: Icon.select({
+    ios: "lock.shield.fill",
+    android: require("@expo/material-symbols/shield.xml"),
+  }),
+  sound: Icon.select({
+    ios: "speaker.wave.2.fill",
+    android: require("@expo/material-symbols/volume_up.xml"),
+  }),
+  schedule: Icon.select({
+    ios: "clock.fill",
+    android: require("@expo/material-symbols/schedule.xml"),
+  }),
 } as const;
 
 export type AppIconName = keyof typeof AppIcons;
