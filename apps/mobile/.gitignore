@@ -9,6 +9,11 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Full-resolution landing art. Nothing requires these, so they never reach a
+# bundle — they are the lossless originals the shipped WebP was encoded from,
+# kept on disk and out of the repo's history.
+assets/images/landing/_masters/
+
 # Native
 .kotlin/
 *.orig.*

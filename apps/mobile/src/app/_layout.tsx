@@ -41,7 +41,7 @@ export default function RootLayout() {
 
 /**
  * Holds the splash screen until Clerk has restored the session and the reader's
- * appearance choices have been read back, then routes to the sign-in screen,
+ * appearance choices have been read back, then routes to the landing screen,
  * the once-a-launch name recall, or the app itself. Keeping the guard here means no screen ever renders in a
  * half-authenticated state — or, for a frame, in the wrong theme.
  */
@@ -98,7 +98,7 @@ function RootNavigator() {
         </Stack.Protected>
 
         <Stack.Protected guard={!isSignedIn}>
-          <Stack.Screen name="sign-in" />
+          <Stack.Screen name="landing" />
         </Stack.Protected>
       </Stack>
     </ThemeProvider>
