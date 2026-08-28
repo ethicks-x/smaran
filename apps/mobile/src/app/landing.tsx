@@ -1,4 +1,5 @@
 import { useHostedAuth } from "@clerk/expo/hosted-auth";
+import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
 import { useMemo, useRef, useState } from "react";
 import {
@@ -30,6 +31,16 @@ import {
 } from "@/theme";
 
 const LAST_PAGE = LandingSlides.length - 1;
+
+/**
+ * Where the Account Portal sends the browser back to when sign-in is done.
+ *
+ * Left to itself Clerk builds this out of the bundle identifier — a scheme the
+ * app answers but never declared — so it is worth being explicit: this is our
+ * own scheme, the one `app.json` registers, and `+native-intent.ts` catches it
+ * before the router can mistake it for a page.
+ */
+const AUTH_REDIRECT_URL = Linking.createURL("sso-callback");
 
 /** What the floating chrome takes out of each page, top and bottom. */
 const HEADER_HEIGHT = TouchTarget.min;
@@ -102,7 +113,10 @@ export default function LandingScreen() {
     setIsBusy(true);
     setError(null);
     try {
-      await startHostedAuth({ mode: "sign-in" });
+      await startHostedAuth({
+        mode: "sign-in",
+        redirectUrl: AUTH_REDIRECT_URL,
+      });
     } catch {
       setError("We could not sign you in. Please try again.");
     } finally {
