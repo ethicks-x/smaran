@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Smaran",
+    "slug": "smaran",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "smaran",
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.smaran.app",
