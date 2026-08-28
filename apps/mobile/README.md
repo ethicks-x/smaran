@@ -1,56 +1,92 @@
-# Welcome to your Expo app 👋
+# Smaran — Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The elder-facing companion app. Family and carers manage everything from the
+web **Caregiver Dashboard**; this app is what the person being cared for
+actually opens.
 
-## Get started
+## Design principles
 
-1. Install dependencies
+Every UI decision here follows from the fact that the reader may have reduced
+vision, unsteady hands, or memory difficulty:
 
-   ```bash
-   npm install
-   ```
+- **Large type by default.** The type scale in `src/theme/typography.ts` starts
+  at 18pt and body copy is 20–22pt. Nothing ships below the floor because every
+  string goes through `<Text variant="…">`.
+- **High contrast.** Every foreground/background pair in `src/theme/colors.ts`
+  clears WCAG AAA (7:1) in both light and dark mode — body text, secondary copy,
+  and the accent/success/danger colours on their muted fills.
+- **Big targets.** `TouchTarget` starts at 56pt and primary actions are 76pt —
+  well above the 44pt platform floor.
+- **One obvious action per screen.** At most one `filled` button is visible at a
+  time; everything else is `outlined` or `text`.
+- **Recognition over recall.** Four permanent, labelled tabs. No drawers, no
+  gesture-only navigation, no icon-only controls.
+- **Native controls.** Interactive elements come from `@expo/ui`, so they render
+  as real SwiftUI / Jetpack Compose views and inherit platform accessibility.
 
-2. Start the app
+## Structure
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/
+  app/                    file-based routes (expo-router)
+    _layout.tsx           Clerk provider, theme, splash, auth guard
+    sign-in.tsx           signed-out route
+    settings.tsx          modal: account + sign out
+    +not-found.tsx
+    (tabs)/
+      _layout.tsx         native tab bar
+      index.tsx           Today   — the day's plan
+      people.tsx          People  — familiar faces and how to reach them
+      memories.tsx        Memories— photos and stories from family
+      help.tsx            Help    — one unmistakable way to reach someone
+  components/ui/          the design system; screens use nothing else
+    screen.tsx            page frame: safe areas, title, gutters, max width
+    section.tsx           titled group within a screen
+    surface.tsx           themed card
+    text.tsx              themed text, variant-driven
+    action-button.tsx     @expo/ui Button, sized for unsteady hands
+    empty-state.tsx       "nothing here yet" placeholder
+    native-host.tsx       themed @expo/ui Host — wrap every @expo/ui component
+    icons.ts              icon registry (SF Symbols + Material Symbols)
+  theme/                  colours, type scale, spacing/radius/touch targets
+  hooks/                  use-theme, use-color-scheme
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Rules of thumb:
 
-### Other setup steps
+- Screens compose `components/ui` — they never reach for raw `Text`, `View`
+  colours, or hardcoded spacing.
+- Anything from `@expo/ui` must be rendered inside `<NativeHost>`, which applies
+  the app's colour scheme and accent to the native view tree.
+- New icons go in `src/components/ui/icons.ts`, never inline at a call site.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Getting started
 
-## Learn more
+```bash
+cp .env.example .env      # add your Clerk publishable key
+bun install
+bun run start             # or: task dev:mobile from the repo root
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Native modules (`@expo/ui`, native tabs, Clerk's Android redirect) require a
+development build — Expo Go will not run this app.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+bunx expo prebuild
+bun run ios               # or: bun run android
+```
 
-## Join the community
+## Checks
 
-Join our community of developers creating universal apps.
+```bash
+bun run lint              # biome
+bun run lint:fix
+bunx tsc --noEmit         # types, including generated route types
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Still to do
+
+- App icon and splash art are still Expo's (`assets/expo.icon`,
+  `assets/images/icon.png`, `assets/images/splash-icon.png`) — replace with
+  Smaran branding.
+- Screens are skeletons: each has a `TODO` marking the API call that fills it.

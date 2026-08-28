@@ -14,7 +14,7 @@
     "android": {
       "package": "com.smaran.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#DCE9FB",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -30,9 +30,14 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#F6F5F2",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 96,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#111315",
+            "image": "./assets/images/splash-icon.png"
+          }
         }
       ],
       "@clerk/expo",
