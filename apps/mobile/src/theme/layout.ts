@@ -1,5 +1,3 @@
-import { Platform } from "react-native";
-
 /**
  * Global size dial.
  *
@@ -59,9 +57,6 @@ export const TouchTarget = {
   /** Primary and emergency actions. */
   large: scaleTarget(76),
 };
-
-/** Height reserved for the native tab bar so content never hides behind it. */
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 
 /** Keeps line length readable on tablets and the web build. */
 export const MaxContentWidth = 640;

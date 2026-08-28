@@ -3,7 +3,6 @@ import "@/global.css";
 export type { ColorScheme, ThemeColor, ThemeColors } from "./colors";
 export { Colors } from "./colors";
 export {
-  BottomTabInset,
   HitSlop,
   MaxContentWidth,
   Radius,

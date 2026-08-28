@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Text } from "@/components/ui/text";
 import { useThemeColors } from "@/hooks/use-theme";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/theme";
+import { MaxContentWidth, Spacing } from "@/theme";
 
 export type ScreenProps = {
   /** Large heading announced first by screen readers. */
@@ -15,7 +15,8 @@ export type ScreenProps = {
   headerAction?: ReactNode;
   /** Set false for screens that manage their own scrolling or fill the frame. */
   scrollable?: boolean;
-  /** Adds room for the tab bar. Off for screens outside the tab navigator. */
+  /** Set false outside the tab navigator, where nothing covers the bottom
+   * inset. Inside it the tab bar sits in the layout flow and owns that inset. */
   withTabBar?: boolean;
   children?: ReactNode;
 };
@@ -60,8 +61,7 @@ export function Screen({
 
   const padding = {
     paddingTop: insets.top + Spacing.lg,
-    paddingBottom:
-      insets.bottom + Spacing["2xl"] + (withTabBar ? BottomTabInset : 0),
+    paddingBottom: Spacing["2xl"] + (withTabBar ? 0 : insets.bottom),
   };
 
   if (!scrollable) {
