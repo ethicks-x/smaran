@@ -3,9 +3,11 @@ import { tokenCache } from "@clerk/expo/token-cache";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import * as SystemUI from "expo-system-ui";
+import { useEffect, useMemo } from "react";
 
 import { useTheme } from "@/hooks/use-theme";
+import type { ThemeColors } from "@/theme";
 
 function requirePublishableKey(): string {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -40,18 +42,31 @@ function RootNavigator() {
   const { isLoaded, isSignedIn } = useAuth();
   const { isDark, colors } = useTheme();
 
+  const navigationTheme = useMemo(
+    () => toNavigationTheme(colors, isDark),
+    [colors, isDark],
+  );
+
   useEffect(() => {
     if (isLoaded) {
       SplashScreen.hideAsync();
     }
   }, [isLoaded]);
 
+  // The layer underneath every screen. Left at its platform default it is pure
+  // white, which is what shows through for a frame whenever a screen is being
+  // attached or detached — the flash people see on the way back from a pushed
+  // screen. Painting it the app canvas makes that frame invisible.
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.background);
+  }, [colors.background]);
+
   if (!isLoaded) {
     return null;
   }
 
   return (
-    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navigationTheme}>
       <StatusBar style={isDark ? "light" : "dark"} />
       <Stack
         screenOptions={{
@@ -61,10 +76,10 @@ function RootNavigator() {
       >
         <Stack.Protected guard={isSignedIn}>
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="account"
-            options={{ animation: "slide_from_right" }}
-          />
+          {/* No `animation` override: each platform already knows what a
+              pushed screen should do, and a phone's own transition is the one
+              its owner has already learnt. */}
+          <Stack.Screen name="account" />
         </Stack.Protected>
 
         <Stack.Protected guard={!isSignedIn}>
@@ -73,4 +88,26 @@ function RootNavigator() {
       </Stack>
     </ThemeProvider>
   );
+}
+
+/**
+ * React Navigation paints the space around and behind cards from its own theme,
+ * which ships a stock grey in light mode and near-black in dark. Handing it our
+ * tokens means every surface it draws is one we chose.
+ */
+function toNavigationTheme(colors: ThemeColors, isDark: boolean) {
+  const base = isDark ? DarkTheme : DefaultTheme;
+
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.danger,
+    },
+  };
 }

@@ -7,6 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "smaran",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F6F5F2",
     "ios": {
       "bundleIdentifier": "com.smaran.app",
       "icon": "./assets/expo.icon"
@@ -19,7 +20,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": true,
+      "backgroundColor": "#F6F5F2"
     },
     "web": {
       "output": "static",
