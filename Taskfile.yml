@@ -3,15 +3,14 @@
 version: '3'
 
 vars:
-  GREETING: Hello, world!
   TMUX_SESSION: "smaran-dev"
 
 tasks:
-  default:
-    desc: Print a greeting message
+  setup:
+    desc: Installs required packages for the project
     cmds:
-      - echo "{{.GREETING}}"
-    silent: true
+      - bun install 
+      - uv --project apps/api sync
 
   dev:all:
     desc: Start all development servers in a termux server
