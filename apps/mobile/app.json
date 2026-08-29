@@ -45,7 +45,14 @@
       "@clerk/expo",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Smaran uses your photos so you can choose a picture of yourself for your account.",
+          "cameraPermission": "Smaran uses the camera so you can take a new picture of yourself for your account."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

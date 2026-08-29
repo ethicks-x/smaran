@@ -114,6 +114,11 @@ export function Screen({
       contentContainerStyle={[styles.centerer, padding]}
       // Older readers often enlarge system text; never trap content off-screen.
       showsVerticalScrollIndicator={false}
+      // Screens with fields in them: the keyboard shrinks the scrollable area
+      // rather than covering the line being typed, and a tap outside a field
+      // still lands on whatever was tapped.
+      automaticallyAdjustKeyboardInsets
+      keyboardShouldPersistTaps="handled"
     >
       {content}
     </ScrollView>

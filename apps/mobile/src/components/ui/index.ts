@@ -32,3 +32,5 @@ export type { SurfaceProps } from "./surface";
 export { Surface } from "./surface";
 export type { TextProps } from "./text";
 export { Text } from "./text";
+export type { TextFieldProps } from "./text-field";
+export { TextField } from "./text-field";

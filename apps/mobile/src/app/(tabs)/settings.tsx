@@ -236,7 +236,6 @@ function Profile() {
           )}
         </View>
 
-        {/* TODO: open the photo picker once the API accepts an avatar upload. */}
         <Pressable
           onPress={() => router.push("/account/profile")}
           hitSlop={HitSlop}
