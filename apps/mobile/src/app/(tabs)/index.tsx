@@ -1,21 +1,10 @@
 import { useUser } from "@clerk/expo";
-import { Icon } from "@expo/ui";
-import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
-import {
-  AppIcons,
-  EmptyState,
-  NativeHost,
-  Screen,
-  Section,
-  Surface,
-  Text,
-} from "@/components/ui";
+import { EmptyState, Screen, Section, Surface, Text } from "@/components/ui";
 import { useLocale } from "@/hooks/use-language";
-import { useThemeColors } from "@/hooks/use-theme";
-import { HitSlop, Spacing, TouchTarget } from "@/theme";
+import { Spacing, TouchTarget } from "@/theme";
 
 /**
  * Today — the home screen and the answer to "what am I meant to be doing?".
@@ -24,34 +13,13 @@ import { HitSlop, Spacing, TouchTarget } from "@/theme";
  */
 export default function TodayScreen() {
   const { user } = useUser();
-  const colors = useThemeColors();
   const { t } = useTranslation();
   const locale = useLocale();
 
   const firstName = user?.firstName?.trim();
 
   return (
-    <Screen
-      title={greeting(t, firstName)}
-      subtitle={formatToday(locale)}
-      // headerAction={
-      //   <Pressable
-      //     onPress={() => router.push("/settings")}
-      //     hitSlop={HitSlop}
-      //     accessibilityRole="button"
-      //     accessibilityLabel="Settings"
-      //     style={({ pressed }) => [
-      //       styles.headerButton,
-      //       { backgroundColor: colors.surfaceMuted },
-      //       pressed && styles.pressed,
-      //     ]}
-      //   >
-      //     <NativeHost>
-      //       <Icon name={AppIcons.settings} size={26} color={colors.text} />
-      //     </NativeHost>
-      //   </Pressable>
-      // }
-    >
+    <Screen title={greeting(t, firstName)} subtitle={formatToday(locale)}>
       <Section title={t("today.nextUp")}>
         {/* TODO: render the next reminder here — time, what to do, and a single
             large "Done" button. */}
