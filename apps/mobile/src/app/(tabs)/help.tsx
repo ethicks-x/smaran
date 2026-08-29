@@ -1,4 +1,5 @@
 import { Icon } from "@expo/ui";
+import { useTranslation } from "react-i18next";
 import { Linking, StyleSheet, View } from "react-native";
 
 import {
@@ -24,6 +25,7 @@ import { Spacing } from "@/theme";
  */
 export default function HelpScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
 
   const primaryContact = usePrimaryContact();
 
@@ -34,20 +36,19 @@ export default function HelpScreen() {
   };
 
   return (
-    <Screen
-      title="Help"
-      subtitle="Reach someone straight away, any time of day."
-    >
-      <Section title="Call for help">
+    <Screen title={t("help.title")} subtitle={t("help.subtitle")}>
+      <Section title={t("help.callSection")}>
         <ActionButton
           label={
-            primaryContact ? `Call ${primaryContact.name}` : "Call for help"
+            primaryContact
+              ? t("help.callNamed", { name: primaryContact.name })
+              : t("help.call")
           }
           onPress={callPrimaryContact}
           tone="danger"
           size="large"
           disabled={!primaryContact}
-          accessibilityLabel="Call your emergency contact now"
+          accessibilityLabel={t("help.callHint")}
         />
         <Surface tone="danger">
           <View style={styles.row}>
@@ -55,22 +56,20 @@ export default function HelpScreen() {
               <Icon name={AppIcons.emergency} size={30} color={colors.danger} />
             </NativeHost>
             <Text variant="body" style={styles.rowText}>
-              {primaryContact
-                ? "This calls your emergency contact and lets your family know."
-                : "No emergency contact set yet. Your family can add one from the caregiver dashboard."}
+              {primaryContact ? t("help.callNote") : t("help.noContactNote")}
             </Text>
           </View>
         </Surface>
       </Section>
 
       <Section
-        title="Other contacts"
-        description="People who can help when your first contact is busy."
+        title={t("help.otherContacts")}
+        description={t("help.otherContactsDescription")}
       >
         {/* TODO: list backup contacts, each row a full-width call button. */}
         <Surface tone="muted">
           <Text variant="body" color="textSecondary">
-            Backup contacts will be listed here.
+            {t("help.backupPlaceholder")}
           </Text>
         </Surface>
       </Section>

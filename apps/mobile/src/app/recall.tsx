@@ -1,5 +1,6 @@
 import { useUser } from "@clerk/expo";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { CodeBoxStatus } from "@/components/ui";
@@ -31,6 +32,7 @@ const ATTEMPTS_BEFORE_HELP = 3;
 export default function RecallScreen() {
   const { user } = useUser();
   const { confirmRecall } = useRecall();
+  const { t } = useTranslation();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
 
@@ -99,13 +101,13 @@ export default function RecallScreen() {
         <View style={styles.centre}>
           <View style={styles.prompt}>
             <Text variant="caption" color="textSecondary" center>
-              {salutation()}
+              {t(salutationKey())}
             </Text>
             <Text variant="title" center accessibilityRole="header">
-              What is your name?
+              {t("recall.question")}
             </Text>
             <Text variant="bodyLarge" color="textSecondary" center>
-              One letter at a time. No rush.
+              {t("recall.hint")}
             </Text>
           </View>
 
@@ -116,14 +118,14 @@ export default function RecallScreen() {
               onChangeText={setValue}
               statuses={statuses}
               placeholders={isRevealed ? Array.from(name) : undefined}
-              accessibilityLabel="Your first name"
+              accessibilityLabel={t("recall.nameLabel")}
             />
 
             <View style={styles.meter}>
               <ProgressBar
                 value={progress}
                 tone={isMatch ? "success" : "primary"}
-                accessibilityLabel="How much of your name is right"
+                accessibilityLabel={t("recall.progressLabel")}
               />
               <Text
                 variant="bodyLarge"
@@ -132,10 +134,16 @@ export default function RecallScreen() {
                 accessibilityLiveRegion="polite"
               >
                 {isMatch
-                  ? `That's right — hello, ${name}.`
+                  ? t("recall.correct", { name })
                   : nearCount
-                    ? `${correctCount} in place, ${nearCount} in the wrong spot`
-                    : `${correctCount} of ${name.length} letters right`}
+                    ? t("recall.placed", {
+                        correct: correctCount,
+                        count: nearCount,
+                      })
+                    : t("recall.lettersRight", {
+                        correct: correctCount,
+                        count: name.length,
+                      })}
               </Text>
             </View>
           </Surface>
@@ -146,11 +154,11 @@ export default function RecallScreen() {
         <View style={styles.footer}>
           {isMatch ? null : isRevealed ? (
             <Text variant="bodyLarge" color="textSecondary" center>
-              Your name is {name}. Type it in to carry on.
+              {t("recall.revealed", { name })}
             </Text>
           ) : attempts >= ATTEMPTS_BEFORE_HELP ? (
             <ActionButton
-              label="Show me my name"
+              label={t("recall.reveal")}
               variant="text"
               onPress={() => setIsRevealed(true)}
             />
@@ -162,14 +170,16 @@ export default function RecallScreen() {
 }
 
 /** The same warm opener the home screen leads with. */
-function salutation() {
+function salutationKey() {
   const hour = new Date().getHours();
 
   if (hour < 12) {
-    return "Good morning";
+    return "greeting.morning" as const;
   }
 
-  return hour < 17 ? "Good afternoon" : "Good evening";
+  return hour < 17
+    ? ("greeting.afternoon" as const)
+    : ("greeting.evening" as const);
 }
 
 /**

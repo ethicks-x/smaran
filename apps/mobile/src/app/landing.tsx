@@ -2,6 +2,7 @@ import { useHostedAuth } from "@clerk/expo/hosted-auth";
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Animated,
   type NativeScrollEvent,
@@ -64,6 +65,7 @@ const FOOTER_HEIGHT = TouchTarget.large + Spacing["3xl"];
  */
 export default function LandingScreen() {
   const { startHostedAuth } = useHostedAuth();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -79,6 +81,11 @@ export default function LandingScreen() {
 
   const isFirst = page === 0;
   const isLast = page === LAST_PAGE;
+
+  const nextKey = LandingSlides[page + 1]?.key;
+  // Read out ahead of the tap, so someone using a screen reader knows where
+  // "Next" goes before they commit to going there.
+  const nextTitle = nextKey ? t(`landing.slides.${nextKey}.title`) : "";
 
   const onScroll = useMemo(
     () =>
@@ -118,7 +125,7 @@ export default function LandingScreen() {
         redirectUrl: AUTH_REDIRECT_URL,
       });
     } catch {
-      setError("We could not sign you in. Please try again.");
+      setError(t("landing.signInFailed"));
     } finally {
       setIsBusy(false);
     }
@@ -163,14 +170,14 @@ export default function LandingScreen() {
           style={styles.wordmark}
           accessibilityRole="header"
         >
-          Smaran
+          {t("landing.wordmark")}
         </Text>
 
         <Pressable
           onPress={() => goTo(LAST_PAGE)}
           hitSlop={HitSlop}
           accessibilityRole="button"
-          accessibilityLabel="Skip the introduction and sign in"
+          accessibilityLabel={t("landing.skipHint")}
           style={({ pressed }) => [
             styles.skip,
             {
@@ -182,7 +189,7 @@ export default function LandingScreen() {
           ]}
         >
           <Text variant="caption" style={styles.skipLabel}>
-            Skip
+            {t("landing.skip")}
           </Text>
         </Pressable>
       </View>
@@ -202,7 +209,7 @@ export default function LandingScreen() {
             close to the bottom edge as the safe area allows. */}
         {isLast ? (
           <Text variant="caption" center style={styles.hint}>
-            Your family can help you sign in the first time.
+            {t("landing.signInHint")}
           </Text>
         ) : null}
 
@@ -210,7 +217,10 @@ export default function LandingScreen() {
           count={LandingSlides.length}
           scrollX={scrollX}
           width={width}
-          label={`Page ${page + 1} of ${LandingSlides.length}`}
+          label={t("landing.page", {
+            current: page + 1,
+            total: LandingSlides.length,
+          })}
         />
 
         <View style={styles.controls}>
@@ -218,16 +228,18 @@ export default function LandingScreen() {
             icon="back"
             onPress={() => goTo(page - 1)}
             disabled={isFirst}
-            accessibilityLabel="Go back a page"
+            accessibilityLabel={t("landing.previousPage")}
           />
 
           <PillButton
-            label={isLast ? "Sign in" : "Next"}
+            label={isLast ? t("landing.signIn") : t("landing.next")}
             onPress={isLast ? signIn : () => goTo(page + 1)}
             icon="chevronRight"
             busy={isBusy}
             accessibilityLabel={
-              isLast ? "Sign in" : `Next: ${LandingSlides[page + 1]?.title}`
+              isLast
+                ? t("landing.signIn")
+                : t("landing.nextTo", { title: nextTitle })
             }
           />
         </View>

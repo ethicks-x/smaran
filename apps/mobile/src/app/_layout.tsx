@@ -6,7 +6,10 @@ import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect, useMemo } from "react";
 
+import "@/i18n";
+
 import { AppearanceProvider, useAppearance } from "@/hooks/use-appearance";
+import { LanguageProvider, useLanguage } from "@/hooks/use-language";
 import { RecallProvider, useRecall } from "@/hooks/use-recall";
 import { useTheme } from "@/hooks/use-theme";
 import type { ThemeColors } from "@/theme";
@@ -30,28 +33,32 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <AppearanceProvider>
-        <RecallProvider>
-          <RootNavigator />
-        </RecallProvider>
-      </AppearanceProvider>
+      <LanguageProvider>
+        <AppearanceProvider>
+          <RecallProvider>
+            <RootNavigator />
+          </RecallProvider>
+        </AppearanceProvider>
+      </LanguageProvider>
     </ClerkProvider>
   );
 }
 
 /**
  * Holds the splash screen until Clerk has restored the session and the reader's
- * appearance choices have been read back, then routes to the landing screen,
- * the once-a-launch name recall, or the app itself. Keeping the guard here means no screen ever renders in a
- * half-authenticated state — or, for a frame, in the wrong theme.
+ * appearance and language choices have been read back, then routes to the
+ * landing screen, the once-a-launch name recall, or the app itself. Keeping the
+ * guard here means no screen ever renders in a half-authenticated state — or,
+ * for a frame, in the wrong theme or the wrong language.
  */
 function RootNavigator() {
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const { isLoaded: isAppearanceLoaded } = useAppearance();
+  const { isLoaded: isLanguageLoaded } = useLanguage();
   const { isRecalled } = useRecall();
   const { isDark, colors } = useTheme();
 
-  const isLoaded = isAuthLoaded && isAppearanceLoaded;
+  const isLoaded = isAuthLoaded && isAppearanceLoaded && isLanguageLoaded;
 
   const navigationTheme = useMemo(
     () => toNavigationTheme(colors, isDark),

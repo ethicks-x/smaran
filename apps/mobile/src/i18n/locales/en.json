@@ -1,0 +1,249 @@
+{
+  "common": {
+    "back": "Back",
+    "goBack": "Go back",
+    "notSetYet": "Not set yet"
+  },
+  "tabs": {
+    "today": "Today",
+    "people": "People",
+    "memories": "Memories",
+    "help": "Help",
+    "settings": "Account"
+  },
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening",
+    "namedMorning": "Good morning, {{name}}",
+    "namedAfternoon": "Good afternoon, {{name}}",
+    "namedEvening": "Good evening, {{name}}"
+  },
+  "landing": {
+    "wordmark": "Smaran",
+    "skip": "Skip",
+    "skipHint": "Skip the introduction and sign in",
+    "next": "Next",
+    "nextTo": "Next: {{title}}",
+    "previousPage": "Go back a page",
+    "page": "Page {{current}} of {{total}}",
+    "signIn": "Sign in",
+    "signInHint": "Your family can help you sign in the first time.",
+    "signInFailed": "We could not sign you in. Please try again.",
+    "slides": {
+      "today": {
+        "kicker": "Today",
+        "title": "Your day, one thing at a time",
+        "body": "Reminders and medicines arrive in order, with a single large button to mark each one done."
+      },
+      "people": {
+        "kicker": "People",
+        "title": "The people who matter, always close",
+        "body": "Faces and names you can tap to call, so no one is ever more than one touch away."
+      },
+      "memories": {
+        "kicker": "Memories",
+        "title": "Memories, kept where you can find them",
+        "body": "Photos and moments your family shares land here, ready to look back on any time."
+      },
+      "help": {
+        "kicker": "Help",
+        "title": "Help, the moment you need it",
+        "body": "One tap reaches the person you trust most — day or night, wherever you are."
+      }
+    }
+  },
+  "recall": {
+    "question": "What is your name?",
+    "hint": "One letter at a time. No rush.",
+    "nameLabel": "Your first name",
+    "progressLabel": "How much of your name is right",
+    "correct": "That's right — hello, {{name}}.",
+    "placed_one": "{{correct}} in place, {{count}} in the wrong spot",
+    "placed_other": "{{correct}} in place, {{count}} in the wrong spot",
+    "lettersRight_one": "{{correct}} of {{count}} letter right",
+    "lettersRight_other": "{{correct}} of {{count}} letters right",
+    "reveal": "Show me my name",
+    "revealed": "Your name is {{name}}. Type it in to carry on."
+  },
+  "today": {
+    "nextUp": "Next up",
+    "nothingScheduled": "Nothing scheduled yet",
+    "nextUpPlaceholder": "When your family adds a reminder, it will appear here first.",
+    "restOfDay": "Rest of the day",
+    "restOfDayDescription": "Everything else planned for today.",
+    "emptyTitle": "No reminders today",
+    "emptyMessage": "Your day is clear. Anything your family adds will show up here."
+  },
+  "people": {
+    "title": "People",
+    "subtitle": "The people close to you, and how to reach them.",
+    "circle": "Your circle",
+    "emptyTitle": "No one added yet",
+    "emptyMessage": "Family and carers added on the caregiver dashboard will appear here with their photo and name."
+  },
+  "memories": {
+    "title": "Memories",
+    "subtitle": "Photos and moments your family shared.",
+    "recent": "Recently shared",
+    "emptyTitle": "No memories yet",
+    "emptyMessage": "Photos and stories shared with you will collect here, newest first."
+  },
+  "help": {
+    "title": "Help",
+    "subtitle": "Reach someone straight away, any time of day.",
+    "callSection": "Call for help",
+    "call": "Call for help",
+    "callNamed": "Call {{name}}",
+    "callHint": "Call your emergency contact now",
+    "callNote": "This calls your emergency contact and lets your family know.",
+    "noContactNote": "No emergency contact set yet. Your family can add one from the caregiver dashboard.",
+    "otherContacts": "Other contacts",
+    "otherContactsDescription": "People who can help when your first contact is busy.",
+    "backupPlaceholder": "Backup contacts will be listed here."
+  },
+  "account": {
+    "title": "Account",
+    "yourAccount": "Your account",
+    "yourPhoto": "Your photo",
+    "changePhoto": "Change your photo",
+    "todaysReminders": "Today's reminders",
+    "callForHelp": "Call for help",
+    "groupAccount": "Your account",
+    "groupSafety": "Safety and help",
+    "rows": {
+      "profile": {
+        "label": "Account",
+        "description": "Name, photo, email"
+      },
+      "notifications": {
+        "label": "Notifications",
+        "description": "Reminder sounds and quiet hours"
+      },
+      "appearance": {
+        "label": "Appearance"
+      },
+      "language": {
+        "label": "Language"
+      },
+      "privacy": {
+        "label": "Privacy and security",
+        "description": "Who can see your reminders",
+        "body": "Only the family members you have added can see your reminders and memories. Nobody else does, and nothing is shared outside the app."
+      },
+      "helpCentre": {
+        "label": "Help centre",
+        "description": "Reach someone straight away",
+        "body": "The Help tab calls someone who can help you, any time of day.",
+        "action": "Go to Help"
+      },
+      "about": {
+        "label": "About Smaran",
+        "description": "Version {{version}}",
+        "body": "Smaran is made to be read easily and used slowly: large type, big buttons, and never more than a few choices at once.",
+        "version": "Version"
+      },
+      "signOut": {
+        "label": "Sign out",
+        "description": "Leave this account on this phone",
+        "body": "You will need your email address to sign back in.",
+        "action": "Sign out",
+        "hint": "Sign out of Smaran"
+      }
+    }
+  },
+  "appearance": {
+    "title": "Appearance",
+    "subtitle": "How Smaran looks to you.",
+    "summary": "{{brightness}} · {{size}} text",
+    "brightness": "Brightness",
+    "brightnessFollowing": "Following your phone, which is {{scheme}} right now.",
+    "brightnessFixed": "Set here, whatever your phone is doing.",
+    "schemeLight": "light",
+    "schemeDark": "dark",
+    "textSize": "Text size",
+    "textSizeDescription": "Your phone's own text setting still applies on top of this.",
+    "sample": "Sample",
+    "sampleDescription": "A reminder, at your settings.",
+    "sampleTime": "9:00 in the morning",
+    "sampleTitle": "Blood pressure tablet",
+    "sampleBody": "One tablet with breakfast. Meera will be told once you have marked it done.",
+    "mode": {
+      "system": {
+        "label": "Match my phone",
+        "description": "Turns dark when your phone does."
+      },
+      "light": {
+        "label": "Always light",
+        "description": "Dark text on a pale background."
+      },
+      "dark": {
+        "label": "Always dark",
+        "description": "Pale text on a dark background. Easier at night."
+      }
+    },
+    "size": {
+      "normal": {
+        "label": "Normal",
+        "description": "The standard size."
+      },
+      "large": {
+        "label": "Large",
+        "description": "A little bigger."
+      },
+      "largest": {
+        "label": "Largest",
+        "description": "As big as Smaran goes. Fewer words fit on a screen."
+      }
+    }
+  },
+  "language": {
+    "title": "Language",
+    "subtitle": "The language Smaran speaks to you in.",
+    "choose": "Choose a language",
+    "chooseDescription": "Everything changes straight away. You can come back and change it again whenever you like.",
+    "groupLabel": "Language",
+    "offline": "Offline",
+    "offlineBody": "Every language is already on this phone. Changing it works with no signal, and nothing needs to be downloaded.",
+    "more": "More languages",
+    "moreBody": "Smaran will speak more languages of the North East as translations are checked by people who use them every day.",
+    "names": {
+      "en": "English",
+      "hi": "Hindi",
+      "bn": "Bengali",
+      "as": "Assamese"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "How Smaran reminds you.",
+    "sound": "Reminder sound",
+    "soundDescription": "Played when a reminder is due.",
+    "soundBody": "Reminders use your phone's default sound for now. A choice of sounds is coming.",
+    "repeat": "Repeat",
+    "repeatDescription": "What happens when a reminder goes unanswered.",
+    "repeatBody": "A reminder asks twice more, ten minutes apart, and then lets your family know it was missed.",
+    "quiet": "Quiet hours",
+    "quietDescription": "When Smaran stays silent.",
+    "quietBody": "Nothing sounds between 10pm and 7am, except a call for help."
+  },
+  "profile": {
+    "title": "Account",
+    "subtitle": "What Smaran knows about you.",
+    "details": "Your details",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "photo": "Your photo",
+    "photoDescription": "Shown at the top of the Account tab.",
+    "photoBody": "Your family can change your photo from the caregiver dashboard.",
+    "wrong": "Something wrong?",
+    "wrongDescription": "Anyone in your circle can correct these for you.",
+    "askForHelp": "Ask someone for help"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "That page does not exist. Let's get you back to your day.",
+    "action": "Go to Today"
+  }
+}

@@ -3,6 +3,7 @@ import { Icon } from "@expo/ui";
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import {
@@ -18,17 +19,11 @@ import {
   SettingsRow,
   Text,
 } from "@/components/ui";
-import { useAppearance } from "@/hooks/use-appearance";
+import { useAppearance, useAppearanceOptions } from "@/hooks/use-appearance";
+import { useLanguage } from "@/hooks/use-language";
 import { useThemeColors } from "@/hooks/use-theme";
-import {
-  HitSlop,
-  Radius,
-  Spacing,
-  scale,
-  TextSizeOptions,
-  ThemeModeOptions,
-  TouchTarget,
-} from "@/theme";
+import { Languages } from "@/i18n/languages";
+import { HitSlop, Radius, Spacing, scale, TouchTarget } from "@/theme";
 
 const AVATAR_SIZE = scale(140);
 const BADGE_SIZE = scale(50);
@@ -47,73 +42,73 @@ const HEADER_ICON_SIZE = scale(28);
  */
 export default function SettingsScreen() {
   const { signOut } = useAuth();
+  const { t } = useTranslation();
 
   const appearance = useAppearanceSummary();
+  const language = useLanguageSummary();
   const version = Constants.expoConfig?.version ?? "1.0.0";
 
   return (
-    <Screen title="Account" headerAction={<HeaderActions />}>
+    <Screen title={t("account.title")} headerAction={<HeaderActions />}>
       <Profile />
 
       <SettingsAccordion>
-        <SettingsGroup title="Your account">
+        <SettingsGroup title={t("account.groupAccount")}>
           <SettingsLink
             icon="profile"
             tint="primary"
-            label="Account"
-            description="Name, photo, email"
+            label={t("account.rows.profile.label")}
+            description={t("account.rows.profile.description")}
             onPress={() => router.push("/account/profile")}
           />
           <SettingsLink
             icon="reminder"
             tint="warning"
-            label="Notifications"
-            description="Reminder sounds and quiet hours"
+            label={t("account.rows.notifications.label")}
+            description={t("account.rows.notifications.description")}
             onPress={() => router.push("/account/notifications")}
           />
           <SettingsLink
             icon="appearance"
             tint="accent"
-            label="Appearance"
+            label={t("account.rows.appearance.label")}
             description={appearance}
             onPress={() => router.push("/account/appearance")}
           />
-          <SettingsRow
+          {/* A screen rather than an expanding row: the answer is a choice, and
+              the four names have to be shown in their own scripts to be
+              recognised at all. */}
+          <SettingsLink
             icon="language"
             tint="success"
-            label="Language"
-            description="English"
-          >
-            <Text variant="body" color="textSecondary">
-              Smaran speaks English today. More languages are on the way, and it
-              will follow the language your phone is set to when they arrive.
-            </Text>
-          </SettingsRow>
+            label={t("account.rows.language.label")}
+            description={language}
+            onPress={() => router.push("/account/language")}
+          />
         </SettingsGroup>
 
-        <SettingsGroup title="Safety and help">
+        <SettingsGroup title={t("account.groupSafety")}>
           <SettingsRow
             icon="security"
             tint="primary"
-            label="Privacy and security"
-            description="Who can see your reminders"
+            label={t("account.rows.privacy.label")}
+            description={t("account.rows.privacy.description")}
           >
             <Text variant="body" color="textSecondary">
-              Only the family members you have added can see your reminders and
-              memories. Nobody else does, and nothing is shared outside the app.
+              {t("account.rows.privacy.body")}
             </Text>
           </SettingsRow>
           <SettingsRow
             icon="help"
             tint="danger"
-            label="Help centre"
-            description="Reach someone straight away"
+            label={t("account.rows.helpCentre.label")}
+            description={t("account.rows.helpCentre.description")}
           >
             <Text variant="body" color="textSecondary">
-              The Help tab calls someone who can help you, any time of day.
+              {t("account.rows.helpCentre.body")}
             </Text>
             <ActionButton
-              label="Go to Help"
+              label={t("account.rows.helpCentre.action")}
               onPress={() => router.push("/help")}
               variant="outlined"
             />
@@ -121,30 +116,29 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="info"
             tint="neutral"
-            label="About Smaran"
-            description={`Version ${version}`}
+            label={t("account.rows.about.label")}
+            description={t("account.rows.about.description", { version })}
           >
             <Text variant="body" color="textSecondary">
-              Smaran is made to be read easily and used slowly: large type, big
-              buttons, and never more than a few choices at once.
+              {t("account.rows.about.body")}
             </Text>
-            <Detail label="Version" value={version} />
+            <Detail label={t("account.rows.about.version")} value={version} />
           </SettingsRow>
           <SettingsRow
             icon="signOut"
             tint="danger"
-            label="Sign out"
-            description="Leave this account on this phone"
+            label={t("account.rows.signOut.label")}
+            description={t("account.rows.signOut.description")}
           >
             <Text variant="body" color="textSecondary">
-              You will need your email address to sign back in.
+              {t("account.rows.signOut.body")}
             </Text>
             <ActionButton
-              label="Sign out"
+              label={t("account.rows.signOut.action")}
               onPress={() => signOut()}
               variant="outlined"
               tone="danger"
-              accessibilityLabel="Sign out of Smaran"
+              accessibilityLabel={t("account.rows.signOut.hint")}
             />
           </SettingsRow>
         </SettingsGroup>
@@ -158,16 +152,24 @@ export default function SettingsScreen() {
  * without opening the screen.
  */
 function useAppearanceSummary() {
+  const { t } = useTranslation();
   const { themeMode, textSize } = useAppearance();
+  const { themeModes, textSizes } = useAppearanceOptions();
 
-  const brightness = ThemeModeOptions.find(
-    (option) => option.value === themeMode,
-  )?.label;
-  const size = TextSizeOptions.find(
-    (option) => option.value === textSize,
-  )?.label;
+  const brightness = themeModes.find((o) => o.value === themeMode)?.label ?? "";
+  const size = textSizes.find((o) => o.value === textSize)?.label ?? "";
 
-  return `${brightness} · ${size} text`;
+  return t("appearance.summary", { brightness, size });
+}
+
+/**
+ * The Language row names its own answer in its own script, so someone who reads
+ * only Assamese can still tell at a glance that Assamese is what is set.
+ */
+function useLanguageSummary() {
+  const { language } = useLanguage();
+
+  return Languages.find((entry) => entry.code === language)?.endonym ?? "";
 }
 
 /**
@@ -175,16 +177,18 @@ function useAppearanceSummary() {
  * looks like a button is worse here than no button at all.
  */
 function HeaderActions() {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.headerActions}>
       <IconButton
         icon="reminder"
-        label="Today's reminders"
+        label={t("account.todaysReminders")}
         onPress={() => router.push("/")}
       />
       <IconButton
         icon="help"
-        label="Call for help"
+        label={t("account.callForHelp")}
         onPress={() => router.push("/help")}
       />
     </View>
@@ -200,6 +204,7 @@ function HeaderActions() {
 function Profile() {
   const colors = useThemeColors();
   const { user } = useUser();
+  const { t } = useTranslation();
 
   const name = user?.fullName?.trim() || user?.firstName?.trim();
   const email = user?.primaryEmailAddress?.emailAddress;
@@ -222,7 +227,7 @@ function Profile() {
               style={styles.avatarImage}
               contentFit="cover"
               accessibilityIgnoresInvertColors
-              accessibilityLabel="Your photo"
+              accessibilityLabel={t("account.yourPhoto")}
             />
           ) : (
             <Text variant="display" color="primary">
@@ -236,7 +241,7 @@ function Profile() {
           onPress={() => router.push("/account/profile")}
           hitSlop={HitSlop}
           accessibilityRole="button"
-          accessibilityLabel="Change your photo"
+          accessibilityLabel={t("account.changePhoto")}
           style={({ pressed }) => [
             styles.avatarBadge,
             { backgroundColor: colors.accent, borderColor: colors.background },
@@ -255,7 +260,7 @@ function Profile() {
 
       <View style={styles.profileText}>
         <Text variant="heading" center>
-          {name ?? "Your account"}
+          {name ?? t("account.yourAccount")}
         </Text>
         {email ? (
           <Text variant="caption" color="textSecondary" center>

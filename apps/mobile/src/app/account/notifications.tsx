@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 import { Screen, Section, Surface, Text } from "@/components/ui";
 
@@ -9,41 +10,44 @@ import { Screen, Section, Surface, Text } from "@/components/ui";
  * reminder sound, repeat count and quiet hours.
  */
 export default function NotificationsScreen() {
+  const { t } = useTranslation();
+
   return (
     <Screen
-      title="Notifications"
-      subtitle="How Smaran reminds you."
+      title={t("notifications.title")}
+      subtitle={t("notifications.subtitle")}
       onBack={() => router.back()}
       withTabBar={false}
     >
       <Section
-        title="Reminder sound"
-        description="Played when a reminder is due."
+        title={t("notifications.sound")}
+        description={t("notifications.soundDescription")}
       >
         <Surface tone="muted">
           <Text variant="body" color="textSecondary">
-            Reminders use your phone's default sound for now. A choice of sounds
-            is coming.
+            {t("notifications.soundBody")}
           </Text>
         </Surface>
       </Section>
 
       <Section
-        title="Repeat"
-        description="What happens when a reminder goes unanswered."
+        title={t("notifications.repeat")}
+        description={t("notifications.repeatDescription")}
       >
         <Surface tone="muted">
           <Text variant="body" color="textSecondary">
-            A reminder asks twice more, ten minutes apart, and then lets your
-            family know it was missed.
+            {t("notifications.repeatBody")}
           </Text>
         </Surface>
       </Section>
 
-      <Section title="Quiet hours" description="When Smaran stays silent.">
+      <Section
+        title={t("notifications.quiet")}
+        description={t("notifications.quietDescription")}
+      >
         <Surface tone="muted">
           <Text variant="body" color="textSecondary">
-            Nothing sounds between 10pm and 7am, except a call for help.
+            {t("notifications.quietBody")}
           </Text>
         </Surface>
       </Section>

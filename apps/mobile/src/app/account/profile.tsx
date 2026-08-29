@@ -1,5 +1,6 @@
 import { useUser } from "@clerk/expo";
 import { router } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 import {
   ActionButton,
@@ -20,43 +21,45 @@ import {
  */
 export default function ProfileScreen() {
   const { user } = useUser();
+  const { t } = useTranslation();
 
   const name = user?.fullName?.trim() || user?.firstName?.trim();
   const email = user?.primaryEmailAddress?.emailAddress;
   const phone = user?.primaryPhoneNumber?.phoneNumber;
+  const unset = t("common.notSetYet");
 
   return (
     <Screen
-      title="Account"
-      subtitle="What Smaran knows about you."
+      title={t("profile.title")}
+      subtitle={t("profile.subtitle")}
       onBack={() => router.back()}
       withTabBar={false}
     >
-      <Section title="Your details">
+      <Section title={t("profile.details")}>
         <Surface>
-          <Detail label="Name" value={name ?? "Not set yet"} />
-          <Detail label="Email" value={email ?? "Not set yet"} />
-          <Detail label="Phone" value={phone ?? "Not set yet"} />
+          <Detail label={t("profile.name")} value={name ?? unset} />
+          <Detail label={t("profile.email")} value={email ?? unset} />
+          <Detail label={t("profile.phone")} value={phone ?? unset} />
         </Surface>
       </Section>
 
       <Section
-        title="Your photo"
-        description="Shown at the top of the Account tab."
+        title={t("profile.photo")}
+        description={t("profile.photoDescription")}
       >
         <Surface tone="muted">
           <Text variant="body" color="textSecondary">
-            Your family can change your photo from the caregiver dashboard.
+            {t("profile.photoBody")}
           </Text>
         </Surface>
       </Section>
 
       <Section
-        title="Something wrong?"
-        description="Anyone in your circle can correct these for you."
+        title={t("profile.wrong")}
+        description={t("profile.wrongDescription")}
       >
         <ActionButton
-          label="Ask someone for help"
+          label={t("profile.askForHelp")}
           onPress={() => router.push("/help")}
           variant="outlined"
         />

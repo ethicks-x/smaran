@@ -1,10 +1,11 @@
 import { router } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
 import { ChoiceGroup, Screen, Section, Surface, Text } from "@/components/ui";
-import { useAppearance } from "@/hooks/use-appearance";
+import { useAppearance, useAppearanceOptions } from "@/hooks/use-appearance";
 import { useTheme } from "@/hooks/use-theme";
-import { Spacing, TextSizeOptions, ThemeModeOptions } from "@/theme";
+import { Spacing } from "@/theme";
 
 /**
  * Appearance — how bright Smaran is, and how large it reads.
@@ -16,44 +17,55 @@ import { Spacing, TextSizeOptions, ThemeModeOptions } from "@/theme";
  */
 export default function AppearanceScreen() {
   const { themeMode, textSize, setThemeMode, setTextSize } = useAppearance();
+  const { themeModes, textSizes } = useAppearanceOptions();
   const { scheme } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <Screen
-      title="Appearance"
-      subtitle="How Smaran looks to you."
+      title={t("appearance.title")}
+      subtitle={t("appearance.subtitle")}
       onBack={() => router.back()}
       withTabBar={false}
     >
       <Section
-        title="Brightness"
+        title={t("appearance.brightness")}
         description={
           themeMode === "system"
-            ? `Following your phone, which is ${scheme} right now.`
-            : "Set here, whatever your phone is doing."
+            ? t("appearance.brightnessFollowing", {
+                scheme: t(
+                  scheme === "dark"
+                    ? "appearance.schemeDark"
+                    : "appearance.schemeLight",
+                ),
+              })
+            : t("appearance.brightnessFixed")
         }
       >
         <ChoiceGroup
-          label="Brightness"
-          options={ThemeModeOptions}
+          label={t("appearance.brightness")}
+          options={themeModes}
           value={themeMode}
           onChange={setThemeMode}
         />
       </Section>
 
       <Section
-        title="Text size"
-        description="Your phone's own text setting still applies on top of this."
+        title={t("appearance.textSize")}
+        description={t("appearance.textSizeDescription")}
       >
         <ChoiceGroup
-          label="Text size"
-          options={TextSizeOptions}
+          label={t("appearance.textSize")}
+          options={textSizes}
           value={textSize}
           onChange={setTextSize}
         />
       </Section>
 
-      <Section title="Sample" description="A reminder, at your settings.">
+      <Section
+        title={t("appearance.sample")}
+        description={t("appearance.sampleDescription")}
+      >
         <Preview />
       </Section>
     </Screen>
@@ -65,16 +77,17 @@ export default function AppearanceScreen() {
  * easier against something you already know how to read.
  */
 function Preview() {
+  const { t } = useTranslation();
+
   return (
     <Surface>
       <View style={styles.preview}>
         <Text variant="caption" color="textSecondary">
-          9:00 in the morning
+          {t("appearance.sampleTime")}
         </Text>
-        <Text variant="heading">Blood pressure tablet</Text>
+        <Text variant="heading">{t("appearance.sampleTitle")}</Text>
         <Text variant="body" color="textSecondary">
-          One tablet with breakfast. Meera will be told once you have marked it
-          done.
+          {t("appearance.sampleBody")}
         </Text>
       </View>
     </Surface>

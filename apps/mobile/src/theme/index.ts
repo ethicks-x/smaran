@@ -1,16 +1,7 @@
 import "@/global.css";
 
-export type {
-  TextSize,
-  TextSizeOption,
-  ThemeMode,
-  ThemeModeOption,
-} from "./appearance";
-export {
-  TextSizeOptions,
-  TextSizeScales,
-  ThemeModeOptions,
-} from "./appearance";
+export type { TextSize, ThemeMode } from "./appearance";
+export { TextSizeScales, TextSizes, ThemeModes } from "./appearance";
 export type { ColorScheme, ThemeColor, ThemeColors } from "./colors";
 export { Colors } from "./colors";
 export {

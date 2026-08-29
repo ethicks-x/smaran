@@ -1,5 +1,6 @@
 import { Icon } from "@expo/ui";
 import { TopTabs } from "expo-router/js-top-tabs";
+import { useTranslation } from "react-i18next";
 import type { ColorValue } from "react-native";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,6 +39,7 @@ type TabStateProps = { focused: boolean; color: ColorValue };
 export default function TabLayout() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   return (
     <TopTabs
@@ -79,7 +81,7 @@ export default function TabLayout() {
       <TopTabs.Screen
         name="index"
         options={{
-          title: "Today",
+          title: t("tabs.today"),
           tabBarIcon: (props: TabStateProps) => (
             <TabIcon name="today" {...props} />
           ),
@@ -90,7 +92,7 @@ export default function TabLayout() {
       <TopTabs.Screen
         name="people"
         options={{
-          title: "People",
+          title: t("tabs.people"),
           tabBarIcon: (props: TabStateProps) => (
             <TabIcon name="people" {...props} />
           ),
@@ -101,7 +103,7 @@ export default function TabLayout() {
       <TopTabs.Screen
         name="memories"
         options={{
-          title: "Memories",
+          title: t("tabs.memories"),
           tabBarIcon: (props: TabStateProps) => (
             <TabIcon name="memories" {...props} />
           ),
@@ -112,7 +114,7 @@ export default function TabLayout() {
       <TopTabs.Screen
         name="help"
         options={{
-          title: "Help",
+          title: t("tabs.help"),
           tabBarIcon: (props: TabStateProps) => (
             <TabIcon name="help" {...props} />
           ),
@@ -123,7 +125,7 @@ export default function TabLayout() {
       <TopTabs.Screen
         name="settings"
         options={{
-          title: "Settings",
+          title: t("tabs.settings"),
           tabBarIcon: (props: TabStateProps) => (
             <TabIcon name="settings" {...props} />
           ),

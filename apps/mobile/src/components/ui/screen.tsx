@@ -1,5 +1,6 @@
 import { Icon } from "@expo/ui";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -48,6 +49,7 @@ export function Screen({
 }: ScreenProps) {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   const header = (
     <View style={styles.headerBlock}>
@@ -56,7 +58,7 @@ export function Screen({
           onPress={onBack}
           hitSlop={HitSlop}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("common.goBack")}
           style={({ pressed }) => [
             styles.back,
             { backgroundColor: colors.surfaceMuted },
@@ -66,7 +68,7 @@ export function Screen({
           <NativeHost>
             <Icon name={AppIcons.back} size={scale(26)} color={colors.text} />
           </NativeHost>
-          <Text variant="label">Back</Text>
+          <Text variant="label">{t("common.back")}</Text>
         </Pressable>
       ) : null}
 

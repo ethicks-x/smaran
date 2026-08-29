@@ -1,15 +1,18 @@
 import { router } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 import { ActionButton, Screen, Text } from "@/components/ui";
 
 export default function NotFoundScreen() {
+  const { t } = useTranslation();
+
   return (
-    <Screen title="Page not found" withTabBar={false}>
+    <Screen title={t("notFound.title")} withTabBar={false}>
       <Text variant="bodyLarge" color="textSecondary">
-        That page does not exist. Let's get you back to your day.
+        {t("notFound.body")}
       </Text>
       <ActionButton
-        label="Go to Today"
+        label={t("notFound.action")}
         onPress={() => router.replace("/")}
         size="large"
       />

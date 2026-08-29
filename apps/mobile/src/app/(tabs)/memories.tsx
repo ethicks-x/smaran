@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { EmptyState, Screen, Section } from "@/components/ui";
 
 /**
@@ -7,13 +9,15 @@ import { EmptyState, Screen, Section } from "@/components/ui";
  * captions read aloud on tap.
  */
 export default function MemoriesScreen() {
+  const { t } = useTranslation();
+
   return (
-    <Screen title="Memories" subtitle="Photos and moments your family shared.">
-      <Section title="Recently shared">
+    <Screen title={t("memories.title")} subtitle={t("memories.subtitle")}>
+      <Section title={t("memories.recent")}>
         <EmptyState
           icon="memories"
-          title="No memories yet"
-          message="Photos and stories shared with you will collect here, newest first."
+          title={t("memories.emptyTitle")}
+          message={t("memories.emptyMessage")}
         />
       </Section>
     </Screen>

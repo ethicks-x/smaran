@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { EmptyState, Screen, Section } from "@/components/ui";
 
 /**
@@ -8,16 +10,15 @@ import { EmptyState, Screen, Section } from "@/components/ui";
  * relationships, each tile opening a call/profile view.
  */
 export default function PeopleScreen() {
+  const { t } = useTranslation();
+
   return (
-    <Screen
-      title="People"
-      subtitle="The people close to you, and how to reach them."
-    >
-      <Section title="Your circle">
+    <Screen title={t("people.title")} subtitle={t("people.subtitle")}>
+      <Section title={t("people.circle")}>
         <EmptyState
           icon="people"
-          title="No one added yet"
-          message="Family and carers added on the caregiver dashboard will appear here with their photo and name."
+          title={t("people.emptyTitle")}
+          message={t("people.emptyMessage")}
         />
       </Section>
     </Screen>

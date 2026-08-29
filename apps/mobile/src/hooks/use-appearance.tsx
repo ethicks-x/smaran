@@ -9,8 +9,11 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 
+import type { Choice } from "@/components/ui";
 import type { TextSize, ThemeMode } from "@/theme";
+import { TextSizes, ThemeModes } from "@/theme";
 
 const STORAGE_KEY = "smaran.appearance";
 
@@ -122,6 +125,34 @@ export function useAppearancePreferences(): AppearancePreferences {
   const value = useContext(AppearanceContext);
 
   return value ?? DEFAULTS;
+}
+
+/**
+ * The brightness and text-size choices, labelled in the reader's own language.
+ *
+ * Built here rather than in the token table so there is exactly one place that
+ * knows a `ThemeMode` is named by `appearance.mode.<value>` — the Appearance
+ * screen offers these rows and the Account screen summarises them, and the two
+ * must never drift apart.
+ */
+export function useAppearanceOptions() {
+  const { t } = useTranslation();
+
+  return useMemo(
+    () => ({
+      themeModes: ThemeModes.map<Choice<ThemeMode>>((value) => ({
+        value,
+        label: t(`appearance.mode.${value}.label`),
+        description: t(`appearance.mode.${value}.description`),
+      })),
+      textSizes: TextSizes.map<Choice<TextSize>>((value) => ({
+        value,
+        label: t(`appearance.size.${value}.label`),
+        description: t(`appearance.size.${value}.description`),
+      })),
+    }),
+    [t],
+  );
 }
 
 /**

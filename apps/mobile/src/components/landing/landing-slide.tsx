@@ -1,4 +1,5 @@
 import { Image } from "expo-image";
+import { useTranslation } from "react-i18next";
 import { Animated, StyleSheet, View } from "react-native";
 
 import { OnArt } from "@/components/landing/on-art";
@@ -44,6 +45,8 @@ export function LandingSlide({
   topInset,
   bottomInset,
 }: LandingSlideProps) {
+  const { t } = useTranslation();
+
   // Neighbouring pages either side, so the art is already drifting into place
   // before the page it belongs to is on screen.
   const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
@@ -103,13 +106,13 @@ export function LandingSlide({
         ]}
       >
         <Text variant="caption" style={styles.kicker}>
-          {slide.kicker.toUpperCase()}
+          {t(`landing.slides.${slide.key}.kicker`).toLocaleUpperCase()}
         </Text>
         <Text variant="display" style={styles.title} accessibilityRole="header">
-          {slide.title}
+          {t(`landing.slides.${slide.key}.title`)}
         </Text>
         <Text variant="bodyLarge" style={styles.body}>
-          {slide.body}
+          {t(`landing.slides.${slide.key}.body`)}
         </Text>
       </Animated.View>
     </View>
