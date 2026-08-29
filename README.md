@@ -34,8 +34,8 @@ To be updated...
 3. tmux
 
     - Linux & macOS: *Available to mostly all package managers*
-    - Windows: *Not Available*  ([psmux](https://github.com/psmux/psmux#installation) can be an alternative)
-    [See More](https://github.com/tmux/tmux/wiki/Installincg)  
+    - Windows: *Not Available*  ([psmux](https://github.com/psmux/psmux#installation) can be an alternative)  
+    [See More](https://github.com/tmux/tmux/wiki/Installing)  
     [Key bindings](https://tmuxcheatsheet.com/)
 
 4. task
