@@ -51,3 +51,19 @@ export const TextStyles = {
 } satisfies Record<string, TextStyle>;
 
 export type TextVariant = keyof typeof TextStyles;
+
+/**
+ * The heavier face used when the reader has asked for bold text — one step up
+ * the weight scale rather than a jump to 700 everywhere, which would flatten
+ * the difference between a heading and the paragraph under it.
+ */
+export function boldWeight(weight: TextStyle["fontWeight"]) {
+  return BOLDER[String(weight)] ?? weight;
+}
+
+const BOLDER: Record<string, TextStyle["fontWeight"]> = {
+  "400": "600",
+  "500": "600",
+  "600": "700",
+  "700": "800",
+};

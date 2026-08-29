@@ -12,8 +12,8 @@ import {
 import { useTranslation } from "react-i18next";
 
 import type { Choice } from "@/components/ui";
-import type { TextSize, ThemeMode } from "@/theme";
-import { TextSizes, ThemeModes } from "@/theme";
+import type { HighlightColor, TextSize, ThemeMode } from "@/theme";
+import { HighlightColors, TextSizes, ThemeModes } from "@/theme";
 
 const STORAGE_KEY = "smaran.appearance";
 
@@ -21,6 +21,10 @@ export type AppearancePreferences = {
   /** What the reader chose, which is not always what is on screen. */
   themeMode: ThemeMode;
   textSize: TextSize;
+  /** Recolours the `primary` triple only — never a warning or an SOS. */
+  highlight: HighlightColor;
+  /** Sets every weight in the type scale one step heavier. */
+  boldText: boolean;
 };
 
 export type AppearanceValue = AppearancePreferences & {
@@ -28,11 +32,15 @@ export type AppearanceValue = AppearancePreferences & {
   isLoaded: boolean;
   setThemeMode: (mode: ThemeMode) => void;
   setTextSize: (size: TextSize) => void;
+  setHighlight: (highlight: HighlightColor) => void;
+  setBoldText: (boldText: boolean) => void;
 };
 
 const DEFAULTS: AppearancePreferences = {
   themeMode: "system",
   textSize: "normal",
+  highlight: "blue",
+  boldText: false,
 };
 
 /**
@@ -98,6 +106,8 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
       isLoaded,
       setThemeMode: (themeMode) => update({ themeMode }),
       setTextSize: (textSize) => update({ textSize }),
+      setHighlight: (highlight) => update({ highlight }),
+      setBoldText: (boldText) => update({ boldText }),
     }),
     [preferences, isLoaded, update],
   );
@@ -113,7 +123,16 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
 export function useAppearance(): AppearanceValue {
   const value = useContext(AppearanceContext);
 
-  return value ?? { ...DEFAULTS, isLoaded: true, setThemeMode, setTextSize };
+  return (
+    value ?? {
+      ...DEFAULTS,
+      isLoaded: true,
+      setThemeMode: noop,
+      setTextSize: noop,
+      setHighlight: noop,
+      setBoldText: noop,
+    }
+  );
 }
 
 /**
@@ -128,7 +147,7 @@ export function useAppearancePreferences(): AppearancePreferences {
 }
 
 /**
- * The brightness and text-size choices, labelled in the reader's own language.
+ * The appearance choices, labelled in the reader's own language.
  *
  * Built here rather than in the token table so there is exactly one place that
  * knows a `ThemeMode` is named by `appearance.mode.<value>` — the Appearance
@@ -150,13 +169,17 @@ export function useAppearanceOptions() {
         label: t(`appearance.size.${value}.label`),
         description: t(`appearance.size.${value}.description`),
       })),
+      highlights: HighlightColors.map<Choice<HighlightColor>>((value) => ({
+        value,
+        label: t(`appearance.highlight.${value}`),
+      })),
     }),
     [t],
   );
 }
 
 /**
- * Two settings and no secrets, but `expo-secure-store` is the only key/value
+ * Four settings and no secrets, but `expo-secure-store` is the only key/value
  * store the app already ships. It is unavailable on the web build, so every
  * call is allowed to fail quietly — losing a preference is a smaller harm than
  * refusing to start.
@@ -189,6 +212,13 @@ function parse(raw: string): AppearancePreferences | null {
       textSize: isTextSize(stored.textSize)
         ? stored.textSize
         : DEFAULTS.textSize,
+      highlight: isHighlight(stored.highlight)
+        ? stored.highlight
+        : DEFAULTS.highlight,
+      boldText:
+        typeof stored.boldText === "boolean"
+          ? stored.boldText
+          : DEFAULTS.boldText,
     };
   } catch {
     return null;
@@ -201,6 +231,8 @@ const isThemeMode = (value: unknown): value is ThemeMode =>
 const isTextSize = (value: unknown): value is TextSize =>
   value === "normal" || value === "large" || value === "largest";
 
-/** No-ops for the no-provider case: nothing to change, nothing to store. */
-function setThemeMode() {}
-function setTextSize() {}
+const isHighlight = (value: unknown): value is HighlightColor =>
+  HighlightColors.some((highlight) => highlight === value);
+
+/** No-op for the no-provider case: nothing to change, nothing to store. */
+function noop() {}

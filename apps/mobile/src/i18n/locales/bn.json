@@ -156,6 +156,7 @@
     "title": "চেহারা",
     "subtitle": "স্মরণ আপনার চোখে কেমন দেখায়।",
     "summary": "{{brightness}} · {{size}} লেখা",
+    "themeTitle": "থিম",
     "brightness": "উজ্জ্বলতা",
     "brightnessFollowing": "আপনার ফোন অনুযায়ী, যা এখন {{scheme}}।",
     "brightnessFixed": "এখানেই ঠিক করা, আপনার ফোন যা-ই করুক।",
@@ -163,26 +164,37 @@
     "schemeDark": "গাঢ়",
     "textSize": "লেখার আকার",
     "textSizeDescription": "আপনার ফোনের নিজের লেখার সেটিং এর উপরেও কাজ করে।",
+    "highlightTitle": "প্রধান রঙ",
+    "highlightDescription": "বোতামে আর আপনি যা বেছে নিয়েছেন তাতে স্মরণ এই রঙটাই ব্যবহার করে।",
+    "boldTitle": "মোটা লেখা",
+    "boldDescription": "অক্ষর বড় না করেই একটু মোটা করে লেখা।",
+    "boldToggle": "মোটা লেখা ব্যবহার করুন",
+    "boldToggleDescription": "স্মরণের সব লেখা একটু মোটা হয়ে যাবে।",
     "sample": "নমুনা",
     "sampleDescription": "আপনার সেটিং-এ একটি রিমাইন্ডার।",
     "sampleTime": "সকাল 9টা",
     "sampleTitle": "রক্তচাপের ওষুধ",
     "sampleBody": "সকালের খাবারের সঙ্গে একটি ওষুধ। আপনি শেষ বলে চিহ্ন দিলেই মীরা জানতে পারবেন।",
+    "sampleLetter": "অ",
     "mode": {
       "system": {
-        "label": "আমার ফোনের মতো",
+        "label": "আমার ফোন",
         "description": "আপনার ফোন গাঢ় হলে এটিও গাঢ় হয়।"
       },
       "light": {
-        "label": "সবসময় হালকা",
+        "label": "হালকা",
         "description": "হালকা পটভূমিতে গাঢ় লেখা।"
       },
       "dark": {
-        "label": "সবসময় গাঢ়",
+        "label": "গাঢ়",
         "description": "গাঢ় পটভূমিতে হালকা লেখা। রাতে সহজ।"
       }
     },
     "size": {
+      "small": {
+        "label": "ছোট",
+        "description": "স্বাভাবিকের চেয়ে একটু ছোট।"
+      },
       "normal": {
         "label": "স্বাভাবিক",
         "description": "এটিই আদর্শ আকার।"
@@ -195,6 +207,14 @@
         "label": "সবচেয়ে বড়",
         "description": "স্মরণ যতটা বড় করতে পারে। এক পর্দায় কম শব্দ ধরে।"
       }
+    },
+    "highlight": {
+      "blue": "নীল",
+      "teal": "ফিরোজা",
+      "green": "সবুজ",
+      "marigold": "গাঁদা",
+      "rose": "গোলাপি",
+      "plum": "বেগুনি"
     }
   },
   "language": {

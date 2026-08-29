@@ -5,8 +5,13 @@ import {
   StyleSheet,
 } from "react-native";
 
-import { useTextScale, useThemeColors } from "@/hooks/use-theme";
-import { TextStyles, type TextVariant, type ThemeColor } from "@/theme";
+import { useBoldText, useTextScale, useThemeColors } from "@/hooks/use-theme";
+import {
+  boldWeight,
+  TextStyles,
+  type TextVariant,
+  type ThemeColor,
+} from "@/theme";
 
 export type TextProps = RNTextProps & {
   /** Role in the type scale. Defaults to `body`. */
@@ -30,10 +35,11 @@ export function Text({
 }: TextProps) {
   const colors = useThemeColors();
   const textScale = useTextScale();
+  const bold = useBoldText();
 
   const sized = useMemo(
-    () => sizeFor(variant, textScale),
-    [variant, textScale],
+    () => sizeFor(variant, textScale, bold),
+    [variant, textScale, bold],
   );
 
   return (
@@ -53,8 +59,8 @@ export function Text({
 }
 
 /** Size and leading grow together, so long paragraphs keep their rhythm. */
-function sizeFor(variant: TextVariant, textScale: number) {
-  if (textScale === 1) {
+function sizeFor(variant: TextVariant, textScale: number, bold: boolean) {
+  if (textScale === 1 && !bold) {
     return null;
   }
 
@@ -63,6 +69,7 @@ function sizeFor(variant: TextVariant, textScale: number) {
   return {
     fontSize: Math.round(base.fontSize * textScale),
     lineHeight: Math.round(base.lineHeight * textScale),
+    fontWeight: bold ? boldWeight(base.fontWeight) : base.fontWeight,
   };
 }
 

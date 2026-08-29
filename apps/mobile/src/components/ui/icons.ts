@@ -101,6 +101,14 @@ export const AppIcons = {
     ios: "speaker.wave.2.fill",
     android: require("@expo/material-symbols/volume_up.xml"),
   }),
+  highlight: Icon.select({
+    ios: "paintbrush.pointed.fill",
+    android: require("@expo/material-symbols/colorize.xml"),
+  }),
+  boldText: Icon.select({
+    ios: "bold",
+    android: require("@expo/material-symbols/format_bold.xml"),
+  }),
   schedule: Icon.select({
     ios: "clock.fill",
     android: require("@expo/material-symbols/schedule.xml"),

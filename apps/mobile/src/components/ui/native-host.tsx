@@ -1,19 +1,8 @@
 import { Host, type UniversalHostProps } from "@expo/ui";
 
+import { useAppearancePreferences } from "@/hooks/use-appearance";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors } from "@/theme";
-
-/**
- * The brand colour the native side derives its own palette from.
- *
- * Deliberately one constant rather than the current theme's `primary`. A seed
- * is not a colour to paint — it is the root of a tonal palette, which the
- * platform regenerates from scratch every time the value changes, in every host
- * on screen. Handing it a fixed seed and letting `colorScheme` say which end of
- * that palette to use means switching light to dark no longer rebuilds a
- * Material 3 scheme per icon.
- */
-const SEED_COLOR = Colors.light.primary;
+import { Highlights } from "@/theme";
 
 /**
  * Bridges into SwiftUI (iOS) / Jetpack Compose (Android) with the app theme
@@ -27,12 +16,19 @@ export function NativeHost({
   ...rest
 }: UniversalHostProps) {
   const scheme = useColorScheme();
+  const { highlight } = useAppearancePreferences();
 
+  // The seed is the light-scheme primary in both schemes, deliberately. A seed
+  // is not a colour to paint — it is the root of a tonal palette, which the
+  // platform regenerates from scratch every time the value changes, in every
+  // host on screen. Letting `colorScheme` say which end of that palette to use
+  // means switching light to dark no longer rebuilds a Material 3 scheme per
+  // icon; only the reader changing their highlight does, which is rare.
   return (
     <Host
       matchContents={matchContents}
       colorScheme={scheme}
-      seedColor={SEED_COLOR}
+      seedColor={Highlights[highlight].light.primary}
       {...rest}
     />
   );

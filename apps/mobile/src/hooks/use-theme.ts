@@ -1,6 +1,6 @@
 import { useAppearancePreferences } from "@/hooks/use-appearance";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Colors, TextSizeScales, type ThemeColors } from "@/theme";
+import { TextSizeScales, type ThemeColors, themeColors } from "@/theme";
 
 export type Theme = {
   scheme: "light" | "dark";
@@ -8,16 +8,16 @@ export type Theme = {
   colors: ThemeColors;
 };
 
-/** The resolved theme for the current colour scheme. */
+/** The resolved theme for the current colour scheme and highlight. */
 export function useTheme(): Theme {
   const scheme = useColorScheme();
 
-  return { scheme, isDark: scheme === "dark", colors: Colors[scheme] };
+  return { scheme, isDark: scheme === "dark", colors: useThemeColors() };
 }
 
 /** Shorthand for the common case of only needing colours. */
 export function useThemeColors(): ThemeColors {
-  return Colors[useColorScheme()];
+  return themeColors(useColorScheme(), useAppearancePreferences().highlight);
 }
 
 /**
@@ -27,4 +27,9 @@ export function useThemeColors(): ThemeColors {
  */
 export function useTextScale(): number {
   return TextSizeScales[useAppearancePreferences().textSize];
+}
+
+/** Whether the reader has asked for a heavier face. `Text` applies it. */
+export function useBoldText(): boolean {
+  return useAppearancePreferences().boldText;
 }

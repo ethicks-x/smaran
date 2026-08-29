@@ -156,6 +156,7 @@
     "title": "ৰূপ",
     "subtitle": "স্মৰণ আপোনাৰ চকুত কেনেকৈ দেখা যায়।",
     "summary": "{{brightness}} · {{size}} আখৰ",
+    "themeTitle": "থিম",
     "brightness": "উজ্জ্বলতা",
     "brightnessFollowing": "আপোনাৰ ফোন অনুসৰি, যিটো এতিয়া {{scheme}}।",
     "brightnessFixed": "ইয়াতেই ঠিক কৰা, আপোনাৰ ফোনে যিয়েই নকৰক।",
@@ -163,26 +164,37 @@
     "schemeDark": "গাঢ়",
     "textSize": "আখৰৰ আকাৰ",
     "textSizeDescription": "আপোনাৰ ফোনৰ নিজৰ আখৰৰ ছেটিংটোও ইয়াৰ ওপৰত কাম কৰে।",
+    "highlightTitle": "মুখ্য ৰং",
+    "highlightDescription": "বুটামত আৰু আপুনি যিবোৰ বাছি লৈছে তাত স্মৰণে এই ৰংটোৱেই ব্যৱহাৰ কৰে।",
+    "boldTitle": "ডাঠ আখৰ",
+    "boldDescription": "আখৰ ডাঙৰ নকৰাকৈ অলপ ডাঠ কৰি লিখা।",
+    "boldToggle": "ডাঠ আখৰ ব্যৱহাৰ কৰক",
+    "boldToggleDescription": "স্মৰণৰ সকলো লিখা অলপ ডাঠ হ'ব।",
     "sample": "নমুনা",
     "sampleDescription": "আপোনাৰ ছেটিঙত এটা ৰিমাইণ্ডাৰ।",
     "sampleTime": "ৰাতিপুৱা 9 বজাত",
     "sampleTitle": "ৰক্তচাপৰ বড়ি",
     "sampleBody": "ৰাতিপুৱাৰ আহাৰৰ সৈতে এটা বড়ি। আপুনি শেষ বুলি চিন দিলেই মীৰাই জানিব পাৰিব।",
+    "sampleLetter": "অ",
     "mode": {
       "system": {
-        "label": "মোৰ ফোনৰ দৰে",
+        "label": "মোৰ ফোন",
         "description": "আপোনাৰ ফোন গাঢ় হ'লে এইটোও গাঢ় হয়।"
       },
       "light": {
-        "label": "সদায় পাতল",
+        "label": "পাতল",
         "description": "পাতল পটভূমিত গাঢ় আখৰ।"
       },
       "dark": {
-        "label": "সদায় গাঢ়",
+        "label": "গাঢ়",
         "description": "গাঢ় পটভূমিত পাতল আখৰ। ৰাতি সহজ।"
       }
     },
     "size": {
+      "small": {
+        "label": "ছোট",
+        "description": "অলপ বেছি ছোট।"
+      },
       "normal": {
         "label": "সাধাৰণ",
         "description": "এইটোৱেই আদৰ্শ আকাৰ।"
@@ -195,6 +207,14 @@
         "label": "আটাইতকৈ ডাঙৰ",
         "description": "স্মৰণে যিমান ডাঙৰ কৰিব পাৰে। এখন পৰ্দাত কম শব্দ ধৰে।"
       }
+    },
+    "highlight": {
+      "blue": "নীলা",
+      "teal": "ফিৰোজা",
+      "green": "সেউজীয়া",
+      "marigold": "গেন্দা",
+      "rose": "গোলাপী",
+      "plum": "বেঙুনীয়া"
     }
   },
   "language": {

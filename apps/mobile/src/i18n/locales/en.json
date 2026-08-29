@@ -156,6 +156,7 @@
     "title": "Appearance",
     "subtitle": "How Smaran looks to you.",
     "summary": "{{brightness}} · {{size}} text",
+    "themeTitle": "Theme",
     "brightness": "Brightness",
     "brightnessFollowing": "Following your phone, which is {{scheme}} right now.",
     "brightnessFixed": "Set here, whatever your phone is doing.",
@@ -163,26 +164,37 @@
     "schemeDark": "dark",
     "textSize": "Text size",
     "textSizeDescription": "Your phone's own text setting still applies on top of this.",
+    "highlightTitle": "Highlight colour",
+    "highlightDescription": "The colour Smaran uses for its buttons and for whatever you have chosen.",
+    "boldTitle": "Bold text",
+    "boldDescription": "Thicker letters, without making them any bigger.",
+    "boldToggle": "Use bold text",
+    "boldToggleDescription": "Everything in Smaran is written a little heavier.",
     "sample": "Sample",
     "sampleDescription": "A reminder, at your settings.",
     "sampleTime": "9:00 in the morning",
     "sampleTitle": "Blood pressure tablet",
     "sampleBody": "One tablet with breakfast. Meera will be told once you have marked it done.",
+    "sampleLetter": "Aa",
     "mode": {
       "system": {
-        "label": "Match my phone",
+        "label": "My phone",
         "description": "Turns dark when your phone does."
       },
       "light": {
-        "label": "Always light",
+        "label": "Light",
         "description": "Dark text on a pale background."
       },
       "dark": {
-        "label": "Always dark",
+        "label": "Dark",
         "description": "Pale text on a dark background. Easier at night."
       }
     },
     "size": {
+      "small": {
+        "label": "Small",
+        "description": "A little smaller than standard."
+      },
       "normal": {
         "label": "Normal",
         "description": "The standard size."
@@ -195,6 +207,14 @@
         "label": "Largest",
         "description": "As big as Smaran goes. Fewer words fit on a screen."
       }
+    },
+    "highlight": {
+      "blue": "Blue",
+      "teal": "Teal",
+      "green": "Green",
+      "marigold": "Marigold",
+      "rose": "Rose",
+      "plum": "Plum"
     }
   },
   "language": {

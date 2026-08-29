@@ -51,6 +51,8 @@ export const Colors = {
 
     /** Scrims behind sheets and dialogs. */
     overlay: "rgba(22, 24, 28, 0.45)",
+    /** Cast by raised surfaces. Never painted as a fill. */
+    shadow: "#1B2028",
   },
 
   dark: {
@@ -80,9 +82,120 @@ export const Colors = {
     dangerMuted: "#3A1B18",
 
     overlay: "rgba(0, 0, 0, 0.6)",
+    shadow: "#000000",
   },
 } as const;
 
 export type ColorScheme = keyof typeof Colors;
-export type ThemeColors = (typeof Colors)[ColorScheme];
+
+/**
+ * The token set a scheme provides. Widened to `string` deliberately: a
+ * highlight swaps three of these values out at runtime, so the literal types
+ * the palette happens to be written in cannot be the contract consumers see.
+ */
+export type ThemeColors = {
+  readonly [K in keyof (typeof Colors)["light"]]: string;
+};
+
 export type ThemeColor = keyof ThemeColors;
+
+/**
+ * The highlight colours the reader can choose between.
+ *
+ * A highlight replaces the `primary` triple and nothing else — buttons, the
+ * selected tab, the ring around a chosen option. Everything the app has to say
+ * with colour rather than with words (danger, success, warning) is left alone,
+ * so no choice here can make an SOS button look ordinary.
+ *
+ * Each of the twelve values is contrast checked the same way the base palette
+ * is (D-03): the light `primary` clears 7:1 on both `surface` and `background`,
+ * `onPrimary` clears 7:1 on the `primary` it sits on, and `primary` clears 7:1
+ * again on its own muted fill — in both schemes. Blue is the default and is the
+ * base palette's own primary, unchanged.
+ */
+export const Highlights = {
+  blue: {
+    light: {
+      primary: "#094A95",
+      onPrimary: "#FFFFFF",
+      primaryMuted: "#DCE9FB",
+    },
+    dark: { primary: "#8FBAFF", onPrimary: "#0A1B33", primaryMuted: "#1D2C42" },
+  },
+  teal: {
+    light: {
+      primary: "#0A5560",
+      onPrimary: "#FFFFFF",
+      primaryMuted: "#D6EFF3",
+    },
+    dark: { primary: "#6FCEDD", onPrimary: "#06232A", primaryMuted: "#16323A" },
+  },
+  green: {
+    light: {
+      primary: "#13592E",
+      onPrimary: "#FFFFFF",
+      primaryMuted: "#DCF0E3",
+    },
+    dark: { primary: "#7FD8A0", onPrimary: "#08301A", primaryMuted: "#17301F" },
+  },
+  marigold: {
+    light: {
+      primary: "#7A4308",
+      onPrimary: "#FFFFFF",
+      primaryMuted: "#FDF4E6",
+    },
+    dark: { primary: "#F3B267", onPrimary: "#33200A", primaryMuted: "#33261A" },
+  },
+  rose: {
+    light: {
+      primary: "#8F1830",
+      onPrimary: "#FFFFFF",
+      primaryMuted: "#FDEDF0",
+    },
+    dark: { primary: "#FF9FB3", onPrimary: "#3A0F19", primaryMuted: "#3A1B21" },
+  },
+  plum: {
+    light: {
+      primary: "#6B2E9E",
+      onPrimary: "#FFFFFF",
+      primaryMuted: "#F4EDFD",
+    },
+    dark: { primary: "#C9A6FF", onPrimary: "#2A0F47", primaryMuted: "#2C2140" },
+  },
+} as const satisfies Record<string, Record<ColorScheme, PrimaryTriple>>;
+
+type PrimaryTriple = Pick<
+  ThemeColors,
+  "primary" | "onPrimary" | "primaryMuted"
+>;
+
+export type HighlightColor = keyof typeof Highlights;
+
+/** The order the swatches are offered in. Blue first, then round the wheel. */
+export const HighlightColors = Object.keys(Highlights) as HighlightColor[];
+
+/**
+ * The palette for a scheme with a highlight applied.
+ *
+ * Cached per pairing because this is what `useThemeColors` returns on every
+ * render in the app: a fresh object each time would break every `useMemo` that
+ * has colours in its dependencies.
+ */
+export function themeColors(
+  scheme: ColorScheme,
+  highlight: HighlightColor,
+): ThemeColors {
+  const key = `${scheme}:${highlight}`;
+  const cached = resolved.get(key);
+
+  if (cached) {
+    return cached;
+  }
+
+  const colors = { ...Colors[scheme], ...Highlights[highlight][scheme] };
+  resolved.set(key, colors);
+
+  return colors;
+}
+
+const resolved = new Map<string, ThemeColors>();

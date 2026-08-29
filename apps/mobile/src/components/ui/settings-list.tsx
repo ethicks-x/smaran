@@ -16,9 +16,10 @@ import { NativeHost } from "@/components/ui/native-host";
 import { Surface } from "@/components/ui/surface";
 import { Text } from "@/components/ui/text";
 import { useThemeColors } from "@/hooks/use-theme";
-import { Radius, Spacing, scale, TouchTarget } from "@/theme";
+import { Spacing, scale, TouchTarget } from "@/theme";
 
-const ICON_TILE = scale(52);
+/** Every row's icon sits in a column of this width, so labels line up. */
+const ICON_COLUMN = scale(40);
 const ROW_ICON_SIZE = scale(30);
 const CHEVRON_SIZE = scale(24);
 /** Long enough to be followed by a slow eye, short enough not to feel stuck. */
@@ -26,8 +27,10 @@ const OPEN_DURATION = 220;
 
 /**
  * Each row carries its own tint so the list can be scanned by colour before it
- * is read. Tints are semantic tokens, so every pairing is already contrast
- * checked in both light and dark.
+ * is read. The tint colours the icon only — a plain icon beside plain text is
+ * the shape every settings app on the phone already uses, and the row reads as
+ * a list entry rather than a card. Tints are semantic tokens, so every pairing
+ * is already contrast checked in both light and dark.
  */
 export type SettingsTint =
   | "primary"
@@ -38,12 +41,12 @@ export type SettingsTint =
   | "neutral";
 
 const TINTS = {
-  primary: { fill: "primaryMuted", icon: "primary" },
-  accent: { fill: "accentMuted", icon: "accent" },
-  success: { fill: "successMuted", icon: "success" },
-  warning: { fill: "warningMuted", icon: "warning" },
-  danger: { fill: "dangerMuted", icon: "danger" },
-  neutral: { fill: "surfaceMuted", icon: "textSecondary" },
+  primary: "primary",
+  accent: "accent",
+  success: "success",
+  warning: "warning",
+  danger: "danger",
+  neutral: "textSecondary",
 } as const;
 
 type AccordionValue = {
@@ -125,16 +128,15 @@ type RowFaceProps = {
 /** The visible part of every row: tile, two lines of text, and a chevron. */
 function RowFace({ icon, tint, label, description, progress }: RowFaceProps) {
   const colors = useThemeColors();
-  const tone = TINTS[tint];
 
   return (
     <>
-      <View style={[styles.tile, { backgroundColor: colors[tone.fill] }]}>
+      <View style={styles.icon}>
         <NativeHost>
           <Icon
             name={AppIcons[icon]}
             size={ROW_ICON_SIZE}
-            color={colors[tone.icon]}
+            color={colors[TINTS[tint]]}
           />
         </NativeHost>
       </View>
@@ -355,22 +357,19 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: StyleSheet.hairlineWidth * 2,
-    marginLeft: Spacing.lg + ICON_TILE + Spacing.lg,
+    marginLeft: Spacing.lg + ICON_COLUMN + Spacing.md,
   },
   row: {
     minHeight: TouchTarget.comfortable,
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.lg,
+    gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
-  tile: {
-    width: ICON_TILE,
-    height: ICON_TILE,
-    borderRadius: Radius.md,
+  icon: {
+    width: ICON_COLUMN,
     alignItems: "center",
-    justifyContent: "center",
   },
   rowText: {
     flex: 1,
@@ -386,7 +385,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   detail: {
-    paddingLeft: Spacing.lg + ICON_TILE + Spacing.lg,
+    paddingLeft: Spacing.lg + ICON_COLUMN + Spacing.md,
     paddingRight: Spacing.lg,
     paddingBottom: Spacing.lg,
     gap: Spacing.md,

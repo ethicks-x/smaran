@@ -156,6 +156,7 @@
     "title": "दिखावट",
     "subtitle": "स्मरण आपको कैसा दिखता है।",
     "summary": "{{brightness}} · {{size}} अक्षर",
+    "themeTitle": "थीम",
     "brightness": "रोशनी",
     "brightnessFollowing": "आपके फ़ोन के अनुसार, जो अभी {{scheme}} है।",
     "brightnessFixed": "यहीं तय, आपका फ़ोन चाहे जो कर रहा हो।",
@@ -163,26 +164,37 @@
     "schemeDark": "गहरा",
     "textSize": "अक्षरों का आकार",
     "textSizeDescription": "आपके फ़ोन की अपनी अक्षर सेटिंग इसके ऊपर भी लगती है।",
+    "highlightTitle": "मुख्य रंग",
+    "highlightDescription": "बटन के लिए और आपने जो चुना है उसके लिए स्मरण यही रंग इस्तेमाल करता है।",
+    "boldTitle": "मोटे अक्षर",
+    "boldDescription": "अक्षर बड़े किए बिना, थोड़े मोटे।",
+    "boldToggle": "मोटे अक्षर इस्तेमाल करें",
+    "boldToggleDescription": "स्मरण में सब कुछ थोड़ा मोटा लिखा जाएगा।",
     "sample": "नमूना",
     "sampleDescription": "आपकी सेटिंग में एक रिमाइंडर।",
     "sampleTime": "सुबह 9:00 बजे",
     "sampleTitle": "रक्तचाप की गोली",
     "sampleBody": "नाश्ते के साथ एक गोली। जैसे ही आप इसे पूरा बताएँगे, मीरा को पता चल जाएगा।",
+    "sampleLetter": "अ",
     "mode": {
       "system": {
-        "label": "मेरे फ़ोन जैसा",
+        "label": "मेरा फ़ोन",
         "description": "जब आपका फ़ोन गहरा होता है, यह भी गहरा हो जाता है।"
       },
       "light": {
-        "label": "हमेशा हल्का",
+        "label": "हल्का",
         "description": "हल्के रंग पर गहरे अक्षर।"
       },
       "dark": {
-        "label": "हमेशा गहरा",
+        "label": "गहरा",
         "description": "गहरे रंग पर हल्के अक्षर। रात में आसान।"
       }
     },
     "size": {
+      "small": {
+        "label": "छोटा",
+        "description": "सामान्य से थोड़ा छोटा।"
+      },
       "normal": {
         "label": "सामान्य",
         "description": "यही आम आकार है।"
@@ -195,6 +207,14 @@
         "label": "सबसे बड़ा",
         "description": "स्मरण में सबसे बड़ा। एक पर्दे पर कम शब्द आते हैं।"
       }
+    },
+    "highlight": {
+      "blue": "नीला",
+      "teal": "फ़िरोज़ी",
+      "green": "हरा",
+      "marigold": "गेंदई",
+      "rose": "गुलाबी",
+      "plum": "बैंगनी"
     }
   },
   "language": {
