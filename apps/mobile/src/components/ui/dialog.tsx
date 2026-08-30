@@ -1,0 +1,121 @@
+import { Icon } from "@expo/ui";
+import type { ReactNode } from "react";
+import { Modal, StyleSheet, View } from "react-native";
+
+import { type AppIconName, AppIcons } from "@/components/ui/icons";
+import { NativeHost } from "@/components/ui/native-host";
+import { Surface } from "@/components/ui/surface";
+import { Text } from "@/components/ui/text";
+import { useThemeColors } from "@/hooks/use-theme";
+import { MaxContentWidth, Spacing, scale } from "@/theme";
+
+const DIALOG_ICON = scale(44);
+
+/** A dialog is narrower than a page: it is one thing to read, not a screen. */
+const DIALOG_WIDTH = MaxContentWidth * 0.8;
+
+export type DialogProps = {
+	visible: boolean;
+	/** The whole point of the dialog, in one line. Announced as the heading. */
+	title: string;
+	/** One warm sentence under the title. */
+	message?: string;
+	icon?: AppIconName;
+	/** Painted behind the card — a celebration, usually nothing. */
+	backdrop?: ReactNode;
+	/** The way out. Android's back gesture lands here too, so there is always
+	 * one, and it must never leave the reader somewhere they cannot act. */
+	onRequestClose: () => void;
+	/** The buttons, stacked full width. Keep one of them filled. */
+	children?: ReactNode;
+};
+
+/**
+ * A centred card over a dimmed page.
+ *
+ * It has no close button in the corner and cannot be dismissed by tapping
+ * beside it: for this reader a tap that lands slightly wide should do nothing
+ * at all rather than quietly take the dialog away. The way out is one of the
+ * labelled buttons inside it.
+ */
+export function Dialog({
+	visible,
+	title,
+	message,
+	icon,
+	backdrop,
+	onRequestClose,
+	children,
+}: DialogProps) {
+	const colors = useThemeColors();
+
+	return (
+		<Modal
+			visible={visible}
+			transparent
+			animationType="fade"
+			statusBarTranslucent
+			onRequestClose={onRequestClose}
+		>
+			<View style={[styles.scrim, { backgroundColor: colors.overlay }]}>
+				{/* Behind the card, and never in front of it: whatever is playing out
+            here is decoration, and the words have to stay readable through it. */}
+				<View style={StyleSheet.absoluteFill} pointerEvents="none">
+					{backdrop}
+				</View>
+
+				{/* The width lives on the wrapper: `Surface` hands its own style to the
+            card inside the shadow, and a card sized as a share of a wrapper it
+            is itself sizing would have nothing to measure against. */}
+				<View style={styles.sizer}>
+					<Surface elevated style={styles.card}>
+						{icon ? (
+							<NativeHost>
+								<Icon
+									name={AppIcons[icon]}
+									size={DIALOG_ICON}
+									color={colors.primary}
+								/>
+							</NativeHost>
+						) : null}
+
+						<Text variant="heading" center accessibilityRole="header">
+							{title}
+						</Text>
+
+						{message ? (
+							<Text variant="bodyLarge" center>
+								{message}
+							</Text>
+						) : null}
+
+						{children ? <View style={styles.actions}>{children}</View> : null}
+					</Surface>
+				</View>
+			</View>
+		</Modal>
+	);
+}
+
+const styles = StyleSheet.create({
+	scrim: {
+		flex: 1,
+		alignItems: "center",
+		justifyContent: "center",
+		padding: Spacing.xl,
+	},
+	sizer: {
+		width: "100%",
+		maxWidth: DIALOG_WIDTH,
+	},
+	card: {
+		alignItems: "center",
+		paddingVertical: Spacing["2xl"],
+		gap: Spacing.md,
+	},
+	actions: {
+		alignSelf: "stretch",
+		marginTop: Spacing.md,
+		gap: Spacing.md,
+	},
+});

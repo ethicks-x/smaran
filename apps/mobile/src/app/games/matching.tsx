@@ -1,23 +1,23 @@
-import { Icon } from "@expo/ui";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
 import type { BoardCard, SymbolId, SymbolPool } from "@/components/games";
-import { MemoryBoard, SymbolPools, Symbols } from "@/components/games";
+import {
+	GameFrame,
+	MemoryBoard,
+	SymbolPools,
+	Symbols,
+} from "@/components/games";
 import {
 	ActionButton,
-	AppIcons,
-	NativeHost,
+	Confetti,
+	Dialog,
 	ProgressBar,
-	Screen,
-	Section,
-	Surface,
 	Text,
 } from "@/components/ui";
-import { useThemeColors } from "@/hooks/use-theme";
-import { Spacing, scale } from "@/theme";
+import { Spacing } from "@/theme";
 
 /**
  * The boards, easiest first. Always square: as many rows as columns, so the
@@ -55,8 +55,7 @@ const pairsOf = (level: Level) => (level.columns * level.columns) / 2;
  * every extra pair on the board. Generous, and capped: this is the only part of
  * the game that moves on its own, and a hundred and forty-four cards would
  * otherwise sit there for the better part of a minute. Nobody memorises a board
- * that size from a preview anyway — the button below ends it whenever the
- * reader has seen enough. */
+ * that size from a preview anyway. */
 const PREVIEW_BASE_MS = 2200;
 const PREVIEW_PER_PAIR_MS = 500;
 const PREVIEW_MAX_MS = 9000;
@@ -66,8 +65,6 @@ const PREVIEW_MAX_MS = 9000;
 const PAIR_HELD_MS = 700;
 const MISMATCH_HELD_MS = 700;
 
-const CELEBRATION_ICON = scale(44);
-
 type Card = { id: string; symbol: SymbolId };
 type Phase = "preview" | "playing" | "won";
 
@@ -76,10 +73,12 @@ type Phase = "preview" | "playing" | "won";
  * the ones that match stay up.
  *
  * The board opens face up so every card has been seen before any of it has to
- * be remembered; it turns over on its own after a long look, or sooner if the
- * reader says they are ready. After that nothing is timed, nothing is counted
- * against them, and there is no way to lose — two cards that do not match turn
- * back over and the board is exactly as it was.
+ * be remembered, and turns over on its own after a long look — a bar draining
+ * above it is the only thing on screen while that happens, because the only
+ * thing to do is look. After that nothing is timed, nothing is counted against
+ * them, and there is no way to lose — two cards that do not match turn back
+ * over and the board is exactly as it was. Finishing one is a dialog and a
+ * handful of paper, and even that has no hurry in it.
  *
  * Everything here is on-device and in memory. TODO: when the local store lands
  * (`expo-sqlite` + Drizzle), write one session row per board — cards, pairs,
@@ -89,15 +88,20 @@ type Phase = "preview" | "playing" | "won";
  */
 export default function MatchingScreen() {
 	const { t } = useTranslation();
-	const colors = useThemeColors();
 
 	const [levelIndex, setLevelIndex] = useState(0);
 	const level = LEVELS[levelIndex] ?? LEVELS[0];
+
+	/** Counts the boards dealt this sitting. Nothing in the game reads it as a
+	 * score — it is what tells the draining bar and the confetti that this is a
+	 * new board and not the last one still running. */
+	const [round, setRound] = useState(0);
 
 	const [deck, setDeck] = useState<Card[]>(() => deal(LEVELS[0]));
 	const [phase, setPhase] = useState<Phase>("preview");
 	const [faceUp, setFaceUp] = useState<string[]>([]);
 	const [matched, setMatched] = useState<string[]>([]);
+	const [previewLeft, setPreviewLeft] = useState(1);
 
 	const pairs = pairsOf(level);
 	const pairsFound = matched.length / 2;
@@ -105,47 +109,63 @@ export default function MatchingScreen() {
 		faceUp.length === 2 &&
 		symbolOf(deck, faceUp[0]) === symbolOf(deck, faceUp[1]);
 
+	const previewMs = Math.min(
+		PREVIEW_BASE_MS + PREVIEW_PER_PAIR_MS * pairs,
+		PREVIEW_MAX_MS,
+	);
+
+	/** Keeps a pair or turns it back, and clears the two cards off the table.
+	 * Called from the timer that holds a pair up, and again from the next tap if
+	 * one arrives first — whichever gets there, the outcome is the same, and the
+	 * cards it names are the ones it settles. */
+	const settle = useCallback(
+		(pending: string[]) => {
+			const [first, second] = pending;
+
+			if (first && second && symbolOf(deck, first) === symbolOf(deck, second)) {
+				setMatched((cards) =>
+					cards.includes(first) ? cards : [...cards, first, second],
+				);
+			}
+
+			setFaceUp((cards) => (cards === pending ? [] : cards));
+		},
+		[deck],
+	);
+
 	// The look at the board is the only thing in the game that happens on a
-	// clock, and the button below can always end it early.
+	// clock. There is no button to end it early and nothing else on screen while
+	// it runs: the one thing to do here is look at the cards, and the bar
+	// draining above them says how much longer there is to do it for.
 	useEffect(() => {
 		if (phase !== "preview") {
 			return;
 		}
 
-		const timer = setTimeout(
-			() => setPhase("playing"),
-			Math.min(PREVIEW_BASE_MS + PREVIEW_PER_PAIR_MS * pairs, PREVIEW_MAX_MS),
-		);
+		// Emptying the bar is a state change like any other; the long duration
+		// below is what turns the travel into the countdown itself, so the bar and
+		// the timer cannot drift apart.
+		setPreviewLeft(0);
+
+		const timer = setTimeout(() => setPhase("playing"), previewMs);
 
 		return () => clearTimeout(timer);
-	}, [phase, pairs]);
+	}, [phase, previewMs]);
 
 	// Two cards are up: hold them there long enough to be looked at, then either
-	// keep them or turn them back. The board is locked while this runs, so a
-	// third card cannot be tapped into the middle of a comparison.
+	// keep them or turn them back.
 	useEffect(() => {
 		if (faceUp.length < 2) {
 			return;
 		}
 
-		const [first, second] = faceUp;
 		const timer = setTimeout(
-			() => {
-				if (
-					first &&
-					second &&
-					symbolOf(deck, first) === symbolOf(deck, second)
-				) {
-					setMatched((cards) => [...cards, first, second]);
-				}
-
-				setFaceUp([]);
-			},
+			() => settle(faceUp),
 			isPair ? PAIR_HELD_MS : MISMATCH_HELD_MS,
 		);
 
 		return () => clearTimeout(timer);
-	}, [faceUp, deck, isPair]);
+	}, [faceUp, isPair, settle]);
 
 	useEffect(() => {
 		if (deck.length > 0 && matched.length === deck.length) {
@@ -157,19 +177,28 @@ export default function MatchingScreen() {
 		const next = LEVELS[index] ?? LEVELS[0];
 
 		setLevelIndex(index);
+		setRound((dealt) => dealt + 1);
 		setDeck(deal(next));
 		setMatched([]);
 		setFaceUp([]);
+		setPreviewLeft(1);
 		setPhase("preview");
 	};
 
 	const turnOver = (id: string) => {
-		if (
-			phase !== "playing" ||
-			faceUp.length >= 2 ||
-			faceUp.includes(id) ||
-			matched.includes(id)
-		) {
+		if (phase !== "playing" || faceUp.includes(id) || matched.includes(id)) {
+			return;
+		}
+
+		// A third card while two are still up does not wait its turn: the pair
+		// under it is settled there and then and this card starts the next one.
+		// The board was locked here once, and locking it meant a tap that landed
+		// during the pause did nothing at all — which reads as the game having
+		// stopped listening, and is exactly the moment a reader taps harder.
+		if (faceUp.length >= 2) {
+			settle(faceUp);
+			setFaceUp([id]);
+
 			return;
 		}
 
@@ -190,35 +219,49 @@ export default function MatchingScreen() {
 	const hasNextLevel = levelIndex + 1 < LEVELS.length;
 
 	return (
-		<Screen
-			title={t("games.matching.name")}
-			subtitle={t("games.matching.subtitle")}
-			onBack={() => router.back()}
-			withTabBar={false}
+		<GameFrame
+			title={t(`games.matching.levels.${level.id}.name`)}
+			onClose={() => router.back()}
+			onSettings={() => router.push("/account/appearance")}
+			closeLabel={t("games.matching.close")}
+			settingsLabel={t("games.matching.settings")}
 		>
-			<Section
-				title={t(`games.matching.levels.${level.id}.name`)}
-				description={t(`games.matching.levels.${level.id}.description`)}
-			>
-				<View style={styles.meter}>
+			<View style={styles.meter}>
+				{/* Two different bars, never the same one relabelled: one is the time
+            left to look, the other is how much of the board has been found,
+            and a bar that changed its mind about what it measures would be the
+            most confusing thing on the screen. The key remounts it full for
+            each new board, so it only ever drains. */}
+				{phase === "preview" ? (
+					<ProgressBar
+						key={`preview-${round}`}
+						value={previewLeft}
+						tone="accent"
+						durationMs={previewMs}
+						accessibilityLabel={t("games.matching.previewLabel")}
+					/>
+				) : (
 					<ProgressBar
 						value={pairsFound / pairs}
 						tone={phase === "won" ? "success" : "primary"}
 						accessibilityLabel={t("games.matching.progressLabel")}
 					/>
-					{/* One line that always says what is happening, and is read out
-              whenever it changes — the whole state of the game in a sentence,
-              for anyone who cannot see the board. */}
-					<Text
-						variant="bodyLarge"
-						color={phase === "won" || isPair ? "success" : "textSecondary"}
-						center
-						accessibilityLiveRegion="polite"
-					>
-						{statusOf({ t, phase, faceUp, isPair, pairsFound, pairs })}
-					</Text>
-				</View>
+				)}
 
+				{/* The one line of words on the board, and the only thing anyone who
+            cannot see it has to go on: it always says what just happened, and
+            is read out whenever it changes. */}
+				<Text
+					variant="bodyLarge"
+					color={phase === "won" || isPair ? "success" : "textSecondary"}
+					center
+					accessibilityLiveRegion="polite"
+				>
+					{statusOf({ t, phase, faceUp, isPair, pairsFound, pairs })}
+				</Text>
+			</View>
+
+			<View style={styles.container}>
 				<MemoryBoard
 					cards={cards}
 					columns={level.columns}
@@ -226,57 +269,39 @@ export default function MatchingScreen() {
 					matchedLabel={(name) => t("games.matching.matchedCard", { name })}
 					onPressCard={turnOver}
 				/>
-			</Section>
+			</View>
 
-			{phase === "preview" ? (
+			{/* The board stays behind the dialog exactly as it was finished. Coming
+          back to a cleared screen would take away the thing the reader just
+          did — the green squares are the record of it. */}
+			<Dialog
+				visible={phase === "won"}
+				icon="celebrate"
+				title={t("games.matching.doneTitle")}
+				message={t("games.matching.doneMessage", { count: pairs })}
+				backdrop={<Confetti run={round} />}
+				onRequestClose={() => router.back()}
+			>
+				{hasNextLevel ? (
+					<ActionButton
+						label={t("games.matching.bigger")}
+						size="large"
+						onPress={() => start(levelIndex + 1)}
+					/>
+				) : null}
 				<ActionButton
-					label={t("games.matching.hideNow")}
-					size="large"
-					onPress={() => setPhase("playing")}
+					label={t("games.matching.again")}
+					variant={hasNextLevel ? "outlined" : "filled"}
+					size={hasNextLevel ? "comfortable" : "large"}
+					onPress={() => start(levelIndex)}
 				/>
-			) : null}
-
-			{phase === "won" ? (
-				<>
-					<Surface tone="primary" style={styles.done}>
-						<NativeHost>
-							<Icon
-								name={AppIcons.celebrate}
-								size={CELEBRATION_ICON}
-								color={colors.primary}
-							/>
-						</NativeHost>
-						<Text variant="heading" center accessibilityRole="header">
-							{t("games.matching.doneTitle")}
-						</Text>
-						<Text variant="bodyLarge" center>
-							{t("games.matching.doneMessage", { count: pairs })}
-						</Text>
-					</Surface>
-
-					<View style={styles.actions}>
-						{hasNextLevel ? (
-							<ActionButton
-								label={t("games.matching.bigger")}
-								size="large"
-								onPress={() => start(levelIndex + 1)}
-							/>
-						) : null}
-						<ActionButton
-							label={t("games.matching.again")}
-							variant={hasNextLevel ? "outlined" : "filled"}
-							size={hasNextLevel ? "comfortable" : "large"}
-							onPress={() => start(levelIndex)}
-						/>
-						<ActionButton
-							label={t("games.matching.finish")}
-							variant="text"
-							onPress={() => router.back()}
-						/>
-					</View>
-				</>
-			) : null}
-		</Screen>
+				<ActionButton
+					label={t("games.matching.finish")}
+					variant="text"
+					onPress={() => router.back()}
+				/>
+			</Dialog>
+		</GameFrame>
 	);
 }
 
@@ -356,15 +381,13 @@ function shuffled<T>(items: readonly T[]): T[] {
 }
 
 const styles = StyleSheet.create({
+	container: {
+		flex: 1,
+		padding: Spacing.md,
+		gap: Spacing.md,
+		justifyContent: "center",
+	},
 	meter: {
 		gap: Spacing.md,
-	},
-	actions: {
-		gap: Spacing.md,
-	},
-	done: {
-		alignItems: "center",
-		paddingVertical: Spacing["3xl"],
-		gap: Spacing.lg,
 	},
 });

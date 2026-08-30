@@ -90,27 +90,24 @@
 		"matching": {
 			"name": "Matching pairs",
 			"shortDescription": "Turn two cards over and find the pairs.",
-			"subtitle": "Every card has a twin. Turn two over at a time and find them.",
 			"levels": {
 				"four": {
-					"name": "Four by four",
-					"description": "Sixteen cards, eight pairs. Every picture is different."
+					"name": "Four by four"
 				},
 				"six": {
-					"name": "Six by six",
-					"description": "Thirty-six cards, eighteen pairs. Every picture is different."
+					"name": "Six by six"
 				},
 				"eight": {
-					"name": "Eight by eight",
-					"description": "Sixty-four cards, thirty-two pairs. Some of the pictures look alike."
+					"name": "Eight by eight"
 				},
 				"twelve": {
-					"name": "Twelve by twelve",
-					"description": "A hundred and forty-four cards, seventy-two pairs. A long game."
+					"name": "Twelve by twelve"
 				}
 			},
+			"close": "Close the game",
+			"settings": "Settings",
 			"previewBody": "Have a good look. The cards turn over in a moment.",
-			"hideNow": "I am ready — turn them over",
+			"previewLabel": "How much longer the cards stay face up",
 			"progressLabel": "How many pairs you have found",
 			"pairsFound_one": "{{count}} pair found of {{total}}",
 			"pairsFound_other": "{{count}} pairs found of {{total}}",

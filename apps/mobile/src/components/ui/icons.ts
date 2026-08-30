@@ -81,6 +81,10 @@ export const AppIcons = {
 		ios: "chevron.right",
 		android: require("@expo/material-symbols/chevron_right.xml"),
 	}),
+	close: Icon.select({
+		ios: "xmark",
+		android: require("@expo/material-symbols/close.xml"),
+	}),
 	back: Icon.select({
 		ios: "chevron.left",
 		android: require("@expo/material-symbols/arrow_back.xml"),

@@ -6,6 +6,10 @@ export type { CodeBoxStatus, CodeInputProps } from "./code-input";
 export { CodeInput } from "./code-input";
 export type { ColorChoiceProps } from "./color-choice";
 export { ColorChoice } from "./color-choice";
+export type { ConfettiProps } from "./confetti";
+export { Confetti } from "./confetti";
+export type { DialogProps } from "./dialog";
+export { Dialog } from "./dialog";
 export type { EmptyStateProps } from "./empty-state";
 export { EmptyState } from "./empty-state";
 export type { AppIconName } from "./icons";
@@ -20,22 +24,22 @@ export { Screen } from "./screen";
 export type { SectionProps } from "./section";
 export { Section } from "./section";
 export type {
-  SettingCardProps,
-  SettingFieldProps,
+	SettingCardProps,
+	SettingFieldProps,
 } from "./setting-card";
 export { SettingCard, SettingField } from "./setting-card";
 export type {
-  SettingsGroupProps,
-  SettingsLinkProps,
-  SettingsRowProps,
-  SettingsTint,
+	SettingsGroupProps,
+	SettingsLinkProps,
+	SettingsRowProps,
+	SettingsTint,
 } from "./settings-list";
 export {
-  Detail,
-  SettingsAccordion,
-  SettingsGroup,
-  SettingsLink,
-  SettingsRow,
+	Detail,
+	SettingsAccordion,
+	SettingsGroup,
+	SettingsLink,
+	SettingsRow,
 } from "./settings-list";
 export type { StepSliderProps } from "./step-slider";
 export { StepSlider } from "./step-slider";
