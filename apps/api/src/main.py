@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 
+from core.config import settings
 from features.auth.router import router as auth_router
 from features.dashboard.router import router as dashboard_router
 from features.database.db import init_db
@@ -44,4 +45,9 @@ async def health_check() -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run(
+        "main:app",
+        host=settings.UVICORN_HOST,
+        port=settings.UVICORN_PORT,
+        reload=settings.UVICORN_RELOAD,
+    )
