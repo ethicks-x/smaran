@@ -15,15 +15,15 @@ import { useTheme } from "@/hooks/use-theme";
 import type { ThemeColors } from "@/theme";
 
 function requirePublishableKey(): string {
-  const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+	const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-  if (!key) {
-    throw new Error(
-      "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Copy .env.example to .env and add your Clerk publishable key.",
-    );
-  }
+	if (!key) {
+		throw new Error(
+			"Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Copy .env.example to .env and add your Clerk publishable key.",
+		);
+	}
 
-  return key;
+	return key;
 }
 
 const publishableKey = requirePublishableKey();
@@ -31,17 +31,17 @@ const publishableKey = requirePublishableKey();
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <LanguageProvider>
-        <AppearanceProvider>
-          <RecallProvider>
-            <RootNavigator />
-          </RecallProvider>
-        </AppearanceProvider>
-      </LanguageProvider>
-    </ClerkProvider>
-  );
+	return (
+		<ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+			<LanguageProvider>
+				<AppearanceProvider>
+					<RecallProvider>
+						<RootNavigator />
+					</RecallProvider>
+				</AppearanceProvider>
+			</LanguageProvider>
+		</ClerkProvider>
+	);
 }
 
 /**
@@ -52,64 +52,65 @@ export default function RootLayout() {
  * for a frame, in the wrong theme or the wrong language.
  */
 function RootNavigator() {
-  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
-  const { isLoaded: isAppearanceLoaded } = useAppearance();
-  const { isLoaded: isLanguageLoaded } = useLanguage();
-  const { isRecalled } = useRecall();
-  const { isDark, colors } = useTheme();
+	const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+	const { isLoaded: isAppearanceLoaded } = useAppearance();
+	const { isLoaded: isLanguageLoaded } = useLanguage();
+	const { isRecalled } = useRecall();
+	const { isDark, colors } = useTheme();
 
-  const isLoaded = isAuthLoaded && isAppearanceLoaded && isLanguageLoaded;
+	const isLoaded = isAuthLoaded && isAppearanceLoaded && isLanguageLoaded;
 
-  const navigationTheme = useMemo(
-    () => toNavigationTheme(colors, isDark),
-    [colors, isDark],
-  );
+	const navigationTheme = useMemo(
+		() => toNavigationTheme(colors, isDark),
+		[colors, isDark],
+	);
 
-  useEffect(() => {
-    if (isLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [isLoaded]);
+	useEffect(() => {
+		if (isLoaded) {
+			SplashScreen.hideAsync();
+		}
+	}, [isLoaded]);
 
-  // The layer underneath every screen. Left at its platform default it is pure
-  // white, which is what shows through for a frame whenever a screen is being
-  // attached or detached — the flash people see on the way back from a pushed
-  // screen. Painting it the app canvas makes that frame invisible.
-  useEffect(() => {
-    SystemUI.setBackgroundColorAsync(colors.background);
-  }, [colors.background]);
+	// The layer underneath every screen. Left at its platform default it is pure
+	// white, which is what shows through for a frame whenever a screen is being
+	// attached or detached — the flash people see on the way back from a pushed
+	// screen. Painting it the app canvas makes that frame invisible.
+	useEffect(() => {
+		SystemUI.setBackgroundColorAsync(colors.background);
+	}, [colors.background]);
 
-  if (!isLoaded) {
-    return null;
-  }
+	if (!isLoaded) {
+		return null;
+	}
 
-  return (
-    <ThemeProvider value={navigationTheme}>
-      <StatusBar style={isDark ? "light" : "dark"} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      >
-        <Stack.Protected guard={isSignedIn && !isRecalled}>
-          <Stack.Screen name="recall" />
-        </Stack.Protected>
+	return (
+		<ThemeProvider value={navigationTheme}>
+			<StatusBar style={isDark ? "light" : "dark"} />
+			<Stack
+				screenOptions={{
+					headerShown: false,
+					contentStyle: { backgroundColor: colors.background },
+				}}
+			>
+				<Stack.Protected guard={isSignedIn && !isRecalled}>
+					<Stack.Screen name="recall" />
+				</Stack.Protected>
 
-        <Stack.Protected guard={isSignedIn && isRecalled}>
-          <Stack.Screen name="(tabs)" />
-          {/* No `animation` override: each platform already knows what a
+				<Stack.Protected guard={isSignedIn && isRecalled}>
+					<Stack.Screen name="(tabs)" />
+					{/* No `animation` override: each platform already knows what a
               pushed screen should do, and a phone's own transition is the one
               its owner has already learnt. */}
-          <Stack.Screen name="account" />
-        </Stack.Protected>
+					<Stack.Screen name="account" />
+					<Stack.Screen name="games" />
+				</Stack.Protected>
 
-        <Stack.Protected guard={!isSignedIn}>
-          <Stack.Screen name="landing" />
-        </Stack.Protected>
-      </Stack>
-    </ThemeProvider>
-  );
+				<Stack.Protected guard={!isSignedIn}>
+					<Stack.Screen name="landing" />
+				</Stack.Protected>
+			</Stack>
+		</ThemeProvider>
+	);
 }
 
 /**
@@ -118,18 +119,18 @@ function RootNavigator() {
  * tokens means every surface it draws is one we chose.
  */
 function toNavigationTheme(colors: ThemeColors, isDark: boolean) {
-  const base = isDark ? DarkTheme : DefaultTheme;
+	const base = isDark ? DarkTheme : DefaultTheme;
 
-  return {
-    ...base,
-    colors: {
-      ...base.colors,
-      primary: colors.primary,
-      background: colors.background,
-      card: colors.surface,
-      text: colors.text,
-      border: colors.border,
-      notification: colors.danger,
-    },
-  };
+	return {
+		...base,
+		colors: {
+			...base.colors,
+			primary: colors.primary,
+			background: colors.background,
+			card: colors.surface,
+			text: colors.text,
+			border: colors.border,
+			notification: colors.danger,
+		},
+	};
 }
