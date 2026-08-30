@@ -10,6 +10,17 @@ class Settings(BaseSettings):
     database_url: str = Field(..., description="Supabase/Postgres connection URL")
     db_echo: bool = False
 
+    # S3-compatible SSL Certificate Settings
+    s3_cert_bucket: str = Field(..., description="S3 bucket containing the CA certificate")
+    s3_cert_key: str = Field(..., description="S3 object key/path for the CA certificate")
+    s3_endpoint_url: str | None = Field(
+        None,
+        description="Custom endpoint URL for S3-compatible storage (e.g. MinIO, Cloudflare R2, Supabase Storage)",
+    )
+    s3_region_name: str | None = Field(None, description="AWS/S3 region name")
+    s3_access_key_id: str | None = Field(None, description="S3 Access Key ID")
+    s3_secret_access_key: str | None = Field(None, description="S3 Secret Access Key")
+
     # Uvicorn settings
     UVICORN_HOST: str = Field("0.0.0.0", description="Uvicorn host")
     UVICORN_PORT: int = Field(8080, description="Uvicorn port")
