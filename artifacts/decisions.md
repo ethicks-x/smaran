@@ -674,3 +674,43 @@ time, which is the trigger D-14 names for a `Clerk` client in `core/`.
 **Would change it if:** the dashboard needs to filter or sort by a caregiver's name, which
 cannot be done across an API boundary — a cached projection of id → display name would then
 be worth the sync cost.
+
+---
+
+## D-21 · 2026-08-31 · The mobile app calls the API with a Clerk session token, fetched per call
+
+**Decision.** `apps/mobile` reaches `apps/api` through one wrapper — `apiFetch` in
+`src/lib/api.ts`, bound to the reader's session by `useApi()` in `src/hooks/use-api.ts`.
+Every call carries `Authorization: Bearer <clerk session jwt>`, which is exactly what
+`require_auth` on the server verifies (D-14). There is no login call, no API-issued token
+and no refresh flow on the client, because the API owns no auth route.
+
+**The token is asked for on every request and never held.** `getToken()` is called inside
+the wrapper rather than read once into state or into a module variable. A Clerk session
+token lives about a minute; the call to `getToken()` *is* the refresh. Caching it is the
+obvious-looking optimisation that produces 401s a few minutes into every session, and
+storing it anywhere is a credential on disk we did not need — Clerk's own `tokenCache`
+already holds the only one that belongs there.
+
+**`CLERK_AUTHORIZED_PARTIES` must stay empty while mobile is the only client.**
+`core/config.py` passes it to Clerk as `authorized_parties`, which then requires the token's
+`azp` claim to match one of the listed origins. A native Expo client has no web origin to
+put there, so setting the variable for `apps/web`'s benefit silently 401s every phone. When
+the dashboard lands, either leave it unset or make sure the value covers both clients.
+
+**Two error types, because offline is not a refusal.** `ApiUnreachableError` means the
+request never arrived — radio off, wrong host, timeout — and is retried on the next sync.
+`ApiError` means the API answered and said no, and is not retried. Collapsing them loses the
+distinction the sync queue is built on.
+
+**A 401 never signs the reader out.** The patient authenticates once and stays signed in
+(`AGENTS.md` §5); a refused call is dropped and tried again later. Nothing on a patient
+screen may wait on any of this (§2.1) — `useApi` is for sign-in-time and sync-time reads.
+
+**The dev base URL is derived, not configured.** A phone cannot reach the dev machine's
+`localhost`, and the one address known to be reachable is the packager host the bundle
+arrived over — `Constants.expoConfig.hostUri`, plus `:8080`. `EXPO_PUBLIC_API_URL` overrides
+it and is what a build sets.
+
+**Would change it if:** the enrollment flow (D-01, still open) gives a device its own
+credential rather than a Clerk session — the wrapper is then the one place that changes.

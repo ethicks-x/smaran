@@ -50,6 +50,7 @@ no history for the engine to read.
 | Bottom `TopTabs` pager | five labelled tabs, swipeable, pill indicator |
 | Landing | animated intro pager, page dots, sign-in CTA — `landing.tsx`, `components/landing/` |
 | Recall | once-per-launch name warm-up; per-letter scoring, reveal after 3 misses, in-memory only |
+| API client | `src/lib/api.ts` (`apiFetch`, `API_BASE_URL`, `ApiError`, `ApiUnreachableError`) + `useApi()` in `src/hooks/use-api.ts`. Clerk session token per call, `Authorization: Bearer`. Base URL from `EXPO_PUBLIC_API_URL`, falling back to the Expo packager host on `:8080`. Nothing calls it yet — D-21 |
 | Account stack | profile (editable — name, phone, photo), appearance (four dials, all working), language (working), notifications (placeholder copy) |
 | Games stack | `src/app/games/` pushed over the tabs, entered from a card on Today; `src/components/games/` holds `GameCard`, `GameFrame`, `MemoryCard`, `MemoryBoard` and the `Symbols` table — D-18, D-19 |
 
