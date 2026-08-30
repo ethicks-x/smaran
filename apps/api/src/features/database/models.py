@@ -26,11 +26,11 @@ class Patient(Base):
     contact_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
     preferred_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
 
-    memory_subjects: Mapped[list["MemorySubject"]] = relationship(back_populates="patient")
-    game_sessions: Mapped[list["GameSession"]] = relationship(back_populates="patient")
-    casual_play_logs: Mapped[list["CasualPlayLog"]] = relationship(back_populates="patient")
-    question_events: Mapped[list["QuestionEvent"]] = relationship(back_populates="patient")
-    patient_caregivers: Mapped[list["PatientCaregiver"]] = relationship(back_populates="patient")
+    memory_subjects: Mapped[list["MemorySubject"]] = relationship("MemorySubject", back_populates="patient")
+    game_sessions: Mapped[list["GameSession"]] = relationship("GameSession", back_populates="patient")
+    casual_play_logs: Mapped[list["CasualPlayLog"]] = relationship("CasualPlayLog", back_populates="patient")
+    question_events: Mapped[list["QuestionEvent"]] = relationship("QuestionEvent", back_populates="patient")
+    patient_caregivers: Mapped[list["PatientCaregiver"]] = relationship("PatientCaregiver", back_populates="patient")
 
 
 class PatientCaregiver(Base):
@@ -41,7 +41,7 @@ class PatientCaregiver(Base):
     caregiver_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     relationship: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    patient: Mapped[Patient] = relationship(back_populates="patient_caregivers")
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="patient_caregivers")
 
 
 class MemorySubject(Base):
@@ -57,8 +57,8 @@ class MemorySubject(Base):
     created_by: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
 
-    patient: Mapped[Patient] = relationship(back_populates="memory_subjects")
-    question_events: Mapped[list["QuestionEvent"]] = relationship(back_populates="subject")
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="memory_subjects")
+    question_events: Mapped[list["QuestionEvent"]] = relationship("QuestionEvent", back_populates="subject")
 
 
 class GameSession(Base):
@@ -71,8 +71,8 @@ class GameSession(Base):
     questions_planned: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     questions_answered: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
-    patient: Mapped[Patient] = relationship(back_populates="game_sessions")
-    question_events: Mapped[list["QuestionEvent"]] = relationship(back_populates="session")
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="game_sessions")
+    question_events: Mapped[list["QuestionEvent"]] = relationship("QuestionEvent", back_populates="session")
 
 
 class QuestionEvent(Base):
@@ -90,9 +90,9 @@ class QuestionEvent(Base):
     reason: Mapped[str | None] = mapped_column(String(50), nullable=True)
     asked_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
 
-    session: Mapped[GameSession] = relationship(back_populates="question_events")
-    patient: Mapped[Patient] = relationship(back_populates="question_events")
-    subject: Mapped[MemorySubject] = relationship(back_populates="question_events")
+    session: Mapped["GameSession"] = relationship("GameSession", back_populates="question_events")
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="question_events")
+    subject: Mapped["MemorySubject"] = relationship("MemorySubject", back_populates="question_events")
 
 
 class CasualPlayLog(Base):
@@ -104,6 +104,6 @@ class CasualPlayLog(Base):
     played_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
     duration_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    patient: Mapped[Patient] = relationship(back_populates="casual_play_logs")
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="casual_play_logs")
 
 
