@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
+from fastapi import Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -51,4 +52,8 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
             await session.close()
 
 
-__all__ = ["Base", "SessionLocal", "engine", "get_db", "init_db"]
+DbSession = Annotated[AsyncSession, Depends(get_db)]
+"""A request-scoped session. Use this in a route rather than `Depends(get_db)` by hand."""
+
+
+__all__ = ["Base", "DbSession", "SessionLocal", "engine", "get_db", "init_db"]

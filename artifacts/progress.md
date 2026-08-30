@@ -105,7 +105,7 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 | Settings from env / `.env` | ✅ `src/core/config.py`, pydantic-settings; `.env.example` is the template |
 | Clerk token verification | ✅ `src/features/auth/service.py` — `authenticate`, `require_auth`, `require_caregiver`, `require_roles`, `roles_from_claims`, `granted_roles`, all plain functions usable outside a request |
 | Route guards | ✅ `@auth_required` / `@caregiver_required` in `decorators.py`; `requires_auth` / `requires_caregiver` / `optional_auth` and the `CurrentUser` / `CurrentCaregiver` / `MaybeCurrentUser` annotations in `dependencies.py`. `@role_required` and `@admin_required` from the original D-14 were **not** rebuilt — `require_roles()` covers the same ground as a function |
-| `GET /users/me` | ⬜ `/users` is a health check only |
+| `GET /users/me` | ✅ `@auth_required`; returns Clerk id, granted roles, `is_caregiver`, and the linked `patients` row (`null` when there is none). No name/photo/email — those live in Clerk (D-13, D-20) |
 | SQLAlchemy models | 🟡 `src/features/database/models.py` — see the gaps under D-20 |
 | Migrations | ⬜ Alembic is a dependency but there is no `alembic/`; `init_db()` calls `create_all` on startup |
 | TimescaleDB hypertable + continuous aggregates | ⬜ |
@@ -115,9 +115,8 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 | Sync ingest endpoint | ⬜ |
 | Aggregation & attention-flag endpoints | ⬜ |
 
-Every route returns a hardcoded dict. Nothing reads or writes the models, and no route
-applies a guard yet — the guards exist and work, but the first endpoint that touches a
-patient has to actually put one on (§2.5).
+`GET /users/me` is the first real route: guarded, reading the models, with a Pydantic
+response model. Every other route still returns a hardcoded dict.
 
 **The API also needs `CLERK_SECRET_KEY`** — like `DATABASE_URL` it is required, so a missing
 key is a boot failure rather than a 401 with no visible cause (D-14).

@@ -13,8 +13,34 @@ contract**; this file is the design intent and the queue of what to build.
 | GET | `/auth/health` | `{"feature": "auth", "status": "ok"}` |
 | GET | `/users/health` | `{"feature": "user", "status": "ok"}` |
 | GET | `/dashboard/health` | `{"feature": "dashboard", "status": "ok"}` |
+| GET | `/users/me` | `UserProfile` — the signed-in caller. **Authenticated** (`@auth_required`) |
 
-That is all of it. No database, no auth, no persistence.
+`GET /users/me` is the only real route; the rest are health probes. It answers for both
+audiences — a patient gets their `patients` row, a caregiver gets `patient: null` and a
+`caregiver` role — so neither client has to know which shape to expect before it asks.
+
+```jsonc
+// GET /users/me   Authorization: Bearer <clerk session jwt>
+{
+  "user_id": "user_2ab…",        // Clerk's id, the value every person-shaped column holds
+  "roles": ["caregiver"],        // from the `roles` table only, never from a token claim (D-14)
+  "is_caregiver": true,
+  "patient": {                   // null for a caregiver, and for a device not yet enrolled
+    "id": "b91bf55d-…",
+    "dob": "1948-03-09",
+    "address": "Shillong, Meghalaya",
+    "contact_number": "+91 90000 00000",
+    "preferred_language": "as"
+  }
+}
+```
+
+**No name, photo or email.** Those live in Clerk and the clients already hold them without
+asking us (D-13, D-20). What this returns is what only the server knows.
+
+**The patient app must not put this on a screen's path.** It is a sign-in / sync-time read
+into local storage; a device that has never reached it still has to open, play and remind
+normally (§2.1).
 
 ---
 
@@ -36,7 +62,6 @@ Identity has to line up with Clerk on mobile (`decisions.md` D-01); how is open 
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/users/me` | Profile for the signed-in caller |
 | PATCH | `/users/me` | Update name/photo — **caregiver only**, the patient app is read-only here (`account/profile.tsx` TODO) |
 | GET | `/users/{patient_id}/people` | The circle — backs the People tab |
 | GET | `/users/{patient_id}/memories` | Shared photos and stories — backs Memories |
