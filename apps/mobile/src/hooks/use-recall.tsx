@@ -23,7 +23,7 @@ const RecallContext = createContext<RecallValue | null>(null);
  * device or carried across launches.
  */
 export function RecallProvider({ children }: { children: ReactNode }) {
-  const [isRecalled, setIsRecalled] = useState(false);
+  const [isRecalled, setIsRecalled] = useState(true);
 
   const confirmRecall = useCallback(() => setIsRecalled(true), []);
 

@@ -226,10 +226,10 @@ function parse(raw: string): AppearancePreferences | null {
 }
 
 const isThemeMode = (value: unknown): value is ThemeMode =>
-  value === "system" || value === "light" || value === "dark";
+  ThemeModes.some((mode) => mode === value);
 
 const isTextSize = (value: unknown): value is TextSize =>
-  value === "normal" || value === "large" || value === "largest";
+  TextSizes.some((size) => size === value);
 
 const isHighlight = (value: unknown): value is HighlightColor =>
   HighlightColors.some((highlight) => highlight === value);
