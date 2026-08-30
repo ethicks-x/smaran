@@ -282,11 +282,27 @@ sign-up, sign-out and refresh all happen in Clerk, driven by the clients; the ba
 ever asks "is this token valid, and who does it belong to". `src/features/auth/router.py`
 keeps its health probe and nothing else, deliberately.
 
-**Three guards, as decorators.** `@auth_required`, `@role_required(*roles,
-require_all=False)` and `@admin_required` in `features/auth/decorators.py`, placed directly
-under the `@router.*` decorator. `requires_auth` / `requires_role` / `requires_admin` in
-`dependencies.py` are the same checks in `Depends` form, for guarding a whole router at
-once — a decorator cannot do that.
+**Two guards, as decorators.** `@auth_required` and `@caregiver_required` in
+`features/auth/decorators.py`, placed directly under the `@router.*` decorator.
+`requires_auth` / `requires_caregiver` / `optional_auth` in `dependencies.py` are the same
+checks in `Depends` form, for guarding a whole router at once — a decorator cannot do that —
+alongside `CurrentUser` / `CurrentCaregiver` / `MaybeCurrentUser` annotations for a handler
+that wants the caller as a parameter.
+
+*(Amended 2026-08-31. The first version of this entry described three guards —
+`@role_required` and `@admin_required` alongside `@auth_required` — and none of the code was
+ever committed. What shipped is the two guards above. `require_roles(request, *roles)` in
+`service.py` is the general form, as a function; wrap it if a second role ever needs a
+decorator of its own.)*
+
+**The checks are functions first, guards second.** Everything lives in
+`features/auth/service.py` taking ordinary arguments — `authenticate` (caller or `None`,
+never raises), `require_auth`, `require_caregiver`, `require_roles`, `roles_from_claims`,
+`granted_roles`. The decorators and the dependencies are both thin wrappers over them, so a
+service method, a background job or a script can run the same check with no route to hang a
+decorator on. `AuthContext` (`schemas.py`) is the verified caller and holds nothing that did
+not come out of the signed token; its `claims` field is `repr=False` so a session's claims
+cannot reach a log line by accident (§2.5).
 
 **How the decorator gets the request.** FastAPI reads a handler's signature to decide what
 to inject, so the decorator rewrites it: if the handler does not already take a `Request`,
@@ -298,13 +314,33 @@ neither injected parameter appears in the OpenAPI schema. Sync handlers are disp
 through `run_in_threadpool` so they keep the threadpool treatment FastAPI would have given
 them.
 
-**Roles come from the token, from several possible claims.** `org_role`, the v2 session
-token's `role`, a `roles` list, and `role`/`roles` inside `metadata` / `public_metadata` /
-`publicMetadata`. All are folded into one lowercase set with the `org:` prefix stripped, so
-`org:admin`, `Admin` and `admin` are the same role. Nothing in Clerk assigns a role yet;
-these are the shapes a role can arrive in once something does. `@admin_required` checks
-`CLERK_ADMIN_ROLE` (default `admin`) rather than a literal, so an instance that names the
-role differently does not need a code change.
+**Roles come from Postgres and from nowhere else.** `granted_roles(user_id)` reads the
+`roles` table D-20 describes, and that is the only source. Clerk answers "who is this"; the
+`roles` table answers "what may they do". **No claim in a token grants anything** — not
+`org_role`, not a v2 `role`, not `roles` in metadata — so a misconfigured Clerk instance, a
+stale JWT template, or anyone who talks Clerk's dashboard into stamping a role cannot widen
+access to patient data (§2.5). Role authority stays in a table we own and can audit.
+
+*(Amended 2026-08-31. The first version read roles out of four different token claims and
+used the table only as a fallback. Both paths are gone; only the table is left.)*
+
+**The role name is `CAREGIVER_ROLE` (default `caregiver`), not a literal**, so an instance
+that names the role differently needs no code change. It is deliberately **not** prefixed
+`CLERK_` — it names a value in our own column and Clerk knows nothing about it.
+
+**`AuthContext` has no `roles` field and no `has_role` method.** It is an identity, not a
+set of permissions. Asking what a caller may do is a query — `has_role(user_id, *names)` or
+`is_caregiver(user_id)` in `service.py` — never an attribute read, because an attribute on a
+token-derived object is exactly the thing that would quietly start trusting the token again.
+
+**The cost is one query per role check.** A route that only needs `@auth_required` still
+makes none. If that ever bites, the fix is a short-lived cache on `request.state`, not a
+claim.
+
+**`Request` is imported at runtime in `service.py`, not under `TYPE_CHECKING`.** The module
+uses `from __future__ import annotations`, so FastAPI resolves a dependency's annotations
+against its module globals — a `Request` it cannot resolve is silently read as a *query
+parameter*, and every guarded route answers 422 instead of 401. Do not move that import.
 
 **Failures say two things and no more.** 401 "You need to be signed in to do that.", 403
 "You do not have access to this." Clerk's failure reason is never passed on: it is
@@ -609,3 +645,32 @@ reader and the words.
 
 **Would change it if:** a reader is observed sitting through a long preview wanting out of
 it — the answer then is a shorter preview, not a button back on the screen.
+
+---
+
+## D-20 · 2026-08-31 · The server stores no user record — a Clerk id is a text column
+
+**Decision.** `apps/api` mirrors nothing about a person. Identity lives in Clerk, and every
+column that points at one — `patients.user_id`, `patient_caregivers.caregiver_id`,
+`memory_subjects.created_by` — holds Clerk's own user id. The only table keyed by a person
+is `roles`, whose primary key *is* the Clerk id.
+
+**Those columns are `VARCHAR(64)`, not `uuid`.** Clerk ids are opaque strings shaped like
+`user_2ab...`. They were typed `uuid` and every one of them would have raised on the first
+real insert. Nothing in the schema may type a person's id as a uuid; `_clerk_id()` in
+`models.py` exists so there is one place to change if that ever stops being true.
+
+**`roles.role` is not unique.** It was, which allowed exactly one caregiver in the whole
+system. A role is held by many people; the row is a grant, not an enum.
+
+**No foreign key from `patients.user_id` to `roles.id`.** A patient can exist before anyone
+grants them a role, and under the PS's enrollment model a patient may have no Clerk account
+at all — a caregiver provisions the device. The reference is deliberately unconstrained.
+
+**Consequence.** There is no server-side name, email or avatar for a caregiver. A dashboard
+that wants to show "added by Ritu" resolves the id through Clerk's Backend API at read
+time, which is the trigger D-14 names for a `Clerk` client in `core/`.
+
+**Would change it if:** the dashboard needs to filter or sort by a caregiver's name, which
+cannot be done across an API boundary — a cached projection of id → display name would then
+be worth the sync cost.

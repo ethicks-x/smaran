@@ -36,19 +36,31 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+# Clerk owns identity, so nothing here mirrors a user record — a column that points at a
+# person holds Clerk's own id. Those ids are opaque strings ("user_2ab..."), never uuids,
+# so the column has to be text; a uuid column would reject every real value.
+def _clerk_id() -> String:
+    return String(64)
+
+
 class Role(Base):
+    """A role granted to a Clerk user. `id` is the Clerk user id, not a generated uuid."""
+
     __tablename__ = "roles"
 
-    id: Mapped[UUID] = _pk()
-    role: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    id: Mapped[str] = mapped_column(_clerk_id(), primary_key=True)
+    # Not unique: a role is held by many people. Indexed because the only query is
+    # "who are the caregivers", never "what role is this".
+    role: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
 
 
 class Patient(Base):
     __tablename__ = "patients"
 
     id: Mapped[UUID] = _pk()
-    # Clerk owns identity, so this points at an external user id and carries no foreign key.
-    user_id: Mapped[UUID | None] = mapped_column(PgUuid(as_uuid=True), unique=True, nullable=True)
+    # No foreign key to `roles`: a patient may exist before anyone assigns them a role, and
+    # an unenrolled patient has no Clerk account at all.
+    user_id: Mapped[str | None] = mapped_column(_clerk_id(), unique=True, nullable=True)
     dob: Mapped[date | None] = mapped_column(Date, nullable=True)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     contact_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -78,7 +90,7 @@ class PatientCaregiver(Base):
     patient_id: Mapped[UUID] = mapped_column(
         ForeignKey("patients.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    caregiver_id: Mapped[UUID] = mapped_column(PgUuid(as_uuid=True), index=True, nullable=False)
+    caregiver_id: Mapped[str] = mapped_column(_clerk_id(), index=True, nullable=False)
     # The attribute cannot be called `relationship` — that name is the imported ORM function
     # and shadowing it breaks every relationship() call below it in the class body.
     relation: Mapped[str | None] = mapped_column("relationship", String(100), nullable=True)
@@ -100,7 +112,7 @@ class MemorySubject(Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true"), nullable=False
     )
-    created_by: Mapped[UUID | None] = mapped_column(PgUuid(as_uuid=True), nullable=True)
+    created_by: Mapped[str | None] = mapped_column(_clerk_id(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, server_default=func.now(), nullable=False
     )

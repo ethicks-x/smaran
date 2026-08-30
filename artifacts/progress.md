@@ -16,8 +16,8 @@ a design system are all built to a high standard. **Everything underneath is mis
 there is no local database, no sync, no reminders and no voice. The patient app does now
 speak four languages with the network off, and it now has its first game — Matching pairs —
 which plays end to end but keeps nothing. The backend is three health checks. The
-dashboard is `create-next-app`. The backend now verifies Clerk tokens, but has nothing
-worth protecting yet.
+dashboard is `create-next-app`. The backend has SQLAlchemy models and Clerk token
+verification with two route guards, but no migrations and no endpoint yet uses either.
 
 The rubric's centrepiece — adaptive cognitive games — has one game and no adaptation: the
 loop from "open a game" to "finish a deck" is real, but nothing is written down, so there is
@@ -103,25 +103,27 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 | `/health` + `/auth/health`, `/users/health`, `/dashboard/health` | ✅ — health checks only |
 | ruff config, feature-folder layout | ✅ |
 | Settings from env / `.env` | ✅ `src/core/config.py`, pydantic-settings; `.env.example` is the template |
-| Clerk token verification + route guards | ✅ `src/features/auth/` — see D-14 |
-| `GET /users/me` | ✅ echoes the caller's own token claims; the only protected route so far |
-| Database, models, migrations | ⬜ SQLAlchemy/Alembic/Postgres not installed |
+| Clerk token verification | ✅ `src/features/auth/service.py` — `authenticate`, `require_auth`, `require_caregiver`, `require_roles`, `roles_from_claims`, `granted_roles`, all plain functions usable outside a request |
+| Route guards | ✅ `@auth_required` / `@caregiver_required` in `decorators.py`; `requires_auth` / `requires_caregiver` / `optional_auth` and the `CurrentUser` / `CurrentCaregiver` / `MaybeCurrentUser` annotations in `dependencies.py`. `@role_required` and `@admin_required` from the original D-14 were **not** rebuilt — `require_roles()` covers the same ground as a function |
+| `GET /users/me` | ⬜ `/users` is a health check only |
+| SQLAlchemy models | 🟡 `src/features/database/models.py` — see the gaps under D-20 |
+| Migrations | ⬜ Alembic is a dependency but there is no `alembic/`; `init_db()` calls `create_all` on startup |
 | TimescaleDB hypertable + continuous aggregates | ⬜ |
 | Enrollment / patient–caregiver linking | ⬜ |
-| Roles actually assigned in Clerk | ⬜ the guards read `org_role` / `role` / metadata; nothing sets them yet |
+| Role grants | ⬜ roles are read **only** from the `roles` table (D-14, amended) — no token claim grants anything. Nothing writes a row yet, so `caregiver_required` rejects every real caller today |
+| `roles.id` is `uuid` in the live database | 🔴 **blocks `caregiver_required`.** The models were corrected to `VARCHAR(64)` under D-20 but `create_all()` never alters an existing table, so every Clerk-id column in the deployed schema — `roles.id`, `patients.user_id`, `patient_caregivers.caregiver_id`, `memory_subjects.created_by` — is still `uuid` and rejects every real Clerk id. All seven tables are empty; a drop-and-recreate or the first Alembic migration fixes it |
 | Sync ingest endpoint | ⬜ |
 | Aggregation & attention-flag endpoints | ⬜ |
 
-Apart from `/users/me` every route returns a hardcoded dict. There is no persistence of
-any kind.
+Every route returns a hardcoded dict. Nothing reads or writes the models, and no route
+applies a guard yet — the guards exist and work, but the first endpoint that touches a
+patient has to actually put one on (§2.5).
 
-**Guarding a route.** `@auth_required`, `@role_required("caregiver")` and `@admin_required`
-from `features.auth`, placed directly under the `@router.*` decorator. A handler that
-declares an `AuthContext` parameter is handed the verified caller; the parameter is hidden
-from OpenAPI. For a whole router, `dependencies=[Depends(requires_role("caregiver"))]`.
+**The API also needs `CLERK_SECRET_KEY`** — like `DATABASE_URL` it is required, so a missing
+key is a boot failure rather than a 401 with no visible cause (D-14).
 
-**The API will not start without `CLERK_SECRET_KEY`** — the lifespan raises with a message
-naming `.env.example`.
+**The API needs `DATABASE_URL` to import at all** — `core/config.py` builds `settings` at
+module scope, so a missing value is an import-time `ValidationError`, not a startup one.
 
 ---
 

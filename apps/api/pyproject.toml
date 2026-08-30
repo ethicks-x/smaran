@@ -13,6 +13,7 @@ dependencies = [
     "alembic>=1.14.0",
     "pydantic-settings>=2.10.1",
     "python-dotenv>=1.1.1",
+    "clerk-backend-api>=7.0.0",
 ]
 
 [dependency-groups]
