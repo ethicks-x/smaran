@@ -884,3 +884,64 @@ produced. `data-model.md` has been updated to match.
 second device store appears — then `drizzle-kit generate` with the Babel and Metro wiring
 earns its keep, and `migrations.ts` becomes the generated journal instead of a hand-written
 list. Nothing above `src/db/` would have to change.
+
+---
+
+## D-25 · 2026-09-01 · Reminders are on-device, computed per day, and added from Today
+
+**Decision.** Today draws the reader's real reminders out of the `reminder` table
+(`src/lib/reminders.ts`, `src/hooks/use-reminders.ts`), and a button on that screen opens a
+dialog that writes a new one. Marking one done writes a `reminder_event` and its
+`sync_queue` entry in a single transaction, exactly as a game session does.
+
+**A day's occurrences are computed, not stored.** A row per reminder per day would be a
+table that grows forever and something to fill it — and there is nothing that may be
+assumed to run in the background (`AGENTS.md` §2.2). `remindersFor(day)` reads the active
+definitions, keeps the ones whose days mask includes that weekday, and works out `dueAt`
+from the schedule at the moment the screen draws. Seven reminders and a weekday check cost
+nothing.
+
+**`schedule` is `HH:MM|1111111`** — a 24-hour local time and a seven-character days mask,
+Sunday first — which is the "time-of-day plus a days mask" `data-model.md` §1 allows for.
+A string rather than two columns because the server's definitions are rrule-ish and will
+need somewhere to land. A schedule this build cannot parse is skipped, never guessed at.
+
+**Definitions do not sync up; events do.** `SyncEntity` is `game_session | reminder_event`
+and stays that way: `data-model.md` §4 has reminders as server-authoritative definitions
+that devices *pull*. A reminder added on the phone is therefore local to that phone until
+the dashboard owns the definitions, and that is the honest shape — what the caregiver needs
+from the device is adherence, which is entirely in `reminder_event`.
+
+**Nothing is scheduled with the OS.** `expo-notifications` is not installed, so
+`reminder.notification_ids` stays `[]` and a reminder is something the reader *sees* on
+Today rather than something the phone announces. Installing it is a separate change and
+`lib/reminders.ts` is already the place it goes; no screen changes when it lands.
+
+**Today is one card and one list, not a card per reminder.** The next thing to do is a
+raised card with the time set in `display` and the screen's only filled button; everything
+else is a grouped list of rows behind one edge, divided by hairlines
+(`components/today/reminder-list.tsx`). Stacked cards spent most of the screen on the gaps
+between them and made every reminder look equally urgent, which is the opposite of what
+this screen is for.
+
+**A done reminder stays on the page, quietly.** In the list, muted, with the time it was
+done and a tick. Someone who cannot remember whether they took the tablet needs to be able
+to look and see that they did — a row that vanished would leave exactly the doubt it was
+there to settle. Only the next undone reminder can be marked, and it is the one with the
+button, so the screen keeps one primary action (`AGENTS.md` §2.3).
+
+**The time picker is four buttons, not a wheel.** `TimeField` steps the hour by one and the
+minutes by five, both wrapping, because a spun wheel or a dragged dial is the one gesture a
+hand with a tremor cannot reliably finish. The time is written out large in the reader's
+language beside them.
+
+**Every store call on Today is guarded.** `src/db` is a native module and a development
+build made before it was installed cannot open the file at all (D-24). Today is the screen
+the reader lands on and it is not allowed to be the screen a missing native module takes
+down: a failure costs the reminders, leaves the greeting and the games alone, and hides the
+add button rather than offering an action that would silently do nothing.
+
+**Would change it if:** the dashboard starts sending definitions down — then `reminder`
+becomes a synced-down table like `person`, the dialog becomes a caregiver-side screen, and
+this module keeps the same two reads. Or reminders need to fire with the app closed, which
+is `expo-notifications` and a scheduling pass over the same rows.

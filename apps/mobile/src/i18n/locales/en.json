@@ -2,7 +2,14 @@
 	"common": {
 		"back": "Back",
 		"goBack": "Go back",
-		"notSetYet": "Not set yet"
+		"notSetYet": "Not set yet",
+		"cancel": "Cancel",
+		"hour": "Hour",
+		"minutes": "Minutes",
+		"hourEarlier": "An hour earlier",
+		"hourLater": "An hour later",
+		"minutesEarlier": "Five minutes earlier",
+		"minutesLater": "Five minutes later"
 	},
 	"tabs": {
 		"today": "Today",
@@ -69,11 +76,29 @@
 	"today": {
 		"nextUp": "Next up",
 		"nothingScheduled": "Nothing scheduled yet",
-		"nextUpPlaceholder": "When your family adds a reminder, it will appear here first.",
+		"nextUpPlaceholder": "Nothing to do just now. Anything added below shows up here first.",
 		"restOfDay": "Rest of the day",
-		"restOfDayDescription": "Everything else planned for today.",
 		"emptyTitle": "No reminders today",
-		"emptyMessage": "Your day is clear. Anything your family adds will show up here."
+		"emptyMessage": "Your day is clear. Add a reminder below and it will be here every day.",
+		"addReminder": "Add a reminder",
+		"markDone": "I have done this",
+		"markDoneOf": "I have done this: {{title}}",
+		"doneAt": "Done at {{time}}",
+		"kinds": {
+			"medicine": "Medicine",
+			"hydration": "A drink of water",
+			"activity": "Something to do",
+			"appointment": "An appointment"
+		},
+		"add": {
+			"title": "Add a reminder",
+			"message": "It will be here on this page every day, at the time you choose.",
+			"kindLabel": "What is it for",
+			"nameLabel": "What should it say",
+			"nameHint": "A few words, like “Take the blue tablet”.",
+			"timeLabel": "What time",
+			"save": "Add this reminder"
+		}
 	},
 	"games": {
 		"title": "Games",

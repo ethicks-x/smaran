@@ -21,13 +21,14 @@ Legend: **✅ done** · **🟡 partial / placeholder** · **⬜ not started**
 ## Headline
 
 The **patient app's shell is real and good**: theming, accessibility, navigation, auth, and
-a design system are all built to a high standard. **Everything underneath is missing** —
-there is no local database, no sync, no reminders and no voice. The patient app does now
-speak four languages with the network off, it now has its first game — Matching pairs —
-which plays end to end and measures itself, and those measurements are now kept: SQLite +
-Drizzle is in, with every device table from `data-model.md` §1 (D-24). Sync, reminders and voice are still missing. The
-dashboard is `create-next-app`. The backend has SQLAlchemy models and Clerk token
-verification with two route guards, but no migrations and no endpoint yet uses either.
+a design system are all built to a high standard. Underneath it, the device store is now
+real and two features sit on it. The patient app speaks four languages with the network
+off; it has its first game — Matching pairs — which plays end to end and measures itself,
+and those measurements are kept: SQLite + Drizzle is in, with every device table from
+`data-model.md` §1 (D-24). **Today is now the reader's actual day** — reminders are read
+from that store, marked done into it, and added from a dialog on the screen itself (D-25).
+Sync, notifications and voice are still missing. The dashboard is `create-next-app`. The
+backend has SQLAlchemy models and Clerk token verification with two route guards, but no migrations and no endpoint yet uses either.
 
 The rubric's centrepiece — adaptive cognitive games — has one game and no adaptation, but
 the loop from "open a game" to "finish a deck" is real, every board closes a `SessionStats`
@@ -47,7 +48,7 @@ the engine itself.
 | Design tokens | `src/theme/` — colours (AAA-rated), six highlight palettes (also AAA), type (18pt floor), spacing, radii, touch targets |
 | Global `UIScale` dial | `theme/layout.ts`, currently `0.75` |
 | Appearance preferences | theme mode, text size, highlight colour, bold text — persisted, `use-appearance.tsx` |
-| UI kit | `Screen`, `Surface` (with `elevated`), `Section`, `SettingCard`/`SettingField`, `Text`, `ActionButton`, `ChoiceGroup`, `PreviewChoice`, `ColorChoice`, `StepSlider`, `Toggle`, `CodeInput`, `EmptyState`, `ProgressBar` (with a `durationMs` countdown mode), `Dialog` (scrolling, with a `details` slot), `Confetti`, `SettingsGroup`/`Row`/`Link`/`Accordion`, `TextField`, `NativeHost`, `AppIcons` |
+| UI kit | `Screen`, `Surface` (with `elevated`), `Section`, `SettingCard`/`SettingField`, `Text`, `ActionButton`, `ChoiceGroup`, `PreviewChoice`, `ColorChoice`, `StepSlider`, `Toggle`, `CodeInput`, `EmptyState`, `ProgressBar` (with a `durationMs` countdown mode), `Dialog` (scrolling, with a `details` slot), `Confetti`, `SettingsGroup`/`Row`/`Link`/`Accordion`, `TextField`, `TimeField` (four buttons, never a wheel — D-25), `NativeHost`, `AppIcons` |
 | Native bridging | `NativeHost` wraps `@expo/ui` with our scheme + the chosen highlight as seed colour |
 | Localisation | `i18next` + `react-i18next`, four bundled catalogues, `src/i18n/` |
 | Tailwind via Uniwind | `uniwind@1.11` + `tailwindcss@4`, Metro plugin only — `metro.config.js`, `src/global.css`. Tokens generated from `src/theme/*.ts` into `src/theme/tokens.css` by `bun run --cwd apps/mobile theme:css`; `use-uniwind-appearance.ts` pushes the highlight and text size over them at runtime. Nothing migrated yet — screens still use `StyleSheet`. D-17 |
@@ -65,6 +66,7 @@ the engine itself.
 | API client | `src/lib/api.ts` (`apiFetch`, `API_BASE_URL`, `ApiError`, `ApiUnreachableError`) + `useApi()` in `src/hooks/use-api.ts`. Clerk session token per call, `Authorization: Bearer`. Base URL from `EXPO_PUBLIC_API_URL`, falling back to the Expo packager host on `:8080`. The only caller is a `__DEV__`-only “Developer” row on Account that GETs `/users/me` — D-21 |
 | Account stack | profile (editable — name, phone, photo), appearance (four dials, all working), language (working), notifications (placeholder copy) |
 | Game session stats | `src/lib/game-stats.ts` (pure — accuracy, precision, completion, response times, consistency, streak) + `useGameSession` (`src/hooks/`) for the clock and per-attempt timing + `src/lib/game-history.ts`, now backed by the `game_session` table. Matching pairs is wired to it. `GameSummary` shows four warm lines in the win dialog and `GameStatsDetail` dumps every field under `__DEV__`. D-22, D-23, D-24 |
+| Reminders | ✅ `src/lib/reminders.ts` — the `HH:MM\|1111111` schedule format, `remindersFor(day)` computing a day's occurrences, `addReminder()`, and `acknowledge()` writing a `reminder_event` with its `sync_queue` entry in one transaction. `src/hooks/use-reminders.ts` holds the screen state and re-reads on focus; every call is guarded so a store that will not open costs the reminders and not the screen. D-25 |
 | Local database | ✅ `expo-sqlite` + `drizzle-orm` — `src/db/`. All nine device tables from `data-model.md` §1: `patient`, `device`, `game_session`, `session_event`, `reminder`, `reminder_event`, `person`, `memory_item`, `sync_queue`. Opened synchronously but lazily (`db()`, on first use); hand-written DDL versioned by `PRAGMA user_version` in `migrations.ts`; `device` row and its `seq` counter ensured at open. **Native module — the dev build must be rebuilt after pulling this.** D-24 |
 | Games stack | `src/app/games/` pushed over the tabs, entered from a card on Today; `src/components/games/` holds `GameCard`, `GameFrame`, `MemoryCard`, `MemoryBoard` and the `Symbols` table — D-18, D-19 |
 
@@ -72,7 +74,7 @@ the engine itself.
 
 | Screen | State |
 |---|---|
-| **Today** | 🟡 greeting + date are real; the day's plan is placeholder. `TODO: GET /dashboard` |
+| **Today** | ✅ greeting, date and the day's plan are real. Reminders come from the `reminder` table: the next one is a raised card — big time, one "I have done this" button — and the rest of the day is one grouped list of rows under it, in time order, where a done row stays put with a tick and the time it was done. "Add a reminder" opens a dialog (kind, words, time) that writes the row. Nothing here touches the network. D-25 |
 | **People** | 🟡 `EmptyState` only. `TODO: load the circle from the API` |
 | **Memories** | 🟡 `EmptyState` only. `TODO: load shared memories` |
 | **Help** | 🟡 layout + call button real; contact is hardcoded. `TODO: real primary contact + notify dashboard` |
@@ -104,7 +106,7 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 | Local SQLite + Drizzle | ✅ done — see Foundation above. Sessions persist; the sync queue exists and nothing drains it yet |
 | Cognitive games | 🟡 one game (Matching pairs), with four fixed difficulty levels. Every board is measured (D-22) and the row is stored (D-24). The rest of the deliverable is more games, not more plumbing |
 | Adaptive difficulty engine | ⬜ nothing blocking it any more — `recentSessions({ gameId })` returns this reader's stored history, newest first. Next thing to build |
-| Reminders (medicine / hydration / activity / appointments) | `expo-notifications` not installed |
+| Reminders (medicine / hydration / activity / appointments) | 🟡 definitions, a day's occurrences and adherence events all work on-device and are wired to Today (D-25). **Missing:** `expo-notifications`, so nothing fires when the app is closed and `reminder.notification_ids` stays `[]`; no way yet to edit, switch off or delete a reminder once added; every reminder repeats every day, because the dialog asks three questions and the days mask is not one of them |
 | Voice prompts (TTS) | `expo-speech` not installed |
 | Sync queue + upload | needs the local DB and the API |
 
@@ -165,7 +167,9 @@ No auth, no data, no charts, no PWA/offline cache.
    nothing reads the history back yet. That is the next item.
 3. **Adaptive engine v1** as a pure module (`architecture.md` §6) reading `recentSessions()`
    — the input shape it needs already exists as `SessionStats`.
-4. **Reminders** — `expo-notifications`, local scheduling, no server dependency.
+4. **Reminders** — the store and the Today UI are done (D-25). What is left is
+   `expo-notifications` for local scheduling with no server dependency, and a way to edit
+   or remove a reminder that has been added.
 5. **API ingest** — SQLAlchemy + Alembic + Postgres, `POST /sync/sessions` with
    `(device_id, seq)` dedupe (`api-contract.md`).
 6. **Sync client** — drain the queue on app open and on connectivity regained.

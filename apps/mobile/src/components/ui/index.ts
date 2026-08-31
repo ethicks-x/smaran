@@ -49,5 +49,7 @@ export type { TextProps } from "./text";
 export { Text } from "./text";
 export type { TextFieldProps } from "./text-field";
 export { TextField } from "./text-field";
+export type { TimeFieldProps, TimeOfDay } from "./time-field";
+export { formatTime, TimeField } from "./time-field";
 export type { ToggleProps } from "./toggle";
 export { Toggle } from "./toggle";
