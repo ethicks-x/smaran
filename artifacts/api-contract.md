@@ -7,13 +7,31 @@ contract**; this file is the design intent and the queue of what to build.
 
 ## 1. What exists today
 
-| Method | Path | Returns |
+| Method | Path | Returns / Purpose |
 |---|---|---|
 | GET | `/health` | `{"status": "ok"}` |
 | GET | `/auth/health` | `{"feature": "auth", "status": "ok"}` |
+| POST | `/auth/caregiver-role` | `RoleGrantOut` — grant caregiver role to signed-in user |
 | GET | `/users/health` | `{"feature": "user", "status": "ok"}` |
-| GET | `/dashboard/health` | `{"feature": "dashboard", "status": "ok"}` |
 | GET | `/users/me` | `UserProfile` — the signed-in caller. **Authenticated** (`@auth_required`) |
+| GET | `/dashboard/health` | `{"feature": "dashboard", "status": "ok"}` |
+| GET | `/dashboard/summary` | `DashboardSummaryOut` — high-level stats cards & patient overviews |
+| GET | `/dashboard/patients` | `list[PatientCardOut]` — patients linked to current caregiver |
+| POST | `/dashboard/patients` | `PatientCardOut` — register and link a new patient |
+| GET | `/dashboard/patients/{id}` | `PatientDetailOut` — patient profile and summary stats |
+| PATCH | `/dashboard/patients/{id}` | `PatientDetailOut` — update patient metadata or relationship |
+| DELETE | `/dashboard/patients/{id}` | `{"status": "deleted"}` — remove patient linkage |
+| GET | `/dashboard/patients/{id}/memories` | `list[MemorySubjectOut]` — list memory subjects |
+| POST | `/dashboard/patients/{id}/memories` | `MemorySubjectOut` — add a person/place/object memory subject |
+| PATCH | `/dashboard/patients/{id}/memories/{sid}` | `MemorySubjectOut` — update memory subject |
+| DELETE | `/dashboard/patients/{id}/memories/{sid}` | `{"status": "deleted"}` — remove memory subject |
+| GET | `/dashboard/patients/{id}/progress` | `PatientProgressOut` — session summaries and activity breakdown |
+| GET | `/dashboard/patients/{id}/trends` | `list[TrendPointOut]` — daily rolled-up accuracy/response times |
+| GET | `/dashboard/patients/{id}/casual-play` | `list[CasualPlayOut]` — non-scored casual game sessions |
+| POST | `/dashboard/patients/{id}/casual-play` | `CasualPlayOut` — record casual play |
+| GET | `/dashboard/activity` | `ActivityFeedOut` — question attempts feed |
+| GET | `/dashboard/notifications` | `list[NotificationOut]` — activity completions and alerts |
+| GET | `/dashboard/patients/{id}/flags` | `list[AttentionFlagOut]` — personal baseline deviation flags |
 
 `GET /users/me` is the only real route; the rest are health probes. It answers for both
 audiences — a patient gets their `patients` row, a caregiver gets `patient: null` and a

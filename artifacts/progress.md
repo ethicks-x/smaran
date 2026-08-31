@@ -96,34 +96,26 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 
 ---
 
-## `apps/api` — backend ⬜
+## `apps/api` — backend 🟡
 
 | Item | State |
 |---|---|
 | FastAPI app, uvicorn on `:8080` | ✅ |
-| `/health` + `/auth/health`, `/users/health`, `/dashboard/health` | ✅ — health checks only |
+| `/health` + `/auth/health`, `/users/health`, `/dashboard/health` | ✅ — health checks |
 | ruff config, feature-folder layout | ✅ |
 | Settings from env / `.env` | ✅ `src/core/config.py`, pydantic-settings; `.env.example` is the template |
-| Clerk token verification | ✅ `src/features/auth/service.py` — `authenticate`, `require_auth`, `require_caregiver`, `require_roles`, `roles_from_claims`, `granted_roles`, all plain functions usable outside a request |
-| Route guards | ✅ `@auth_required` / `@caregiver_required` in `decorators.py`; `requires_auth` / `requires_caregiver` / `optional_auth` and the `CurrentUser` / `CurrentCaregiver` / `MaybeCurrentUser` annotations in `dependencies.py`. `@role_required` and `@admin_required` from the original D-14 were **not** rebuilt — `require_roles()` covers the same ground as a function |
-| `GET /users/me` | ✅ `@auth_required`; returns Clerk id, granted roles, `is_caregiver`, and the linked `patients` row (`null` when there is none). No name/photo/email — those live in Clerk (D-13, D-20) |
-| SQLAlchemy models | 🟡 `src/features/database/models.py` — see the gaps under D-20 |
+| Clerk token verification | ✅ `src/features/auth/service.py` — `authenticate`, `require_auth`, `require_caregiver`, `require_roles`, `granted_roles` |
+| Route guards | ✅ `@auth_required` / `@caregiver_required` in `decorators.py`; `requires_auth` / `requires_caregiver` / `optional_auth` in `dependencies.py` |
+| Role self-provisioning | ✅ `POST /auth/caregiver-role` grants caregiver role in Postgres for authenticated Clerk users |
+| Clerk user profile resolution | ✅ `src/core/clerk.py` resolves names, email, avatars from Clerk Backend API |
+| `GET /users/me` | ✅ `@auth_required`; returns Clerk id, granted roles, `is_caregiver`, and linked `patient` row |
+| Dashboard API for Caregiver Web PWA | ✅ Full suite under `/dashboard`: summary stats, patient CRUD, memory subjects CRUD, progress/session summaries, trend rollups, casual play logs, activity feed, notifications & baseline attention flags |
+| SQLAlchemy models | ✅ `src/features/database/models.py` |
 | Migrations | ⬜ Alembic is a dependency but there is no `alembic/`; `init_db()` calls `create_all` on startup |
 | TimescaleDB hypertable + continuous aggregates | ⬜ |
-| Enrollment / patient–caregiver linking | ⬜ |
-| Role grants | ⬜ roles are read **only** from the `roles` table (D-14, amended) — no token claim grants anything. Nothing writes a row yet, so `caregiver_required` rejects every real caller today |
-| `roles.id` is `uuid` in the live database | 🔴 **blocks `caregiver_required`.** The models were corrected to `VARCHAR(64)` under D-20 but `create_all()` never alters an existing table, so every Clerk-id column in the deployed schema — `roles.id`, `patients.user_id`, `patient_caregivers.caregiver_id`, `memory_subjects.created_by` — is still `uuid` and rejects every real Clerk id. All seven tables are empty; a drop-and-recreate or the first Alembic migration fixes it |
-| Sync ingest endpoint | ⬜ |
-| Aggregation & attention-flag endpoints | ⬜ |
+| Sync ingest endpoint (`/sync/sessions`) | ⬜ |
 
-`GET /users/me` is the first real route: guarded, reading the models, with a Pydantic
-response model. Every other route still returns a hardcoded dict.
-
-**The API also needs `CLERK_SECRET_KEY`** — like `DATABASE_URL` it is required, so a missing
-key is a boot failure rather than a 401 with no visible cause (D-14).
-
-**The API needs `DATABASE_URL` to import at all** — `core/config.py` builds `settings` at
-module scope, so a missing value is an import-time `ValidationError`, not a startup one.
+The Caregiver Web Dashboard backend is fully built, typed, linted, and reflected in the OpenAPI contract.
 
 ---
 

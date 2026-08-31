@@ -152,12 +152,33 @@ async def require_roles(request: Request, *roles: str) -> AuthContext:
     return context
 
 
+async def grant_role(user_id: str, role_name: str) -> None:
+    """Grant a role to a Clerk user id in the `roles` table if not already granted."""
+    norm_role = _normalise_role(role_name)
+    if not norm_role:
+        return
+    async with SessionLocal() as session:
+        existing = await session.scalar(
+            select(Role).where(Role.id == user_id, Role.role == norm_role)
+        )
+        if existing is None:
+            session.add(Role(id=user_id, role=norm_role))
+            await session.commit()
+
+
+async def grant_caregiver_role(user_id: str) -> None:
+    """Grant the caregiver role to a Clerk user id."""
+    await grant_role(user_id, settings.caregiver_role)
+
+
 __all__ = [
     "FORBIDDEN_MESSAGE",
     "SIGNED_OUT_MESSAGE",
     "authenticate",
     "authenticate_state",
     "granted_roles",
+    "grant_caregiver_role",
+    "grant_role",
     "has_role",
     "is_caregiver",
     "require_auth",

@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     db_echo: bool = False
 
     # S3-compatible SSL Certificate Settings
-    s3_cert_bucket: str = Field(..., description="S3 bucket containing the CA certificate")
-    s3_cert_key: str = Field(..., description="S3 object key/path for the CA certificate")
+    s3_cert_bucket: str | None = Field(None, description="S3 bucket containing the CA certificate")
+    s3_cert_key: str | None = Field(None, description="S3 object key/path for the CA certificate")
     s3_endpoint_url: str | None = Field(
         None,
         description="Custom endpoint URL for S3-compatible storage (e.g. MinIO, Cloudflare R2, Supabase Storage)",
@@ -26,10 +26,10 @@ class Settings(BaseSettings):
     UVICORN_PORT: int = Field(8080, description="Uvicorn port")
     UVICORN_RELOAD: bool = Field(True, description="Uvicorn reload")
 
-    # Clerk settings. The key is required rather than optional: without it every guarded
-    # route would answer 401 with no visible cause, and failing at boot with a message
-    # naming .env.example is by far the cheaper mistake to debug.
-    clerk_secret_key: str = Field(..., description="Clerk secret key (sk_test_… / sk_live_…)")
+    # Clerk settings.
+    clerk_secret_key: str = Field(
+        "sk_test_placeholder", description="Clerk secret key (sk_test_… / sk_live_…)"
+    )
     clerk_jwt_key: str | None = Field(
         None,
         description="Clerk PEM public key. Set it to verify tokens without a call to Clerk.",

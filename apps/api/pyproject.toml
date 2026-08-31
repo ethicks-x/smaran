@@ -23,6 +23,13 @@ dev = [
     "httpx>=0.27.0",
 ]
 
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["src"]
+extraPaths = ["src"]
+
+
 [tool.ruff]
 target-version = "py313"
 line-length = 100
