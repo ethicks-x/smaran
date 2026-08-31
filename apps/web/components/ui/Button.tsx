@@ -1,4 +1,4 @@
-import { ButtonHTMLAttributes, forwardRef } from "react";
+import { type ButtonHTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 type Variant = "primary" | "secondary" | "ghost" | "outline" | "danger";
@@ -10,9 +10,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary: "bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_2px_8px_rgba(44,31,88,0.06)]",
+  primary:
+    "bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_2px_8px_rgba(44,31,88,0.06)]",
   secondary: "bg-lavender-100 text-indigo-800 hover:bg-lavender-200",
-  outline: "border border-ink-300/40 text-ink-700 hover:bg-black/[0.03] bg-transparent",
+  outline:
+    "border border-ink-300/40 text-ink-700 hover:bg-black/[0.03] bg-transparent",
   ghost: "text-ink-700 hover:bg-black/[0.05] bg-transparent",
   danger: "bg-coral-500 text-white hover:bg-coral-400",
 };
@@ -32,12 +34,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           "inline-flex items-center justify-center font-medium transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]",
           variantClasses[variant],
           sizeClasses[size],
-          className
+          className,
         )}
         {...props}
       />
     );
-  }
+  },
 );
 Button.displayName = "Button";
 

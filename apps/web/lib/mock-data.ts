@@ -1,11 +1,11 @@
-import {
-  Patient,
+import type {
   Caregiver,
-  PatientCaregiver,
-  MemorySubject,
-  GameSession,
-  QuestionEvent,
   CasualPlayLog,
+  GameSession,
+  MemorySubject,
+  Patient,
+  PatientCaregiver,
+  QuestionEvent,
 } from "./types";
 
 export const caregiver: Caregiver = {
@@ -49,9 +49,24 @@ export const patients: Patient[] = [
 ];
 
 export const patientCaregivers: PatientCaregiver[] = [
-  { id: "pc-1", patient_id: "pat-1", caregiver_id: "cg-1", relationship: "son" },
-  { id: "pc-2", patient_id: "pat-2", caregiver_id: "cg-1", relationship: "daughter" },
-  { id: "pc-3", patient_id: "pat-3", caregiver_id: "cg-1", relationship: "ASHA worker" },
+  {
+    id: "pc-1",
+    patient_id: "pat-1",
+    caregiver_id: "cg-1",
+    relationship: "son",
+  },
+  {
+    id: "pc-2",
+    patient_id: "pat-2",
+    caregiver_id: "cg-1",
+    relationship: "daughter",
+  },
+  {
+    id: "pc-3",
+    patient_id: "pat-3",
+    caregiver_id: "cg-1",
+    relationship: "ASHA worker",
+  },
 ];
 
 export const memorySubjects: MemorySubject[] = [
@@ -61,7 +76,8 @@ export const memorySubjects: MemorySubject[] = [
     kind: "person",
     name: "Priya",
     relationship: "daughter",
-    photo_url: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&auto=format&fit=crop",
+    photo_url:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&auto=format&fit=crop",
     is_active: true,
     created_by: "user-cg-1",
     created_at: "2025-07-01T10:00:00Z",
@@ -72,7 +88,8 @@ export const memorySubjects: MemorySubject[] = [
     kind: "person",
     name: "Arjun",
     relationship: "grandson",
-    photo_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400&auto=format&fit=crop",
+    photo_url:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400&auto=format&fit=crop",
     is_active: true,
     created_by: "user-cg-1",
     created_at: "2025-07-10T10:00:00Z",
@@ -83,7 +100,8 @@ export const memorySubjects: MemorySubject[] = [
     kind: "place",
     name: "College Street, Kolkata",
     relationship: null,
-    photo_url: "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?q=80&w=400&auto=format&fit=crop",
+    photo_url:
+      "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?q=80&w=400&auto=format&fit=crop",
     is_active: true,
     created_by: "user-cg-1",
     created_at: "2025-07-15T10:00:00Z",
@@ -94,7 +112,8 @@ export const memorySubjects: MemorySubject[] = [
     kind: "object",
     name: "His old radio",
     relationship: null,
-    photo_url: "https://images.unsplash.com/photo-1495001258031-d1b407bc1776?q=80&w=400&auto=format&fit=crop",
+    photo_url:
+      "https://images.unsplash.com/photo-1495001258031-d1b407bc1776?q=80&w=400&auto=format&fit=crop",
     is_active: true,
     created_by: "user-cg-1",
     created_at: "2025-07-20T10:00:00Z",
@@ -105,7 +124,8 @@ export const memorySubjects: MemorySubject[] = [
     kind: "person",
     name: "Anita",
     relationship: "daughter",
-    photo_url: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=400&auto=format&fit=crop",
+    photo_url:
+      "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=400&auto=format&fit=crop",
     is_active: true,
     created_by: "user-cg-1",
     created_at: "2025-07-05T10:00:00Z",
@@ -195,17 +215,37 @@ export const questionEvents: QuestionEvent[] = [
 ];
 
 export const casualPlayLogs: CasualPlayLog[] = [
-  { id: "cp-1", patient_id: "pat-1", game_key: "chess", played_at: "2025-08-29T17:00:00Z", duration_sec: 900 },
-  { id: "cp-2", patient_id: "pat-1", game_key: "sudoku", played_at: "2025-08-30T18:00:00Z", duration_sec: 420 },
-  { id: "cp-3", patient_id: "pat-2", game_key: "sudoku", played_at: "2025-08-30T16:30:00Z", duration_sec: 600 },
+  {
+    id: "cp-1",
+    patient_id: "pat-1",
+    game_key: "chess",
+    played_at: "2025-08-29T17:00:00Z",
+    duration_sec: 900,
+  },
+  {
+    id: "cp-2",
+    patient_id: "pat-1",
+    game_key: "sudoku",
+    played_at: "2025-08-30T18:00:00Z",
+    duration_sec: 420,
+  },
+  {
+    id: "cp-3",
+    patient_id: "pat-2",
+    game_key: "sudoku",
+    played_at: "2025-08-30T16:30:00Z",
+    duration_sec: 600,
+  },
 ];
 
 // --- Helper functions (these are the shape your DB queries will eventually replace) ---
 
 export function getPatientsForCaregiver(caregiverId: string) {
-  const links = patientCaregivers.filter((pc) => pc.caregiver_id === caregiverId);
+  const links = patientCaregivers.filter(
+    (pc) => pc.caregiver_id === caregiverId,
+  );
   return links.map((link) => ({
-    ...patients.find((p) => p.id === link.patient_id)!,
+    ...patients.find((p) => p.id === link.patient_id),
     relationship: link.relationship,
   }));
 }
@@ -214,9 +254,13 @@ export function getPatient(id: string) {
   return patients.find((p) => p.id === id);
 }
 
-export function getMemorySubjects(patientId: string, kind?: MemorySubject["kind"]) {
+export function getMemorySubjects(
+  patientId: string,
+  kind?: MemorySubject["kind"],
+) {
   return memorySubjects.filter(
-    (m) => m.patient_id === patientId && m.is_active && (!kind || m.kind === kind)
+    (m) =>
+      m.patient_id === patientId && m.is_active && (!kind || m.kind === kind),
   );
 }
 
@@ -238,7 +282,9 @@ export function getCasualPlayForPatient(patientId: string) {
 
 // Derived stats
 export function getPatientAccuracy(patientId: string) {
-  const events = getQuestionEventsForPatient(patientId).filter((e) => e.is_correct !== null);
+  const events = getQuestionEventsForPatient(patientId).filter(
+    (e) => e.is_correct !== null,
+  );
   if (events.length === 0) return 0;
   const correct = events.filter((e) => e.is_correct).length;
   return Math.round((correct / events.length) * 100);
@@ -276,9 +322,14 @@ export function getSessionSummaries(patientId: string) {
     const events = getQuestionEventsForSession(session.id);
     const answered = events.filter((e) => e.is_correct !== null);
     const correct = answered.filter((e) => e.is_correct).length;
-    const accuracy = answered.length ? Math.round((correct / answered.length) * 100) : 0;
+    const accuracy = answered.length
+      ? Math.round((correct / answered.length) * 100)
+      : 0;
     const avgTimeMs = answered.length
-      ? Math.round(answered.reduce((sum, e) => sum + e.time_taken_ms, 0) / answered.length)
+      ? Math.round(
+          answered.reduce((sum, e) => sum + e.time_taken_ms, 0) /
+            answered.length,
+        )
       : 0;
     return {
       id: session.id,
@@ -292,8 +343,14 @@ export function getSessionSummaries(patientId: string) {
 }
 
 export function getActivityBreakdown(patientId: string) {
-  const events = getQuestionEventsForPatient(patientId).filter((e) => e.is_correct !== null);
-  const activities: QuestionEvent["activity"][] = ["who_is_this", "what_is_this", "where_is_this"];
+  const events = getQuestionEventsForPatient(patientId).filter(
+    (e) => e.is_correct !== null,
+  );
+  const activities: QuestionEvent["activity"][] = [
+    "who_is_this",
+    "what_is_this",
+    "where_is_this",
+  ];
   return activities
     .map((activity) => {
       const subset = events.filter((e) => e.activity === activity);
@@ -302,7 +359,11 @@ export function getActivityBreakdown(patientId: string) {
       return {
         activity,
         label:
-          activity === "who_is_this" ? "Who is this?" : activity === "what_is_this" ? "What is this?" : "Where is this?",
+          activity === "who_is_this"
+            ? "Who is this?"
+            : activity === "what_is_this"
+              ? "What is this?"
+              : "Where is this?",
         accuracy: Math.round((correct / subset.length) * 100),
         count: subset.length,
       };

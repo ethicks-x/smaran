@@ -2,8 +2,8 @@
 
 import { Bell, Search } from "lucide-react";
 import Link from "next/link";
-import { caregiver } from "@/lib/mock-data";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { caregiver } from "@/lib/mock-data";
 
 export function Header() {
   return (
@@ -30,14 +30,20 @@ export function Header() {
             3
           </span>
         </Link>
-        <Link href="/settings" className="flex items-center gap-2.5 rounded-xl pl-1 pr-3 py-1">
+        <Link
+          href="/settings"
+          className="flex items-center gap-2.5 rounded-xl pl-1 pr-3 py-1"
+        >
+          {/** biome-ignore lint/performance/noImgElement: Image is used for visual purposes only */}
           <img
             src={caregiver.avatar_url ?? undefined}
             alt={caregiver.full_name}
             className="h-9 w-9 rounded-full border-2 border-white object-cover"
           />
           <div className="hidden text-left sm:block">
-            <p className="text-sm font-semibold leading-none text-ink-900">{caregiver.full_name}</p>
+            <p className="text-sm font-semibold leading-none text-ink-900">
+              {caregiver.full_name}
+            </p>
             <p className="mt-1 text-xs leading-none text-ink-500">Caregiver</p>
           </div>
         </Link>

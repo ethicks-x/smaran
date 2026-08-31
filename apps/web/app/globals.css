@@ -1,50 +1,50 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-background: #FAF8F5;
-  --color-surface: #FFFFFF;
+  --color-background: #faf8f5;
+  --color-surface: #ffffff;
 
-  --color-ink-900: #231F3D;
-  --color-ink-700: #3F3A5C;
-  --color-ink-500: #6C6789;
-  --color-ink-300: #A7A2C0;
+  --color-ink-900: #231f3d;
+  --color-ink-700: #3f3a5c;
+  --color-ink-500: #6c6789;
+  --color-ink-300: #a7a2c0;
 
-  --color-indigo-50: #F1EEFB;
-  --color-indigo-100: #E4DEF7;
-  --color-indigo-200: #C6BAEE;
-  --color-indigo-300: #A895E3;
-  --color-indigo-400: #8A70D8;
-  --color-indigo-500: #6C4FCB;
-  --color-indigo-600: #563DA8;
-  --color-indigo-700: #3F2C7D;
-  --color-indigo-800: #2C1F58;
-  --color-indigo-900: #1C1438;
+  --color-indigo-50: #f1eefb;
+  --color-indigo-100: #e4def7;
+  --color-indigo-200: #c6baee;
+  --color-indigo-300: #a895e3;
+  --color-indigo-400: #8a70d8;
+  --color-indigo-500: #6c4fcb;
+  --color-indigo-600: #563da8;
+  --color-indigo-700: #3f2c7d;
+  --color-indigo-800: #2c1f58;
+  --color-indigo-900: #1c1438;
 
-  --color-lavender-50: #F6F1FB;
-  --color-lavender-100: #EDE3F8;
-  --color-lavender-200: #DCC9F1;
-  --color-lavender-300: #C7A9E6;
-  --color-lavender-400: #B18BDA;
-  --color-lavender-500: #9A6DCC;
+  --color-lavender-50: #f6f1fb;
+  --color-lavender-100: #ede3f8;
+  --color-lavender-200: #dcc9f1;
+  --color-lavender-300: #c7a9e6;
+  --color-lavender-400: #b18bda;
+  --color-lavender-500: #9a6dcc;
 
-  --color-mint-50: #EAFBF6;
-  --color-mint-100: #D2F5EA;
-  --color-mint-300: #8FDFC7;
-  --color-mint-400: #5FCBAE;
-  --color-mint-500: #3AAF92;
-  --color-mint-600: #2A8C75;
+  --color-mint-50: #eafbf6;
+  --color-mint-100: #d2f5ea;
+  --color-mint-300: #8fdfc7;
+  --color-mint-400: #5fcbae;
+  --color-mint-500: #3aaf92;
+  --color-mint-600: #2a8c75;
 
-  --color-amber-50: #FDF6E9;
-  --color-amber-200: #F5DFA6;
-  --color-amber-400: #E8B84B;
-  --color-amber-500: #D9A22C;
+  --color-amber-50: #fdf6e9;
+  --color-amber-200: #f5dfa6;
+  --color-amber-400: #e8b84b;
+  --color-amber-500: #d9a22c;
 
-  --color-coral-50: #FCEEEC;
-  --color-coral-200: #F3C4BC;
-  --color-coral-400: #E28777;
-  --color-coral-500: #D3695A;
+  --color-coral-50: #fceeec;
+  --color-coral-200: #f3c4bc;
+  --color-coral-400: #e28777;
+  --color-coral-500: #d3695a;
 
   --font-sans: "Manrope", system-ui, sans-serif;
 
@@ -55,7 +55,6 @@
   --animate-float: float 6s ease-in-out infinite;
 
   @keyframes float {
-
     0%,
     100% {
       transform: translateY(0px);
@@ -96,7 +95,10 @@ body {
 }
 
 .bg-noise {
-  background-image: radial-gradient(var(--color-indigo-200) 0.5px, transparent 0.5px);
+  background-image: radial-gradient(
+    var(--color-indigo-200) 0.5px,
+    transparent 0.5px
+  );
   background-size: 18px 18px;
 }
 
@@ -109,20 +111,20 @@ body {
 }
 
 .dark {
-  --color-background: #14121F;
-  --color-surface: #1E1B2E;
+  --color-background: #14121f;
+  --color-surface: #1e1b2e;
 
-  --color-ink-900: #F5F3FA;
-  --color-ink-700: #C7C2DA;
-  --color-ink-500: #9089AC;
-  --color-ink-300: #5C5578;
+  --color-ink-900: #f5f3fa;
+  --color-ink-700: #c7c2da;
+  --color-ink-500: #9089ac;
+  --color-ink-300: #5c5578;
 
-  --color-indigo-50: #251F3D;
-  --color-indigo-100: #2C2650;
+  --color-indigo-50: #251f3d;
+  --color-indigo-100: #2c2650;
 
-  --color-mint-50: #16302A;
-  --color-amber-50: #332A16;
-  --color-coral-50: #331F1C;
+  --color-mint-50: #16302a;
+  --color-amber-50: #332a16;
+  --color-coral-50: #331f1c;
 }
 
 .dark ::-webkit-scrollbar-thumb {
