@@ -714,3 +714,89 @@ it and is what a build sets.
 
 **Would change it if:** the enrollment flow (D-01, still open) gives a device its own
 credential rather than a Clerk session — the wrapper is then the one place that changes.
+
+---
+
+## D-22 · 2026-08-31 · Game stats are a shared hook over a pure module, and the reader never sees them
+
+**Decision.** Every game measures itself the same way, through two pieces:
+`src/lib/game-stats.ts` — pure, no clock, no storage — turns a described run into a
+`SessionStats`; `src/hooks/use-game-session.ts` owns the clock, times each attempt and hands
+the closed session to `src/lib/game-history.ts`. A game calls `begin` when play starts,
+`record(correct)` once per attempt, and `finish` or `abandon`. Matching pairs is wired to it.
+
+`SessionStats` carries `accuracy` (of the attempts made, the share that were right),
+`precision` (how close the run came to the fewest attempts the round could take, null when a
+game has no such floor), `completion` (how much of the round was finished), `durationMs` and
+`timeOnTaskMs`, `avgResponseMs` and `medianResponseMs`, `consistency` (one minus the
+coefficient of variation of response times, null under two attempts), `longestStreak`, and
+the raw `attempts` / `correct` / `total` counts.
+
+**Why split it.** The engine's signature is frozen pure (D-07) and it will read these rows;
+if the arithmetic that produces them reads a clock, neither half can be tested by handing it
+numbers. The split keeps the impure part to about thirty lines.
+
+**Raw counts are kept next to the ratios**, as `data-model.md` §1 requires. What "accuracy"
+means will be argued about again; the facts underneath it should not have to be recollected.
+
+**Consistency is a coefficient of variation, not a variance in milliseconds** — spread
+measured against the reader's own mean. A slow, steady reader and a quick, steady one both
+score near 1, which is the only way the number stays a personal one (§2.4).
+
+**None of it is shown to the patient.** No percentage, no turn counter, no "you took 4:32"
+under a finished board. §2.3 forbids anything that scolds and a score is exactly that; these
+rows exist for the caregiver dashboard and for the adaptive engine. An abandoned board
+records identically to a finished one, flagged `completed: false` and never penalised.
+
+**The preview is not timed.** The session's clock starts when the cards turn over, so a long,
+careful look at the board does not read afterwards as a slow start.
+
+**Durations come off a monotonic clock** (`performance.now()`), placed against one `Date.now()`
+taken at the start. A phone correcting its clock mid-board would otherwise record a run that
+took minus twenty minutes.
+
+**Consequences.** `game-history.ts` is an in-memory list that lives as long as the app is
+open — the placeholder wearing the shape of the `game_session` table. Replacing it with
+SQLite + Drizzle should not require editing either caller. The next game adds a
+`useGameSession` call and nothing else.
+
+**Would change it if:** a game turns up whose unit of work is not a right-or-wrong attempt —
+a free recall or a spoken answer scored by degree. `Attempt.correct` would become a score,
+and every derived ratio with it.
+
+---
+
+## D-23 · 2026-08-31 · The reader sees four lines after a board; every metric is `__DEV__` only
+
+**Decision.** Finishing a board shows `GameSummary` inside the win dialog: **pairs found**,
+**turns taken**, **the share of turns that were right**, and **roughly how long it took**.
+Under `__DEV__` a second card, `GameStatsDetail`, prints every field of the `SessionStats`
+row plus this launch's history for the game. `Dialog` gained a `details` slot for the card
+and now scrolls its own content.
+
+**Why four and no more.** The card sits above three buttons on a phone at a text size the
+reader can double. A fifth line is what pushes "I have finished" off the bottom edge, and
+`longestStreak`, response times and consistency are all in the row for the dashboard and the
+engine to read (D-22) — they do not need to be on this card.
+
+**They are facts, not a grade.** No pass mark, no target, no colour that turns a low number
+into a warning, and nothing compared against anyone else (§2.4). The line that comes closest
+to a score is the share of turns that found a pair, and it is labelled as what it literally
+counts rather than as how well they did. §2.3 forbids anything that scolds; a number the
+reader asked to see and can read plainly is not that, but a red one would be.
+
+**Time is coarse on purpose** — seconds under a minute, whole minutes above it ("About four
+minutes"). An exact figure invites beating it, and nothing in this game is timed. The precise
+duration is in the row and in the developer card.
+
+**The developer card is English literals**, the same exception the Settings developer row
+takes (D-21): it is compiled out of a release build, so no reader can meet an untranslated
+string from it. It is also the only place in the app that shows a raw metric as a metric.
+
+**`Dialog` scrolls now.** A card carrying a summary and three buttons is taller than a small
+phone at the largest text size, and a button pushed off the bottom edge would leave the
+reader with no way out — the dialog has no other dismissal (it cannot be tapped away).
+
+**Would change it if:** the four lines turn out to read as a report card in front of a real
+reader. The fix is fewer lines, not smaller ones — and the metrics lose nothing, because the
+row behind the card is unchanged.

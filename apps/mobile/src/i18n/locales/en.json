@@ -87,6 +87,17 @@
 			"title": "Games",
 			"description": "A few gentle games, whenever you feel like playing one."
 		},
+		"summary": {
+			"found": "Answers found",
+			"foundValue": "{{found}} of {{total}}",
+			"turns": "Turns taken",
+			"accuracy": "Turns that were right",
+			"time": "Time taken",
+			"timeSeconds_one": "{{count}} second",
+			"timeSeconds_other": "{{count}} seconds",
+			"timeMinutes_one": "About {{count}} minute",
+			"timeMinutes_other": "About {{count}} minutes"
+		},
 		"matching": {
 			"name": "Matching pairs",
 			"shortDescription": "Turn two cards over and find the pairs.",
@@ -118,6 +129,7 @@
 			"doneTitle": "Every pair is found",
 			"doneMessage_one": "You found the pair on this board.",
 			"doneMessage_other": "You found all {{count}} pairs on this board.",
+			"pairsLabel": "Pairs found",
 			"bigger": "Try a bigger board",
 			"again": "Play this board again",
 			"finish": "I have finished",

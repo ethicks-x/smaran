@@ -1,6 +1,6 @@
 import { Icon } from "@expo/ui";
 import type { ReactNode } from "react";
-import { Modal, StyleSheet, View } from "react-native";
+import { Modal, ScrollView, StyleSheet, View } from "react-native";
 
 import { type AppIconName, AppIcons } from "@/components/ui/icons";
 import { NativeHost } from "@/components/ui/native-host";
@@ -23,6 +23,10 @@ export type DialogProps = {
 	icon?: AppIconName;
 	/** Painted behind the card — a celebration, usually nothing. */
 	backdrop?: ReactNode;
+	/** Anything that belongs between the message and the buttons — a summary of
+	 * what just happened, most often. Kept apart from `children` so the buttons
+	 * stay the last thing in the card and the first thing reached. */
+	details?: ReactNode;
 	/** The way out. Android's back gesture lands here too, so there is always
 	 * one, and it must never leave the reader somewhere they cannot act. */
 	onRequestClose: () => void;
@@ -44,6 +48,7 @@ export function Dialog({
 	message,
 	icon,
 	backdrop,
+	details,
 	onRequestClose,
 	children,
 }: DialogProps) {
@@ -69,27 +74,40 @@ export function Dialog({
             is itself sizing would have nothing to measure against. */}
 				<View style={styles.sizer}>
 					<Surface elevated style={styles.card}>
-						{icon ? (
-							<NativeHost>
-								<Icon
-									name={AppIcons[icon]}
-									size={DIALOG_ICON}
-									color={colors.primary}
-								/>
-							</NativeHost>
-						) : null}
+						{/* The card scrolls rather than clipping. At the largest text size
+                a dialog carrying a summary and three buttons is taller than a
+                small phone, and a button pushed off the bottom edge would leave
+                the reader with no way out at all. */}
+						<ScrollView
+							style={styles.scroll}
+							contentContainerStyle={styles.content}
+							showsVerticalScrollIndicator={false}
+							bounces={false}
+						>
+							{icon ? (
+								<NativeHost>
+									<Icon
+										name={AppIcons[icon]}
+										size={DIALOG_ICON}
+										color={colors.primary}
+									/>
+								</NativeHost>
+							) : null}
 
-						<Text variant="heading" center accessibilityRole="header">
-							{title}
-						</Text>
-
-						{message ? (
-							<Text variant="bodyLarge" center>
-								{message}
+							<Text variant="heading" center accessibilityRole="header">
+								{title}
 							</Text>
-						) : null}
 
-						{children ? <View style={styles.actions}>{children}</View> : null}
+							{message ? (
+								<Text variant="bodyLarge" center>
+									{message}
+								</Text>
+							) : null}
+
+							{details}
+
+							{children ? <View style={styles.actions}>{children}</View> : null}
+						</ScrollView>
 					</Surface>
 				</View>
 			</View>
@@ -107,10 +125,23 @@ const styles = StyleSheet.create({
 	sizer: {
 		width: "100%",
 		maxWidth: DIALOG_WIDTH,
+		// Bounds the card, which is what gives the scroll view inside it something
+		// to scroll within.
+		maxHeight: "100%",
 	},
 	card: {
-		alignItems: "center",
 		paddingVertical: Spacing["2xl"],
+	},
+	scroll: {
+		alignSelf: "stretch",
+		// Sizes to its content and only then gives way: without the shrink it would
+		// keep its full height against the cap above and push the card off screen,
+		// and with a grow it would stretch a two-line dialog to the whole display.
+		flexGrow: 0,
+		flexShrink: 1,
+	},
+	content: {
+		alignItems: "center",
 		gap: Spacing.md,
 	},
 	actions: {

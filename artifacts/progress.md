@@ -15,13 +15,15 @@ The **patient app's shell is real and good**: theming, accessibility, navigation
 a design system are all built to a high standard. **Everything underneath is missing** —
 there is no local database, no sync, no reminders and no voice. The patient app does now
 speak four languages with the network off, and it now has its first game — Matching pairs —
-which plays end to end but keeps nothing. The backend is three health checks. The
+which plays end to end and now measures itself, though the measurements last only as long
+as the app is open. The backend is three health checks. The
 dashboard is `create-next-app`. The backend has SQLAlchemy models and Clerk token
 verification with two route guards, but no migrations and no endpoint yet uses either.
 
 The rubric's centrepiece — adaptive cognitive games — has one game and no adaptation: the
-loop from "open a game" to "finish a deck" is real, but nothing is written down, so there is
-no history for the engine to read.
+loop from "open a game" to "finish a deck" is real and every board now closes a
+`SessionStats` (D-22), but nothing is written to disk yet, so there is no history across
+launches for the engine to read.
 
 ---
 
@@ -35,7 +37,7 @@ no history for the engine to read.
 | Design tokens | `src/theme/` — colours (AAA-rated), six highlight palettes (also AAA), type (18pt floor), spacing, radii, touch targets |
 | Global `UIScale` dial | `theme/layout.ts`, currently `0.75` |
 | Appearance preferences | theme mode, text size, highlight colour, bold text — persisted, `use-appearance.tsx` |
-| UI kit | `Screen`, `Surface` (with `elevated`), `Section`, `SettingCard`/`SettingField`, `Text`, `ActionButton`, `ChoiceGroup`, `PreviewChoice`, `ColorChoice`, `StepSlider`, `Toggle`, `CodeInput`, `EmptyState`, `ProgressBar` (with a `durationMs` countdown mode), `Dialog`, `Confetti`, `SettingsGroup`/`Row`/`Link`/`Accordion`, `TextField`, `NativeHost`, `AppIcons` |
+| UI kit | `Screen`, `Surface` (with `elevated`), `Section`, `SettingCard`/`SettingField`, `Text`, `ActionButton`, `ChoiceGroup`, `PreviewChoice`, `ColorChoice`, `StepSlider`, `Toggle`, `CodeInput`, `EmptyState`, `ProgressBar` (with a `durationMs` countdown mode), `Dialog` (scrolling, with a `details` slot), `Confetti`, `SettingsGroup`/`Row`/`Link`/`Accordion`, `TextField`, `NativeHost`, `AppIcons` |
 | Native bridging | `NativeHost` wraps `@expo/ui` with our scheme + the chosen highlight as seed colour |
 | Localisation | `i18next` + `react-i18next`, four bundled catalogues, `src/i18n/` |
 | Tailwind via Uniwind | `uniwind@1.11` + `tailwindcss@4`, Metro plugin only — `metro.config.js`, `src/global.css`. Tokens generated from `src/theme/*.ts` into `src/theme/tokens.css` by `bun run --cwd apps/mobile theme:css`; `use-uniwind-appearance.ts` pushes the highlight and text size over them at runtime. Nothing migrated yet — screens still use `StyleSheet`. D-17 |
@@ -52,6 +54,7 @@ no history for the engine to read.
 | Recall | once-per-launch name warm-up; per-letter scoring, reveal after 3 misses, in-memory only |
 | API client | `src/lib/api.ts` (`apiFetch`, `API_BASE_URL`, `ApiError`, `ApiUnreachableError`) + `useApi()` in `src/hooks/use-api.ts`. Clerk session token per call, `Authorization: Bearer`. Base URL from `EXPO_PUBLIC_API_URL`, falling back to the Expo packager host on `:8080`. The only caller is a `__DEV__`-only “Developer” row on Account that GETs `/users/me` — D-21 |
 | Account stack | profile (editable — name, phone, photo), appearance (four dials, all working), language (working), notifications (placeholder copy) |
+| Game session stats | `src/lib/game-stats.ts` (pure — accuracy, precision, completion, response times, consistency, streak) + `useGameSession` (`src/hooks/`) for the clock and per-attempt timing + `src/lib/game-history.ts`, an in-memory stand-in for the `game_session` table. Matching pairs is wired to it. `GameSummary` shows four warm lines in the win dialog and `GameStatsDetail` dumps every field under `__DEV__`. D-22, D-23 |
 | Games stack | `src/app/games/` pushed over the tabs, entered from a card on Today; `src/components/games/` holds `GameCard`, `GameFrame`, `MemoryCard`, `MemoryBoard` and the `Symbols` table — D-18, D-19 |
 
 ### Screens 🟡
@@ -64,7 +67,7 @@ no history for the engine to read.
 | **Help** | 🟡 layout + call button real; contact is hardcoded. `TODO: real primary contact + notify dashboard` |
 | **Settings** | ✅ platform-shaped list: account row on top, grouped setting rows, sign-out on its own card |
 | **Games** | ✅ list of games at `games/index.tsx`, reached from a card on Today — `decisions.md` D-18 |
-| **Matching pairs** | 🟡 plays end to end: four square boards (4×4, 6×6, 8×8, 12×12), face-up preview under a draining bar and no buttons, flip (a third card settles the pair already up rather than waiting), matches held on the board, a win dialog with confetti onto the next board. Framed by `GameFrame` — cross, board name, settings — not `Screen` (D-19). 8×8 and 12×12 scroll sideways on a phone — cards are clamped at the touch floor. In memory only. `TODO: write a session row once the local store lands` |
+| **Matching pairs** | 🟡 plays end to end: four square boards (4×4, 6×6, 8×8, 12×12), face-up preview under a draining bar and no buttons, flip (a third card settles the pair already up rather than waiting), matches held on the board, a win dialog with confetti onto the next board. Every board is measured (D-22) — turns, pairs found, time per turn, finished or put down — and the win dialog shows pairs found, turns taken, the share of turns that were right, and roughly how long it took, with a full metric dump under `__DEV__` (D-23). Framed by `GameFrame` — cross, board name, settings — not `Screen` (D-19). 8×8 and 12×12 scroll sideways on a phone — cards are clamped at the touch floor. Stats go to the launch-lifetime history; `TODO: persist the session row once the local store lands` |
 | **Notifications** | 🟡 describes behaviour that does not exist yet |
 | **Profile** | ✅ first name, last name, phone number and photo are editable and saved to Clerk — `decisions.md` D-13 |
 
@@ -88,7 +91,7 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 | Item | Blocking |
 |---|---|
 | Local SQLite + Drizzle | **everything offline.** Nothing is persisted; no session store, no queue |
-| Cognitive games | 🟡 one game (Matching pairs), with four fixed difficulty levels. The rest of the deliverable — and any game needing stored content or a remembered difficulty — waits on the local DB |
+| Cognitive games | 🟡 one game (Matching pairs), with four fixed difficulty levels. It now measures every board (D-22), but the rows only live as long as the app is open. The rest of the deliverable — and any game needing stored content or a remembered difficulty — waits on the local DB |
 | Adaptive difficulty engine | needs session history, which needs the local DB |
 | Reminders (medicine / hydration / activity / appointments) | `expo-notifications` not installed |
 | Voice prompts (TTS) | `expo-speech` not installed |
@@ -145,11 +148,14 @@ No auth, no data, no charts, no PWA/offline cache.
 
 1. **Local persistence** (`expo-sqlite` + Drizzle). Schema in `data-model.md` §1. Unblocks
    games, sessions, the adaptive engine, and sync. Nothing offline is real until this lands.
-2. **Capture a session from Matching pairs** — the game renders and finishes (D-18); what
-   is missing is writing the run down. One session row per board, then the same for every
-   game after it. This is what gives the adaptive engine something to read — and what lets
-   the opening board be chosen rather than always being the smallest.
-3. **Adaptive engine v1** as a pure module (`architecture.md` §6) against real local history.
+2. **Persist the session rows.** Matching pairs now measures every board and closes a
+   `SessionStats` per round (D-22), but `lib/game-history.ts` keeps them in memory only, so
+   they are gone at the next launch. Swap that module's array for the `game_session` table
+   and its `sync_queue` entry; neither caller should need editing. That is what gives the
+   adaptive engine something to read — and what lets the opening board be chosen rather than
+   always being the smallest.
+3. **Adaptive engine v1** as a pure module (`architecture.md` §6) reading `recentSessions()`
+   — the input shape it needs already exists as `SessionStats`.
 4. **Reminders** — `expo-notifications`, local scheduling, no server dependency.
 5. **API ingest** — SQLAlchemy + Alembic + Postgres, `POST /sync/sessions` with
    `(device_id, seq)` dedupe (`api-contract.md`).

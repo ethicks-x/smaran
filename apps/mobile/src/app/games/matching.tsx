@@ -1,11 +1,13 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
 import type { BoardCard, SymbolId, SymbolPool } from "@/components/games";
 import {
 	GameFrame,
+	GameStatsDetail,
+	GameSummary,
 	MemoryBoard,
 	SymbolPools,
 	Symbols,
@@ -17,6 +19,8 @@ import {
 	ProgressBar,
 	Text,
 } from "@/components/ui";
+import { useGameSession } from "@/hooks/use-game-session";
+import type { SessionStats } from "@/lib/game-stats";
 import { Spacing } from "@/theme";
 
 /**
@@ -35,6 +39,9 @@ import { Spacing } from "@/theme";
  * here because a board that is too big to finish is still a board you can put
  * down, and nothing in this game punishes putting it down.
  */
+/** The key this game's sessions are grouped under, here and on the server. */
+const GAME_ID = "matching";
+
 const LEVELS = [
 	{ id: "four", columns: 4, pool: "plain" },
 	{ id: "six", columns: 6, pool: "plain" },
@@ -80,14 +87,22 @@ type Phase = "preview" | "playing" | "won";
  * over and the board is exactly as it was. Finishing one is a dialog and a
  * handful of paper, and even that has no hurry in it.
  *
- * Everything here is on-device and in memory. TODO: when the local store lands
- * (`expo-sqlite` + Drizzle), write one session row per board — cards, pairs,
- * turns taken and how long each turn was held — and let `adjustDifficulty`
- * (D-07) choose the opening board from **this** reader's own history rather
- * than always starting at six (D-08).
+ * Everything here is on-device. Every board is measured by `useGameSession` —
+ * turns taken, how many found a pair, how long each turn was held, and whether
+ * the board was finished or put down — and the row goes to the on-device
+ * history. None of it is shown to the reader and none of it is a score: §2.3
+ * forbids anything that scolds, and a percentage under a finished board is
+ * exactly that. It is there for the caregiver dashboard and for the engine.
+ *
+ * TODO: persist those rows to the `game_session` table once the local store
+ * lands (`expo-sqlite` + Drizzle) — `lib/game-history.ts` is the seam — and let
+ * `adjustDifficulty` (D-07) read them to choose the opening board from **this**
+ * reader's own history rather than always starting at four by four (D-08).
  */
 export default function MatchingScreen() {
 	const { t } = useTranslation();
+
+	const session = useGameSession({ gameId: GAME_ID });
 
 	const [levelIndex, setLevelIndex] = useState(0);
 	const level = LEVELS[levelIndex] ?? LEVELS[0];
@@ -102,6 +117,16 @@ export default function MatchingScreen() {
 	const [faceUp, setFaceUp] = useState<string[]>([]);
 	const [matched, setMatched] = useState<string[]>([]);
 	const [previewLeft, setPreviewLeft] = useState(1);
+
+	/** The finished board's own numbers, kept so the dialog can show what just
+	 * happened. Null until a board is cleared, and cleared again with the next
+	 * deal — the card is about this board and no other. */
+	const [summary, setSummary] = useState<SessionStats | null>(null);
+
+	/** The two cards the last attempt was counted for. Settling the same pair can
+	 * be reached twice — by the timer, and by a third tap that got there first —
+	 * and a turn counted twice would quietly halve the board's accuracy. */
+	const lastCounted = useRef<string | null>(null);
 
 	const pairs = pairsOf(level);
 	const pairsFound = matched.length / 2;
@@ -122,15 +147,29 @@ export default function MatchingScreen() {
 		(pending: string[]) => {
 			const [first, second] = pending;
 
-			if (first && second && symbolOf(deck, first) === symbolOf(deck, second)) {
-				setMatched((cards) =>
-					cards.includes(first) ? cards : [...cards, first, second],
-				);
+			if (first && second) {
+				const isPairTurned = symbolOf(deck, first) === symbolOf(deck, second);
+
+				if (isPairTurned) {
+					setMatched((cards) =>
+						cards.includes(first) ? cards : [...cards, first, second],
+					);
+				}
+
+				// One turn is one attempt, whichever way it went. This is the only
+				// place the game learns anything about how the board is going, so it
+				// is the only place that counts.
+				const turn = `${first}|${second}`;
+
+				if (lastCounted.current !== turn) {
+					lastCounted.current = turn;
+					session.record(isPairTurned);
+				}
 			}
 
 			setFaceUp((cards) => (cards === pending ? [] : cards));
 		},
-		[deck],
+		[deck, session],
 	);
 
 	// The look at the board is the only thing in the game that happens on a
@@ -147,10 +186,23 @@ export default function MatchingScreen() {
 		// the timer cannot drift apart.
 		setPreviewLeft(0);
 
-		const timer = setTimeout(() => setPhase("playing"), previewMs);
+		const timer = setTimeout(() => {
+			// The session's clock starts when the cards turn over, not when the board
+			// is dealt. The preview is something shown to the reader rather than
+			// something they are doing, and counting it would make a long, careful
+			// look at the cards read afterwards as a slow start.
+			session.begin({
+				difficulty: levelIndex + 1,
+				total: pairs,
+				// A board can be cleared in one turn per pair. That perfect run is what
+				// this run is measured against — never another person's (§2.4).
+				idealAttempts: pairs,
+			});
+			setPhase("playing");
+		}, previewMs);
 
 		return () => clearTimeout(timer);
-	}, [phase, previewMs]);
+	}, [phase, previewMs, session, levelIndex, pairs]);
 
 	// Two cards are up: hold them there long enough to be looked at, then either
 	// keep them or turn them back.
@@ -169,12 +221,27 @@ export default function MatchingScreen() {
 
 	useEffect(() => {
 		if (deck.length > 0 && matched.length === deck.length) {
+			const stats = session.finish();
+
 			setPhase("won");
+
+			// Only the call that actually closed the board has numbers; a second
+			// pass through here gets null, and letting that through would empty the
+			// card the reader is looking at.
+			if (stats) {
+				setSummary(stats);
+			}
 		}
-	}, [matched.length, deck.length]);
+	}, [matched.length, deck.length, session]);
 
 	const start = (index: number) => {
 		const next = LEVELS[index] ?? LEVELS[0];
+
+		// A board still in play when the next one is dealt was put down, and it is
+		// written down as one rather than lost. Nothing about an unfinished board
+		// counts against the reader — `data-model.md` keeps it precisely because
+		// walking away half way through is ordinary and worth knowing about.
+		session.abandon();
 
 		setLevelIndex(index);
 		setRound((dealt) => dealt + 1);
@@ -183,6 +250,8 @@ export default function MatchingScreen() {
 		setFaceUp([]);
 		setPreviewLeft(1);
 		setPhase("preview");
+		setSummary(null);
+		lastCounted.current = null;
 	};
 
 	const turnOver = (id: string) => {
@@ -280,6 +349,19 @@ export default function MatchingScreen() {
 				title={t("games.matching.doneTitle")}
 				message={t("games.matching.doneMessage", { count: pairs })}
 				backdrop={<Confetti run={round} />}
+				details={
+					summary ? (
+						<>
+							<GameSummary
+								stats={summary}
+								foundLabel={t("games.matching.pairsLabel")}
+							/>
+							{/* Stripped from a release build, so the reader never meets it —
+                  see `GameStatsDetail`. */}
+							{__DEV__ ? <GameStatsDetail stats={summary} /> : null}
+						</>
+					) : null
+				}
 				onRequestClose={() => router.back()}
 			>
 				{hasNextLevel ? (

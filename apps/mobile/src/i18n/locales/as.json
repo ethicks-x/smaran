@@ -87,6 +87,17 @@
 			"title": "খেল",
 			"description": "যেতিয়া মন যায়, খেলিবলৈ কেইটামান সহজ খেল।"
 		},
+		"summary": {
+			"found": "বিচাৰি পোৱা উত্তৰ",
+			"foundValue": "{{total}}ৰ ভিতৰত {{found}}",
+			"turns": "মুঠ চেষ্টা",
+			"accuracy": "শুদ্ধ হোৱা চেষ্টা",
+			"time": "লগা সময়",
+			"timeSeconds_one": "{{count}} ছেকেণ্ড",
+			"timeSeconds_other": "{{count}} ছেকেণ্ড",
+			"timeMinutes_one": "প্ৰায় {{count}} মিনিট",
+			"timeMinutes_other": "প্ৰায় {{count}} মিনিট"
+		},
 		"matching": {
 			"name": "যোৰা মিলাওক",
 			"shortDescription": "দুখন কাৰ্ড লুটিয়াই যোৰা বিচাৰি উলিয়াওক।",
@@ -118,6 +129,7 @@
 			"doneTitle": "আটাইবোৰ যোৰা পোৱা গ'ল",
 			"doneMessage_one": "আপুনি এই ব'ৰ্ডখনৰ যোৰাটো বিচাৰি পালে।",
 			"doneMessage_other": "আপুনি এই ব'ৰ্ডখনৰ আটাইকেইটা {{count}}টা যোৰা বিচাৰি পালে।",
+			"pairsLabel": "বিচাৰি পোৱা যোৰ",
 			"bigger": "ডাঙৰ ব'ৰ্ড এখন চাওক",
 			"again": "এই ব'ৰ্ডখনেই পুনৰ খেলক",
 			"finish": "মোৰ হৈ গ'ল",

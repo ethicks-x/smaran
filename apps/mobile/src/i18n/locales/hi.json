@@ -87,6 +87,17 @@
 			"title": "खेल",
 			"description": "जब मन हो, तब खेलने के लिए कुछ सरल खेल।"
 		},
+		"summary": {
+			"found": "मिले उत्तर",
+			"foundValue": "{{total}} में से {{found}}",
+			"turns": "कुल बारी",
+			"accuracy": "सही निकली बारी",
+			"time": "लगा समय",
+			"timeSeconds_one": "{{count}} सेकंड",
+			"timeSeconds_other": "{{count}} सेकंड",
+			"timeMinutes_one": "लगभग {{count}} मिनट",
+			"timeMinutes_other": "लगभग {{count}} मिनट"
+		},
 		"matching": {
 			"name": "जोड़ी मिलाइए",
 			"shortDescription": "दो पत्ते पलटिए और जोड़ी ढूँढ़िए।",
@@ -118,6 +129,7 @@
 			"doneTitle": "सारी जोड़ियाँ मिल गईं",
 			"doneMessage_one": "आपने इस बोर्ड की जोड़ी ढूँढ़ ली।",
 			"doneMessage_other": "आपने इस बोर्ड की सारी {{count}} जोड़ियाँ ढूँढ़ लीं।",
+			"pairsLabel": "मिले जोड़े",
 			"bigger": "बड़ा बोर्ड आज़माइए",
 			"again": "यही बोर्ड फिर से खेलिए",
 			"finish": "मेरा हो गया",

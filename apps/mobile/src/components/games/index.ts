@@ -2,6 +2,8 @@ export type { GameCardProps } from "./game-card";
 export { GameCard } from "./game-card";
 export type { GameFrameProps } from "./game-frame";
 export { GameFrame } from "./game-frame";
+export type { GameSummaryProps } from "./game-summary";
+export { GameStatsDetail, GameSummary } from "./game-summary";
 export type { BoardCard, MemoryBoardProps } from "./memory-board";
 export { MemoryBoard } from "./memory-board";
 export type { MemoryCardProps, MemoryCardState } from "./memory-card";

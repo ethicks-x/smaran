@@ -87,6 +87,17 @@
 			"title": "খেলা",
 			"description": "যখন ইচ্ছে হয়, খেলার জন্য কয়েকটি সহজ খেলা।"
 		},
+		"summary": {
+			"found": "খুঁজে পাওয়া উত্তর",
+			"foundValue": "{{total}}-এর মধ্যে {{found}}",
+			"turns": "মোট চেষ্টা",
+			"accuracy": "সঠিক হওয়া চেষ্টা",
+			"time": "লেগেছে সময়",
+			"timeSeconds_one": "{{count}} সেকেন্ড",
+			"timeSeconds_other": "{{count}} সেকেন্ড",
+			"timeMinutes_one": "প্রায় {{count}} মিনিট",
+			"timeMinutes_other": "প্রায় {{count}} মিনিট"
+		},
 		"matching": {
 			"name": "জোড়া মেলান",
 			"shortDescription": "দুটি তাস উল্টে জোড়া খুঁজে বার করুন।",
@@ -118,6 +129,7 @@
 			"doneTitle": "সব জোড়া পাওয়া গেছে",
 			"doneMessage_one": "আপনি এই বোর্ডের জোড়াটি খুঁজে পেয়েছেন।",
 			"doneMessage_other": "আপনি এই বোর্ডের সবক'টি {{count}}টি জোড়া খুঁজে পেয়েছেন।",
+			"pairsLabel": "খুঁজে পাওয়া জোড়া",
 			"bigger": "বড় বোর্ড চেষ্টা করুন",
 			"again": "এই বোর্ডটি আবার খেলুন",
 			"finish": "আমার হয়ে গেছে",
