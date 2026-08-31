@@ -1,0 +1,130 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: #FAF8F5;
+  --color-surface: #FFFFFF;
+
+  --color-ink-900: #231F3D;
+  --color-ink-700: #3F3A5C;
+  --color-ink-500: #6C6789;
+  --color-ink-300: #A7A2C0;
+
+  --color-indigo-50: #F1EEFB;
+  --color-indigo-100: #E4DEF7;
+  --color-indigo-200: #C6BAEE;
+  --color-indigo-300: #A895E3;
+  --color-indigo-400: #8A70D8;
+  --color-indigo-500: #6C4FCB;
+  --color-indigo-600: #563DA8;
+  --color-indigo-700: #3F2C7D;
+  --color-indigo-800: #2C1F58;
+  --color-indigo-900: #1C1438;
+
+  --color-lavender-50: #F6F1FB;
+  --color-lavender-100: #EDE3F8;
+  --color-lavender-200: #DCC9F1;
+  --color-lavender-300: #C7A9E6;
+  --color-lavender-400: #B18BDA;
+  --color-lavender-500: #9A6DCC;
+
+  --color-mint-50: #EAFBF6;
+  --color-mint-100: #D2F5EA;
+  --color-mint-300: #8FDFC7;
+  --color-mint-400: #5FCBAE;
+  --color-mint-500: #3AAF92;
+  --color-mint-600: #2A8C75;
+
+  --color-amber-50: #FDF6E9;
+  --color-amber-200: #F5DFA6;
+  --color-amber-400: #E8B84B;
+  --color-amber-500: #D9A22C;
+
+  --color-coral-50: #FCEEEC;
+  --color-coral-200: #F3C4BC;
+  --color-coral-400: #E28777;
+  --color-coral-500: #D3695A;
+
+  --font-sans: "Manrope", system-ui, sans-serif;
+
+  --shadow-soft: 0 2px 8px rgba(44, 31, 88, 0.06);
+  --shadow-card: 0 4px 24px rgba(44, 31, 88, 0.07);
+  --shadow-lifted: 0 12px 40px rgba(44, 31, 88, 0.12);
+
+  --animate-float: float 6s ease-in-out infinite;
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-ink-900);
+}
+
+::selection {
+  background-color: var(--color-indigo-100);
+  color: var(--color-indigo-800);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-indigo-200);
+  border-radius: 999px;
+}
+
+.bg-noise {
+  background-image: radial-gradient(var(--color-indigo-200) 0.5px, transparent 0.5px);
+  background-size: 18px 18px;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.glow-indigo {
+  box-shadow: 0 0 60px rgba(108, 79, 203, 0.25);
+}
+
+.dark {
+  --color-background: #14121F;
+  --color-surface: #1E1B2E;
+
+  --color-ink-900: #F5F3FA;
+  --color-ink-700: #C7C2DA;
+  --color-ink-500: #9089AC;
+  --color-ink-300: #5C5578;
+
+  --color-indigo-50: #251F3D;
+  --color-indigo-100: #2C2650;
+
+  --color-mint-50: #16302A;
+  --color-amber-50: #332A16;
+  --color-coral-50: #331F1C;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-indigo-500);
+}
