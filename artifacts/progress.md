@@ -30,11 +30,13 @@ from that store, marked done into it, and added from a dialog on the screen itse
 Sync, notifications and voice are still missing. The dashboard is `create-next-app`. The
 backend has SQLAlchemy models and Clerk token verification with two route guards, but no migrations and no endpoint yet uses either.
 
-The rubric's centrepiece — adaptive cognitive games — has one game and no adaptation, but
-the loop from "open a game" to "finish a deck" is real, every board closes a `SessionStats`
-(D-22), and **that row is now on disk**: the device store landed on 2026-09-01 (D-24), so
-history survives a restart and the engine has something to read. What is still missing is
-the engine itself.
+The rubric's centrepiece — adaptive cognitive games — has one game, and that game now
+adapts. The loop from "open a game" to "finish a deck" is real, every board closes a
+`SessionStats` (D-22), the row is on disk (D-24), and the engine reads those rows back:
+Matching pairs opens on the rung this reader's own recent rounds point at, and the dialog
+after a finished board offers the next one **and says why**, in their language (D-26). What
+is still missing is more games, and a second ladder to prove the engine is not shaped around
+this one.
 
 ---
 
@@ -104,8 +106,8 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 | Item | Blocking |
 |---|---|
 | Local SQLite + Drizzle | ✅ done — see Foundation above. Sessions persist; the sync queue exists and nothing drains it yet |
-| Cognitive games | 🟡 one game (Matching pairs), with four fixed difficulty levels. Every board is measured (D-22) and the row is stored (D-24). The rest of the deliverable is more games, not more plumbing |
-| Adaptive difficulty engine | ⬜ nothing blocking it any more — `recentSessions({ gameId })` returns this reader's stored history, newest first. Next thing to build |
+| Cognitive games | 🟡 one game (Matching pairs), four difficulty levels, no longer fixed — the opening board and the one offered next both come from the engine (D-26). Every board is measured (D-22) and the row is stored (D-24). The rest of the deliverable is more games, not more plumbing |
+| Adaptive difficulty engine | 🟡 `lib/adaptive.ts` — pure, rule-based, reads this reader's own recent rounds and returns a rung plus a reason code (D-26). Wired into Matching pairs at both ends: the opening board and the offer after a finished one, with the reason said in four languages. **Missing:** it is the one game's ladder only, and there are no tests |
 | Reminders (medicine / hydration / activity / appointments) | 🟡 definitions, a day's occurrences and adherence events all work on-device and are wired to Today (D-25). **Missing:** `expo-notifications`, so nothing fires when the app is closed and `reminder.notification_ids` stays `[]`; no way yet to edit, switch off or delete a reminder once added; every reminder repeats every day, because the dialog asks three questions and the days mask is not one of them |
 | Voice prompts (TTS) | `expo-speech` not installed |
 | Sync queue + upload | needs the local DB and the API |
@@ -163,10 +165,11 @@ No auth, no data, no charts, no PWA/offline cache.
 
 1. ~~**Local persistence** (`expo-sqlite` + Drizzle)~~ — done 2026-09-01, D-24.
 2. ~~**Persist the session rows.**~~ — done 2026-09-01. Neither caller needed editing, as
-   D-22 intended. What is *not* done: the opening board is still always the smallest, because
-   nothing reads the history back yet. That is the next item.
-3. **Adaptive engine v1** as a pure module (`architecture.md` §6) reading `recentSessions()`
-   — the input shape it needs already exists as `SessionStats`.
+   D-22 intended.
+3. ~~**Adaptive engine v1** as a pure module reading `recentSessions()`~~ — done 2026-09-01,
+   D-26, and wired into Matching pairs at both ends. What is *not* done: no tests behind it,
+   and the reason sentence is the only thing the reader ever sees of it, which is by design
+   but has not been read aloud yet — that is the `expo-speech` pass.
 4. **Reminders** — the store and the Today UI are done (D-25). What is left is
    `expo-notifications` for local scheduling with no server dependency, and a way to edit
    or remove a reminder that has been added.

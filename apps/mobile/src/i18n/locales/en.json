@@ -128,16 +128,20 @@
 			"shortDescription": "Turn two cards over and find the pairs.",
 			"levels": {
 				"four": {
-					"name": "Four by four"
+					"name": "Four by four",
+					"phrase": "four by four"
 				},
 				"six": {
-					"name": "Six by six"
+					"name": "Six by six",
+					"phrase": "six by six"
 				},
 				"eight": {
-					"name": "Eight by eight"
+					"name": "Eight by eight",
+					"phrase": "eight by eight"
 				},
 				"twelve": {
-					"name": "Twelve by twelve"
+					"name": "Twelve by twelve",
+					"phrase": "twelve by twelve"
 				}
 			},
 			"close": "Close the game",
@@ -155,7 +159,18 @@
 			"doneMessage_one": "You found the pair on this board.",
 			"doneMessage_other": "You found all {{count}} pairs on this board.",
 			"pairsLabel": "Pairs found",
-			"bigger": "Try a bigger board",
+			"offer": {
+				"up": "Try the {{board}} board",
+				"down": "Play the {{board}} board"
+			},
+			"reason": {
+				"firstBoard": "A gentle board to begin with.",
+				"easy": "That went quicker than your own last few rounds, so there is a bigger board ready if you would like it.",
+				"steady": "That went much like your own last few rounds — this board suits you nicely.",
+				"hard": "That board asked a lot this time, so here is a gentler one. There is no hurry at all.",
+				"topBoard": "That went quicker than your own last few rounds, and this is the biggest board there is.",
+				"gentlest": "This is the gentlest board there is, and it is a good one to stay with."
+			},
 			"again": "Play this board again",
 			"finish": "I have finished",
 			"symbols": {

@@ -169,9 +169,9 @@ free, take it; if not, leave it.
 
 ## Tracker
 
-- [ ] 1 — SQLite session store behind `game-history.ts` · 2h
-- [ ] 2 — `adaptive.ts` v1, pure, rules · 2h
-- [ ] 3 — opening rung from the engine + the visible reason, four languages · 1.5h
+- [x] 1 — SQLite session store behind `game-history.ts` · 2h
+- [x] 2 — `adaptive.ts` v1, pure, rules · 2h
+- [x] 3 — opening rung from the engine + the visible reason, four languages · 1.5h
 - [ ] 4 — `expo-speech` on greeting and summary · 1h
 - [ ] 5 — rehearse the mobile half on the device · 0.5h
 - [ ] 6 — API seed script, two patients, 30 days · 1.5h

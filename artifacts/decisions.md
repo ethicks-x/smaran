@@ -945,3 +945,51 @@ add button rather than offering an action that would silently do nothing.
 becomes a synced-down table like `person`, the dialog becomes a caregiver-side screen, and
 this module keeps the same two reads. Or reminders need to fire with the app closed, which
 is `expo-notifications` and a scheduling pass over the same rows.
+
+---
+
+## D-26 · 2026-09-01 · The engine returns a rung *and* a reason code, and the reason is on the screen
+
+**Decision.** `src/lib/adaptive.ts` — `adjustDifficulty(history, { current, rungs })` →
+`{ difficulty, direction, reason }`. Pure, as D-07 froze it: the history arrives as an array
+of `SessionStats`, the rung comes back, and nothing in the file reads a clock, a table or the
+network. Matching pairs calls it twice, both times doing its own `recentSessions()` read —
+once on the first render to pick the opening board, and once when a board is finished to pick
+what to offer next.
+
+**The reason is a code, not a sentence** — `easy | steady | hard | firstBoard | topBoard |
+gentlest` — and the words live in the four locale catalogues under
+`games.matching.reason.*`, one whole sentence per code per language (D-12). A pure function
+must not know English, and the sentence has to be sayable four ways.
+
+**Why the sentence is the point.** An engine that adapts silently is indistinguishable from
+no engine, to a caregiver and to a judge alike. The dialog after a finished board now says
+*why* the board it is offering is the board it is offering, immediately above the button that
+takes it, and the sentence names the comparison out loud: this reader's own last few rounds
+(§2.4). The button names the board — "Try the six by six board" — rather than a direction,
+because a named board is something you can picture. That needed a lowercase in-sentence
+`levels.<id>.phrase` beside the existing title-case `name`.
+
+**The signature widened from D-07's `(recentSessions, current)`** to take `rungs` as well.
+The engine clamps its own answer into the ladder, so a game never has to check whether the
+rung it was handed exists — and the reason changes with the clamp (`topBoard`, `gentlest`)
+rather than the copy promising a bigger board that isn't there.
+
+**Every threshold is a margin, not a benchmark.** There is no target accuracy in the file and
+no par time. `MARGIN` is how far from the *reader's own* recent mean a round has to land to
+count as different; `BASELINE_WINDOW` is five earlier rounds, recent rather than lifetime, so
+a good month in spring is not still setting the bar in autumn. The single exception is a
+first-ever board, which has no earlier round to sit against and is judged against the board's
+own arithmetic — the fewest turns it could have taken. That is a fact about the board, not
+about a cohort (D-08).
+
+**Pace can earn a bigger board and can never cost one.** A round that reads as ordinary but
+was clearly quicker than their own recent median goes up; a slow round does not go down.
+Nothing here is timed and §2.3 forbids treating slowness as a fault.
+
+**An abandoned board needs no penalty.** It arrives with a low `completion` because less of
+it was found, which is a fact about the round rather than a judgement about the reader.
+
+**Would change it if:** a second game wants a ladder that is not a line of rungs, or there is
+finally enough data to replace the rules with a model — which is the swap D-07 exists for,
+and it touches this file only.

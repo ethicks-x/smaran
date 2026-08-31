@@ -20,6 +20,8 @@ import {
 	Text,
 } from "@/components/ui";
 import { useGameSession } from "@/hooks/use-game-session";
+import { adjustDifficulty, type DifficultyAdvice } from "@/lib/adaptive";
+import { recentSessions } from "@/lib/game-history";
 import type { SessionStats } from "@/lib/game-stats";
 import { Spacing } from "@/theme";
 
@@ -95,17 +97,25 @@ type Phase = "preview" | "playing" | "won";
  * under a finished board is exactly that. It is there for the caregiver
  * dashboard and for the engine.
  *
- * TODO: let `adjustDifficulty` (D-07) read that history to choose the opening
- * board from **this** reader's own recent rounds rather than always starting at
- * four by four (D-08). The rows it needs are on disk now (D-24); nothing is
- * missing but the engine.
+ * The engine (`adjustDifficulty`, D-07) reads those rows twice: once on the way
+ * in, to choose which board this reader is handed instead of always starting at
+ * four by four, and once when a board is finished, to decide what to offer next
+ * and — the part that matters — to say why in a sentence they can read. An
+ * adjustment nobody can see is indistinguishable from no adjustment at all.
+ *
+ * Both reads happen here rather than inside the engine, which stays a pure
+ * function over numbers (`AGENTS.md` §6).
  */
 export default function MatchingScreen() {
 	const { t } = useTranslation();
 
 	const session = useGameSession({ gameId: GAME_ID });
 
-	const [levelIndex, setLevelIndex] = useState(0);
+	// Where this reader starts is their own recent rounds' business, not the
+	// ladder's (D-08). Read once, on the first render: nothing changes the
+	// history while the screen is open except this screen finishing a board, and
+	// that is handled where it happens.
+	const [levelIndex, setLevelIndex] = useState(openingIndex);
 	const level = LEVELS[levelIndex] ?? LEVELS[0];
 
 	/** Counts the boards dealt this sitting. Nothing in the game reads it as a
@@ -113,7 +123,9 @@ export default function MatchingScreen() {
 	 * new board and not the last one still running. */
 	const [round, setRound] = useState(0);
 
-	const [deck, setDeck] = useState<Card[]>(() => deal(LEVELS[0]));
+	const [deck, setDeck] = useState<Card[]>(() =>
+		deal(LEVELS[levelIndex] ?? LEVELS[0]),
+	);
 	const [phase, setPhase] = useState<Phase>("preview");
 	const [faceUp, setFaceUp] = useState<string[]>([]);
 	const [matched, setMatched] = useState<string[]>([]);
@@ -123,6 +135,11 @@ export default function MatchingScreen() {
 	 * happened. Null until a board is cleared, and cleared again with the next
 	 * deal — the card is about this board and no other. */
 	const [summary, setSummary] = useState<SessionStats | null>(null);
+
+	/** What the engine made of the board that was just finished — which board to
+	 * offer next, and the reason the dialog says out loud. Null until one is
+	 * finished, and cleared with the next deal, exactly like `summary`. */
+	const [advice, setAdvice] = useState<DifficultyAdvice | null>(null);
 
 	/** The two cards the last attempt was counted for. Settling the same pair can
 	 * be reached twice — by the timer, and by a third tap that got there first —
@@ -231,6 +248,16 @@ export default function MatchingScreen() {
 			// card the reader is looking at.
 			if (stats) {
 				setSummary(stats);
+
+				// `finish` has already written the row, so the board just played is the
+				// newest thing in the history the engine is about to read — which is
+				// what makes the offer about the round the reader is looking at.
+				setAdvice(
+					adjustDifficulty(recentSessions({ gameId: GAME_ID }), {
+						current: stats.difficulty,
+						rungs: LEVELS.length,
+					}),
+				);
 			}
 		}
 	}, [matched.length, deck.length, session]);
@@ -252,6 +279,7 @@ export default function MatchingScreen() {
 		setPreviewLeft(1);
 		setPhase("preview");
 		setSummary(null);
+		setAdvice(null);
 		lastCounted.current = null;
 	};
 
@@ -286,7 +314,12 @@ export default function MatchingScreen() {
 				: "faceDown",
 	}));
 
-	const hasNextLevel = levelIndex + 1 < LEVELS.length;
+	// The rung the engine offered, and whether taking it means a different board
+	// at all — at the top of the ladder, or on a run that read as ordinary, the
+	// honest offer is this board again.
+	const offeredIndex = advice ? advice.difficulty - 1 : levelIndex;
+	const offered = LEVELS[offeredIndex] ?? level;
+	const offersAnotherBoard = advice !== null && offeredIndex !== levelIndex;
 
 	return (
 		<GameFrame
@@ -357,6 +390,20 @@ export default function MatchingScreen() {
 								stats={summary}
 								foundLabel={t("games.matching.pairsLabel")}
 							/>
+							{/* Why the buttons below say what they say, in one sentence, in
+                  their language. This is the whole of the adaptive engine as
+                  far as the reader is concerned: it compares this board
+                  against their own last few rounds and never against anybody
+                  else's (§2.4), and if it did that silently there would be
+                  nothing here to see. Sits directly above the buttons on
+                  purpose — it is the reason for the choice, so it is read
+                  immediately before the choice is made. */}
+							{advice ? (
+								<Text variant="bodyLarge" center>
+									{t(`games.matching.reason.${advice.reason}`)}
+								</Text>
+							) : null}
+
 							{/* Stripped from a release build, so the reader never meets it —
                   see `GameStatsDetail`. */}
 							{__DEV__ ? <GameStatsDetail stats={summary} /> : null}
@@ -365,17 +412,25 @@ export default function MatchingScreen() {
 				}
 				onRequestClose={() => router.back()}
 			>
-				{hasNextLevel ? (
+				{/* The one filled button, and it names the board rather than a
+            direction: "Try the six by six board" is a thing you can picture,
+            "Try a bigger board" is a thing you have to work out. */}
+				{offersAnotherBoard ? (
 					<ActionButton
-						label={t("games.matching.bigger")}
+						label={t(
+							offeredIndex > levelIndex
+								? "games.matching.offer.up"
+								: "games.matching.offer.down",
+							{ board: t(`games.matching.levels.${offered.id}.phrase`) },
+						)}
 						size="large"
-						onPress={() => start(levelIndex + 1)}
+						onPress={() => start(offeredIndex)}
 					/>
 				) : null}
 				<ActionButton
 					label={t("games.matching.again")}
-					variant={hasNextLevel ? "outlined" : "filled"}
-					size={hasNextLevel ? "comfortable" : "large"}
+					variant={offersAnotherBoard ? "outlined" : "filled"}
+					size={offersAnotherBoard ? "comfortable" : "large"}
 					onPress={() => start(levelIndex)}
 				/>
 				<ActionButton
@@ -427,6 +482,26 @@ function statusOf({
 		count: pairsFound,
 		total: pairs,
 	});
+}
+
+/**
+ * Which rung to open on, from this reader's own history.
+ *
+ * A device with nothing on it opens on the gentlest board, which is also what
+ * the engine says about an empty history — so there is no special case here,
+ * only the ordinary answer to an ordinary question.
+ */
+function openingIndex(): number {
+	const history = recentSessions({ gameId: GAME_ID });
+
+	const { difficulty } = adjustDifficulty(history, {
+		// The rung they last played is where the ladder is for them. On a device
+		// with no history the engine ignores this and starts at the bottom.
+		current: history[0]?.difficulty ?? 1,
+		rungs: LEVELS.length,
+	});
+
+	return difficulty - 1;
 }
 
 /**
