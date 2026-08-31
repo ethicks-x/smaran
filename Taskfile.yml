@@ -18,10 +18,13 @@ tasks:
       - tmux kill-session -t {{.TMUX_SESSION}} 2>/dev/null || true
       - tmux new-session -d -s {{.TMUX_SESSION}} -n 'API'
       - tmux set-window-option -g remain-on-exit on
+      - tmux send-keys -t {{.TMUX_SESSION}}:API "clear" C-m
       - tmux send-keys -t {{.TMUX_SESSION}}:API "task dev:api" C-m
       - tmux new-window -t {{.TMUX_SESSION}} -n 'Web'
+      - tmux send-keys -t {{.TMUX_SESSION}}:Web "clear" C-m
       - tmux send-keys -t {{.TMUX_SESSION}}:Web "task dev:web" C-m
       - tmux new-window -t {{.TMUX_SESSION}} -n 'Mobile'
+      - tmux send-keys -t {{.TMUX_SESSION}}:Mobile "clear" C-m
       - tmux send-keys -t {{.TMUX_SESSION}}:Mobile "task dev:mobile" C-m
       - tmux attach-session -t {{.TMUX_SESSION}}
 
@@ -34,9 +37,40 @@ tasks:
       - tmux split-window -h -t {{.TMUX_SESSION}}:1
       - tmux split-window -v -t {{.TMUX_SESSION}}:1.1
       - tmux select-layout -t {{.TMUX_SESSION}}:1 tiled
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.1 "clear" C-m
       - tmux send-keys -t {{.TMUX_SESSION}}:1.1 "task dev:api" C-m
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.2 "clear" C-m
       - tmux send-keys -t {{.TMUX_SESSION}}:1.2 "task dev:web" C-m
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.3 "clear" C-m
       - tmux send-keys -t {{.TMUX_SESSION}}:1.3 "task dev:mobile" C-m
+      - tmux attach-session -t {{.TMUX_SESSION}}
+
+  dev:web+api:
+    desc: Start the API and web servers side-by-side in a split 2-pane dashboard
+    cmds:
+      - tmux kill-session -t {{.TMUX_SESSION}} 2>/dev/null || true
+      - tmux new-session -d -s {{.TMUX_SESSION}} -n 'Web+API'
+      - tmux set-window-option -g remain-on-exit on
+      - tmux split-window -v -t {{.TMUX_SESSION}}:1
+      - tmux select-layout -t {{.TMUX_SESSION}}:1 tiled
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.1 "clear" C-m
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.1 "task dev:api" C-m
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.2 "clear" C-m
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.2 "task dev:web" C-m
+      - tmux attach-session -t {{.TMUX_SESSION}}
+
+  dev:mobile+api:
+    desc: Start the API and mobile servers side-by-side in a split 2-pane dashboard
+    cmds:
+      - tmux kill-session -t {{.TMUX_SESSION}} 2>/dev/null || true
+      - tmux new-session -d -s {{.TMUX_SESSION}} -n 'Mobile+API'
+      - tmux set-window-option -g remain-on-exit on
+      - tmux split-window -v -t {{.TMUX_SESSION}}:1
+      - tmux select-layout -t {{.TMUX_SESSION}}:1 tiled
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.1 "clear" C-m
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.1 "task dev:api" C-m
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.2 "clear" C-m
+      - tmux send-keys -t {{.TMUX_SESSION}}:1.2 "task dev:mobile" C-m
       - tmux attach-session -t {{.TMUX_SESSION}}
 
   stop:
