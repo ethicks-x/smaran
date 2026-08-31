@@ -993,3 +993,60 @@ it was found, which is a fact about the round rather than a judgement about the 
 **Would change it if:** a second game wants a ladder that is not a line of rungs, or there is
 finally enough data to replace the rules with a model — which is the swap D-07 exists for,
 and it touches this file only.
+
+---
+
+## D-27 · 2026-09-01 · The dashboard is a Clerk client too, and calls the API from the browser with the same bearer token
+
+**Decision.** `apps/web` authenticates with Clerk against the *same* Clerk instance as
+`apps/mobile` and `apps/api` — one instance, three clients (D-01). `ClerkProvider` wraps
+`<html>` in the root layout, and `proxy.ts` holds the gate.
+
+**It is `proxy.ts`, not `middleware.ts`.** Next.js 16 deprecated and renamed the file
+convention; the app runs 16.3.3. If a future agent adds `middleware.ts` from memory, Next
+will not run it and every dashboard route silently becomes public. The bundled docs at
+`apps/web/node_modules/next/dist/docs/` are the authority here, not training data.
+
+**The matcher lists what is *public*, not what is protected.** `/`, `/login(.*)`,
+`/signup(.*)`, and the PWA manifest and icons. Everything else calls `auth.protect()`. This
+is deliberate: every other screen is caregiver-facing patient data (§2.5), so a new route
+that nobody remembered to list fails *closed* rather than open.
+
+**Sign-in and sign-up are Clerk's prebuilt components, not the hand-built forms.** The two
+pages previously rendered email/password inputs that submitted nothing — the login button
+was a `<Link href="/dashboard">`. They are now `<SignIn>` / `<SignUp>` at catch-all routes
+(`app/login/[[...rest]]/page.tsx`), which is what Clerk's multi-step flows require. The
+page keeps its own logo, heading and sub-heading and hides Clerk's `header` element, so the
+branding survives; `lib/clerk-appearance.ts` feeds Clerk the app's CSS custom properties
+rather than literal colours, so the widget follows the light/dark switch with everything
+else.
+
+Note that Clerk v7 renamed the appearance variables: it is `colorForeground`,
+`colorMutedForeground`, `colorInput` and `colorInputForeground` — **not** `colorText`,
+`colorTextSecondary`, `colorInputBackground` or `colorInputText`, which are what most
+examples online still show and which fail to type-check here.
+
+**The API client is split in three, because the session is read differently on each side.**
+`lib/api.ts` holds the transport and imports nothing from Clerk; `lib/api-server.ts`
+exports `api()` for server components and actions (session from `auth()`); `hooks/use-api.ts`
+exports `useApi()` for client components (session from `useAuth()`). Both hand their own
+`getToken` to the same `apiFetch`. It is kept deliberately in step with
+`apps/mobile/src/lib/api.ts` — same `ApiError` / `ApiUnreachableError` split, same
+per-call token (D-21), same reading of FastAPI's `detail` body — so the two clients do not
+drift into two different ideas of what a failed request means.
+
+**The browser talks to `apps/api` directly, so the API needed CORS.** It had none: every
+authenticated call from the dashboard is preflighted, and every one of them would have
+failed. `main.py` now mounts `CORSMiddleware` from a new `CORS_ALLOW_ORIGINS` setting
+(default `http://localhost:3000`). Origins are listed rather than wildcarded —
+`allow_credentials` with `*` is rejected by browsers anyway, and a wildcard on an API
+serving patient data is not what we want.
+
+**This is the moment D-21 warned about.** `CLERK_AUTHORIZED_PARTIES` could stay empty while
+mobile was the only client, because a native Expo client has no web origin to put in `azp`.
+Now there are two clients with different answers. Either leave it unset, or set it to cover
+**both** — a value listing only the dashboard's origin silently 401s every phone.
+
+**What is not done.** Every screen still renders `lib/mock-data.ts`; the client exists and
+nothing calls it yet. The header shows the real Clerk user, but Settings still renders the
+mock caregiver. Deleting the mocks is the next task on this app, not part of this one.

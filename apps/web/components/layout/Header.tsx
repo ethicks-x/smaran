@@ -1,11 +1,18 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import { Bell, Search } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { caregiver } from "@/lib/mock-data";
 
 export function Header() {
+  const { user } = useUser();
+
+  // `user` is null for the first paint while Clerk loads. The row keeps its
+  // shape and fills in rather than popping into existence, so the header does
+  // not reflow under the pointer.
+  const name = user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "";
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-black/[0.06] bg-background/80 px-5 py-4 backdrop-blur-xl lg:px-8">
       <div className="relative hidden sm:block">
@@ -36,13 +43,13 @@ export function Header() {
         >
           {/** biome-ignore lint/performance/noImgElement: Image is used for visual purposes only */}
           <img
-            src={caregiver.avatar_url ?? undefined}
-            alt={caregiver.full_name}
+            src={user?.imageUrl}
+            alt=""
             className="h-9 w-9 rounded-full border-2 border-white object-cover"
           />
           <div className="hidden text-left sm:block">
             <p className="text-sm font-semibold leading-none text-ink-900">
-              {caregiver.full_name}
+              {name}
             </p>
             <p className="mt-1 text-xs leading-none text-ink-500">Caregiver</p>
           </div>

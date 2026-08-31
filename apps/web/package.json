@@ -11,6 +11,7 @@
     "format": "biome format --write"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.8.3",
     "clsx": "^2.1.1",
     "framer-motion": "^13.1.1",
     "lucide-react": "^1.37.0",
@@ -19,6 +20,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

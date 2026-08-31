@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -25,10 +26,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased" style={{ fontFamily: "var(--font-sans)" }}>
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
-    </html>
+    // ClerkProvider wraps <html>, not the body: it needs to be the outermost
+    // element for `auth()` in a server component and `useAuth()` in a client one
+    // to resolve to the same session.
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body
+          className="antialiased"
+          style={{ fontFamily: "var(--font-sans)" }}
+        >
+          <ThemeProvider>{children}</ThemeProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

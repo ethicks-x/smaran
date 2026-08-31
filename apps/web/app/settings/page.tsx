@@ -1,5 +1,6 @@
 "use client";
 
+import { SignOutButton } from "@clerk/nextjs";
 import { KeyRound, LogOut } from "lucide-react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Button } from "@/components/ui/Button";
@@ -73,9 +74,14 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
-            <Button variant="danger" size="sm" className="gap-1.5">
-              <LogOut size={14} /> Logout
-            </Button>
+            {/* Clerk clears the session, then `proxy.ts` turns the next
+                navigation away — so landing on "/" is a real sign-out, not just
+                a redirect away from the dashboard. */}
+            <SignOutButton redirectUrl="/">
+              <Button variant="danger" size="sm" className="gap-1.5">
+                <LogOut size={14} /> Logout
+              </Button>
+            </SignOutButton>
           </CardContent>
         </Card>
       </div>

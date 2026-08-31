@@ -8,8 +8,7 @@ that works — most of what exists is UI over placeholders.
 > **Demoing on 2026-09-03?** Read `artifacts/prototype-path.md` first — it is the
 > two-day solo triage, and it overrides §Next below until the demo is done.
 >
-> **This file is stale in three places** (2026-09-01): `apps/web` is no longer
-> `create-next-app` — it is ~2,600 lines of real UI running on `lib/mock-data.ts` —
+> **This file is stale in two places** (2026-09-01):
 > `capabilities.md` still reports no game code and no i18n, and the Foundation table's
 > Tailwind/Uniwind row describes a `metro.config.js` and packages that are not in this
 > working tree. The first two are fixed as task Z2 of the prototype path.
@@ -137,11 +136,27 @@ The Caregiver Web Dashboard backend is fully built, typed, linted, and reflected
 
 ---
 
-## `apps/web` — caregiver dashboard ⬜
+## `apps/web` — caregiver dashboard 🟡
 
-Unmodified `create-next-app`: one page, `title: "Create Next App"`, default fonts. Tailwind
-v4 is wired through PostCSS but unused. TanStack Query and Recharts are not installed.
-No auth, no data, no charts, no PWA/offline cache.
+Real UI — ~2,600 lines across a dashboard, patients, memories, activity, notifications and
+settings — rendering `lib/mock-data.ts`. Tailwind v4, Recharts and framer-motion are in.
+TanStack Query is still not installed, and no PWA/offline cache.
+
+| Item | State |
+|---|---|
+| Auth (Clerk) | ✅ `ClerkProvider` in the root layout, `proxy.ts` protecting every non-public route, `<SignIn>`/`<SignUp>` at `/login` and `/signup`, working sign-out in Settings |
+| API client | ✅ `lib/api.ts` (transport) + `lib/api-server.ts` `api()` + `hooks/use-api.ts` `useApi()` — D-27 |
+| Screens fed by the API | ⬜ every screen still reads `lib/mock-data.ts`. The client exists; nothing calls it yet |
+| Identity on screen | 🟡 the header shows the real Clerk user; Settings still renders the mock caregiver |
+| Data fetching/caching | ⬜ TanStack Query not installed |
+
+Next on this app: point one screen at `api()` — `/users/me` or `/dashboard/summary` — and
+delete the mock behind it.
+
+Note for whoever wires the browser to the API: `apps/api` now sets `CORSMiddleware` from
+`CORS_ALLOW_ORIGINS` (default `http://localhost:3000`). The dashboard origin must be in
+**both** that and `CLERK_AUTHORIZED_PARTIES`, or every call fails as `ApiUnreachableError`
+— which is what a blocked preflight looks like from the browser.
 
 ---
 

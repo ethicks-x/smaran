@@ -41,6 +41,13 @@ class Settings(BaseSettings):
         default_factory=list,
         description="Comma-separated origins allowed to present a token (azp claim)",
     )
+    # The dashboard is a separate origin calling this API from a browser, so the browser
+    # preflights every authenticated request. Same NoDecode reasoning as above.
+    cors_allow_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:3000"],
+        description="Comma-separated browser origins allowed to call this API",
+    )
+
     # Not a Clerk setting: roles are granted in the `roles` table and Clerk knows nothing
     # about them. This is only the string those rows are expected to hold.
     caregiver_role: str = Field(
@@ -48,11 +55,11 @@ class Settings(BaseSettings):
         description="Value of roles.role that marks a caregiver",
     )
 
-    @field_validator("clerk_authorized_parties", mode="before")
+    @field_validator("clerk_authorized_parties", "cors_allow_origins", mode="before")
     @classmethod
-    def _split_authorized_parties(cls, value: object) -> object:
+    def _split_csv(cls, value: object) -> object:
         if isinstance(value, str):
-            return [party.strip() for party in value.split(",") if party.strip()]
+            return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
     model_config = SettingsConfigDict(
