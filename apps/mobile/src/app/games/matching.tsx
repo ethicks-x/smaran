@@ -89,15 +89,16 @@ type Phase = "preview" | "playing" | "won";
  *
  * Everything here is on-device. Every board is measured by `useGameSession` —
  * turns taken, how many found a pair, how long each turn was held, and whether
- * the board was finished or put down — and the row goes to the on-device
- * history. None of it is shown to the reader and none of it is a score: §2.3
- * forbids anything that scolds, and a percentage under a finished board is
- * exactly that. It is there for the caregiver dashboard and for the engine.
+ * the board was finished or put down — and the row is written to SQLite before
+ * the win dialog has finished animating. None of it is shown to the reader and
+ * none of it is a score: §2.3 forbids anything that scolds, and a percentage
+ * under a finished board is exactly that. It is there for the caregiver
+ * dashboard and for the engine.
  *
- * TODO: persist those rows to the `game_session` table once the local store
- * lands (`expo-sqlite` + Drizzle) — `lib/game-history.ts` is the seam — and let
- * `adjustDifficulty` (D-07) read them to choose the opening board from **this**
- * reader's own history rather than always starting at four by four (D-08).
+ * TODO: let `adjustDifficulty` (D-07) read that history to choose the opening
+ * board from **this** reader's own recent rounds rather than always starting at
+ * four by four (D-08). The rows it needs are on disk now (D-24); nothing is
+ * missing but the engine.
  */
 export default function MatchingScreen() {
 	const { t } = useTranslation();

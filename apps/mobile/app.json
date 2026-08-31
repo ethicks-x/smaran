@@ -1,62 +1,63 @@
 {
-  "expo": {
-    "name": "Smaran",
-    "slug": "smaran",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "smaran",
-    "userInterfaceStyle": "automatic",
-    "backgroundColor": "#F6F5F2",
-    "ios": {
-      "bundleIdentifier": "com.smaran.app",
-      "icon": "./assets/expo.icon"
-    },
-    "android": {
-      "package": "com.smaran.app",
-      "adaptiveIcon": {
-        "backgroundColor": "#DCE9FB",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": true,
-      "backgroundColor": "#F6F5F2"
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#F6F5F2",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 96,
-          "resizeMode": "contain",
-          "dark": {
-            "backgroundColor": "#111315",
-            "image": "./assets/images/splash-icon.png"
-          }
-        }
-      ],
-      "@clerk/expo",
-      "expo-secure-store",
-      "expo-web-browser",
-      "expo-localization",
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Smaran uses your photos so you can choose a picture of yourself for your account.",
-          "cameraPermission": "Smaran uses the camera so you can take a new picture of yourself for your account."
-        }
-      ]
-    ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    }
-  }
+	"expo": {
+		"name": "Smaran",
+		"slug": "smaran",
+		"version": "1.0.0",
+		"orientation": "portrait",
+		"icon": "./assets/images/icon.png",
+		"scheme": "smaran",
+		"userInterfaceStyle": "automatic",
+		"backgroundColor": "#F6F5F2",
+		"ios": {
+			"bundleIdentifier": "com.smaran.app",
+			"icon": "./assets/expo.icon"
+		},
+		"android": {
+			"package": "com.smaran.app",
+			"adaptiveIcon": {
+				"backgroundColor": "#DCE9FB",
+				"foregroundImage": "./assets/images/android-icon-foreground.png",
+				"backgroundImage": "./assets/images/android-icon-background.png",
+				"monochromeImage": "./assets/images/android-icon-monochrome.png"
+			},
+			"predictiveBackGestureEnabled": true,
+			"backgroundColor": "#F6F5F2"
+		},
+		"web": {
+			"output": "static",
+			"favicon": "./assets/images/favicon.png"
+		},
+		"plugins": [
+			"expo-router",
+			[
+				"expo-splash-screen",
+				{
+					"backgroundColor": "#F6F5F2",
+					"image": "./assets/images/splash-icon.png",
+					"imageWidth": 96,
+					"resizeMode": "contain",
+					"dark": {
+						"backgroundColor": "#111315",
+						"image": "./assets/images/splash-icon.png"
+					}
+				}
+			],
+			"@clerk/expo",
+			"expo-secure-store",
+			"expo-web-browser",
+			"expo-localization",
+			[
+				"expo-image-picker",
+				{
+					"photosPermission": "Smaran uses your photos so you can choose a picture of yourself for your account.",
+					"cameraPermission": "Smaran uses the camera so you can take a new picture of yourself for your account."
+				}
+			],
+			"expo-sqlite"
+		],
+		"experiments": {
+			"typedRoutes": true,
+			"reactCompiler": true
+		}
+	}
 }

@@ -117,8 +117,10 @@ function describeDuration(
  * it. It is the one place in the app where a raw metric is shown as a metric —
  * nothing here is fit for a patient to read, which is the point of the guard.
  *
- * The tail is this launch's history: the same rows `adjustDifficulty` will read
- * when it lands, in the order it will read them (D-22).
+ * The tail is the stored history — the same rows `adjustDifficulty` will read
+ * when it lands, in the order it will read them (D-22). It survives a restart
+ * now that it is a table and not an array (D-24), so a run of boards played
+ * yesterday still shows up here today.
  */
 export function GameStatsDetail({ stats }: { stats: SessionStats }) {
 	const history = recentSessions({
@@ -137,7 +139,7 @@ export function GameStatsDetail({ stats }: { stats: SessionStats }) {
 			))}
 
 			<Text variant="caption" color="textMuted">
-				{`This launch, newest first (${history.length}):`}
+				{`Stored sessions, newest first (${history.length}):`}
 			</Text>
 
 			{history.map((session) => (

@@ -1,7 +1,11 @@
-# Data model — **PROPOSED**
+# Data model
 
-No schema exists in code yet: `apps/mobile` has no SQLite, `apps/api` has no ORM. This is
-the agreed design to build against. Update this file as tables land, and mark them ✅.
+**Device: ✅ built** (2026-09-01) — all nine tables exist in `apps/mobile/src/db/schema.ts`,
+created by `src/db/migrations.ts`. See `decisions.md` D-24.
+**Server: 🟡** — `apps/api` has SQLAlchemy models but no migrations, no hypertable and no
+continuous aggregates; §2 below is still the design to build against.
+
+Update this file as tables land, and mark them ✅.
 
 Two stores, deliberately different shapes:
 
@@ -14,7 +18,7 @@ Two stores, deliberately different shapes:
 
 ## 1. Device — SQLite
 
-### `patient`
+### `patient` ✅
 One row. The person holding the phone.
 
 | Column | Type | Notes |
@@ -24,7 +28,7 @@ One row. The person holding the phone.
 | `preferred_language` | text | BCP-47; drives i18n and TTS voice |
 | `enrolled_at` | integer | epoch ms |
 
-### `device`
+### `device` ✅
 One row. Identity for sync.
 
 | Column | Type | Notes |
@@ -34,7 +38,7 @@ One row. Identity for sync.
 | `last_synced_seq` | integer | server-acknowledged watermark |
 | `last_synced_at` | integer | epoch ms, nullable |
 
-### `game_session` — the core record
+### `game_session` ✅ — the core record
 One row per completed session. **Immutable once written.**
 
 | Column | Type | Notes |
@@ -44,17 +48,30 @@ One row per completed session. **Immutable once written.**
 | `game_id` | text | e.g. `pattern-match`, `daily-recall` |
 | `difficulty` | integer | the level the adaptive engine chose |
 | `started_at` / `ended_at` | integer | epoch ms |
-| `accuracy` | real | 0–1 |
-| `avg_response_ms` | integer | mean across attempts |
+| `duration_ms` | integer | wall clock, pauses included |
+| `time_on_task_ms` | integer | the same round with the pauses taken out |
 | `attempts` | integer | total interactions |
 | `correct` / `total` | integer | raw counts, kept so metrics can be recomputed |
-| `consistency` | real | inverse variance of response time, 0–1 |
 | `completed` | integer | 0/1 — abandoned sessions still record, never penalised |
+| `accuracy` | real | of the attempts made, the share that were right, 0–1 |
+| `precision` | real, null | how close the run came to the fewest attempts it could take; null when the game has no such floor |
+| `completion` | real | how much of the round was finished, 0–1 |
+| `avg_response_ms` | integer | mean across attempts |
+| `median_response_ms` | integer | the middle attempt, unmoved by one walked-away turn |
+| `consistency` | real, null | one minus the coefficient of variation of response time, 0–1; null under two attempts |
+| `longest_streak` | integer | longest run of right answers in a row |
+
+Unique index on `seq`; index on `(game_id, ended_at)` — the one query the engine makes.
+
+The columns are `SessionStats` in `lib/game-stats.ts`, field for field, so a closed session
+is written as-is and reads back as the same object (D-22, D-24).
 
 Store the raw counts, not just the ratios. Definitions of "accuracy" will change; the
-underlying facts should not need re-collection.
+underlying facts should not need re-collection. The measured numbers that *cannot* be
+recomputed from the counts — time on task, the median turn, the longest streak — are
+columns for the same reason.
 
-### `session_event` — optional detail
+### `session_event` ✅ — optional detail
 Per-attempt rows for a session. Useful for replay and for a future model. Prune on a
 retention window; never sync unless a session is flagged for review.
 
@@ -62,7 +79,7 @@ retention window; never sync unless a session is flagged for review.
 |---|---|
 | `id` text PK · `session_id` text FK · `index` integer · `prompt` text · `response` text · `correct` integer · `response_ms` integer |
 
-### `reminder`
+### `reminder` ✅
 | Column | Type | Notes |
 |---|---|---|
 | `id` | text PK | |
@@ -72,14 +89,14 @@ retention window; never sync unless a session is flagged for review.
 | `active` | integer | 0/1 |
 | `notification_ids` | text | JSON array of scheduled `expo-notifications` ids, so a change can cancel cleanly |
 
-### `reminder_event`
+### `reminder_event` ✅
 | Column | Type | Notes |
 |---|---|---|
 | `id` text PK · `reminder_id` text FK · `seq` integer · `due_at` integer · `acknowledged_at` integer nullable · `outcome` text | `done` · `snoozed` · `missed` |
 
 Adherence is computed from these. They sync like sessions and use the same `seq` counter.
 
-### `person`
+### `person` ✅
 Synced **down** from the family. Read-only on device. Backs the People tab and the Help
 contact.
 
@@ -89,14 +106,14 @@ contact.
 
 Photos are cached to the filesystem at sync; the tab must render from cache offline.
 
-### `memory_item`
+### `memory_item` ✅
 Synced down. Backs the Memories tab.
 
 | Column | Type |
 |---|---|
 | `id` text PK · `kind` text (`photo`/`audio`/`story`) · `caption` text · `media_uri` text · `created_at` integer · `shared_by` text |
 
-### `sync_queue`
+### `sync_queue` ✅
 | Column | Type | Notes |
 |---|---|---|
 | `id` | integer PK autoincr | drain order |
