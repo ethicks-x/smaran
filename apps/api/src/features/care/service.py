@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, cast
 from fastapi import HTTPException, status
 from sqlalchemy import select
 
+from core.clerk import resolve_clerk_user
 from core.config import settings
 from features.auth.service import is_caregiver
 from features.care.schemas import (
@@ -179,6 +180,35 @@ async def request_link(session: AsyncSession, user_id: str, smaran_id: int) -> C
     return await _link_out(session, link)
 
 
+async def _build_request_out(session: AsyncSession, link: PatientCaregiver) -> CareRequestOut:
+    patient = await session.get(Patient, link.patient_id)
+    patient_name: str | None = None
+    patient_avatar_url: str | None = None
+    patient_email: str | None = None
+    patient_phone: str | None = None
+
+    if patient and patient.user_id:
+        clerk_user = await resolve_clerk_user(patient.user_id)
+        if clerk_user:
+            patient_name = clerk_user.full_name or clerk_user.email or clerk_user.phone
+            patient_avatar_url = clerk_user.avatar_url
+            patient_email = clerk_user.email
+            patient_phone = clerk_user.phone
+
+    if not patient_name and patient:
+        patient_name = f"Patient {str(patient.id)[:8]}"
+
+    return CareRequestOut(
+        id=link.id,
+        patient_id=link.patient_id,
+        status=_status_of(link),
+        patient_name=patient_name,
+        patient_avatar_url=patient_avatar_url,
+        patient_email=patient_email,
+        patient_phone=patient_phone,
+    )
+
+
 async def list_requests(session: AsyncSession, caregiver_id: str) -> list[CareRequestOut]:
     """Every patient waiting on this caregiver's answer.
 
@@ -195,10 +225,7 @@ async def list_requests(session: AsyncSession, caregiver_id: str) -> list[CareRe
         )
     ).all()
 
-    return [
-        CareRequestOut(id=link.id, patient_id=link.patient_id, status=_status_of(link))
-        for link in links
-    ]
+    return [await _build_request_out(session, link) for link in links]
 
 
 async def decide_request(
@@ -221,7 +248,7 @@ async def decide_request(
     await session.commit()
     await session.refresh(link)
 
-    return CareRequestOut(id=link.id, patient_id=link.patient_id, status=_status_of(link))
+    return await _build_request_out(session, link)
 
 
 __all__ = [

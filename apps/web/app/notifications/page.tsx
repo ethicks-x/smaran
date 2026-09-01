@@ -33,22 +33,29 @@ export default function NotificationsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchNotifications = async () => {
+    const fetchNotifications = async (isBackground = false) => {
       try {
-        setLoading(true);
+        if (!isBackground) setLoading(true);
         setError(null);
         const data = await api<Notification[]>("/dashboard/notifications");
-        setItems(data);
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const readIds: string[] = saved ? JSON.parse(saved) : [];
+        setItems(data.map((n) => (readIds.includes(n.id) ? { ...n, read: true } : n)));
       } catch (err) {
         console.error("Failed to fetch notifications:", err);
-        setError("Failed to load notifications. Please try again.");
-        setItems([]);
+        if (!isBackground) {
+          setError("Failed to load notifications. Please try again.");
+          setItems([]);
+        }
       } finally {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
       }
     };
 
     fetchNotifications();
+    const interval = setInterval(() => fetchNotifications(true), 60_000);
+
+    return () => clearInterval(interval);
   }, [api]);
 
   useEffect(() => {

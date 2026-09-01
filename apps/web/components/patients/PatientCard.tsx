@@ -11,7 +11,10 @@ export function PatientCard({
   patient: PatientCardApi;
   relationship: string;
 }) {
-  const accuracy = Math.round(patient.overall_accuracy * 100);
+  const accuracy =
+    patient.overall_accuracy > 1
+      ? Math.round(patient.overall_accuracy)
+      : Math.round((patient.overall_accuracy || 0) * 100);
   const sessionsCount = patient.sessions_count || 0;
 
   return (

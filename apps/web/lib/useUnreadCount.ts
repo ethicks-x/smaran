@@ -33,10 +33,10 @@ export function useUnreadCount() {
 
     fetchAndCalculate();
 
-    // Recalculate if another tab/page updates it, and poll periodically
+    // Recalculate if another tab/page updates it, and poll periodically (every 1 minute)
     const handleStorageChange = () => fetchAndCalculate();
     window.addEventListener("storage", handleStorageChange);
-    const interval = setInterval(fetchAndCalculate, 5000); // Poll every 5 seconds
+    const interval = setInterval(fetchAndCalculate, 60_000); // Poll every 1 minute
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);

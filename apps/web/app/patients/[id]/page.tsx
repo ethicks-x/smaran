@@ -273,7 +273,7 @@ export default async function PatientProfilePage({
 											</p>
 										</div>
 										<span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-600">
-											{Math.round(c.duration_sec / 60)} min
+											{c.duration_sec ? Math.round(c.duration_sec / 60) : 0} min
 										</span>
 									</div>
 								))}

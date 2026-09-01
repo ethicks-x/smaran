@@ -58,15 +58,30 @@ export function CareRequestsCard({ onDecision }: CareRequestsCardProps) {
 						{requests.map((request) => (
 							<div
 								key={request.id}
-								className="rounded-xl border border-black/[0.06] bg-black/[0.02] p-4"
+								className="flex flex-col justify-between gap-4 rounded-xl border border-black/[0.06] bg-black/[0.02] p-4 sm:flex-row sm:items-center"
 							>
-								<p className="text-sm font-medium text-ink-900">
-									Request from patient record
-								</p>
-								<p className="mt-1 break-all text-xs text-ink-500">
-									{request.patient_id}
-								</p>
-								<div className="mt-3 flex flex-wrap gap-2">
+								<div className="flex items-center gap-3.5">
+									{request.patient_avatar_url ? (
+										<img
+											src={request.patient_avatar_url}
+											alt={request.patient_name ?? "Patient"}
+											className="h-11 w-11 rounded-full object-cover"
+										/>
+									) : (
+										<div className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-100 font-display text-sm font-semibold text-indigo-700">
+											{(request.patient_name || "P").charAt(0).toUpperCase()}
+										</div>
+									)}
+									<div>
+										<p className="text-sm font-semibold text-ink-900">
+											{request.patient_name || "New Patient"}
+										</p>
+										<p className="text-xs text-ink-500">
+											{request.patient_email || request.patient_phone || "Requested care link"}
+										</p>
+									</div>
+								</div>
+								<div className="flex flex-wrap gap-2 sm:shrink-0">
 									<Button
 										type="button"
 										size="sm"

@@ -4,11 +4,22 @@ import { Button } from "@/components/ui/Button";
 import type { Patient } from "@/lib/types";
 import { calculateAge } from "@/lib/utils";
 
+export interface PatientProfileHeaderPatient {
+  id: string;
+  user_id?: string | null;
+  full_name: string;
+  avatar_url?: string | null;
+  dob?: string | null;
+  address?: string | null;
+  contact_number?: string | null;
+  preferred_language?: string | null;
+}
+
 export function PatientProfileHeader({
   patient,
   relationship,
 }: {
-  patient: Patient;
+  patient: PatientProfileHeaderPatient;
   relationship: string;
 }) {
   return (
@@ -29,8 +40,8 @@ export function PatientProfileHeader({
               <Badge tone="mint">Active</Badge>
             </div>
             <p className="mt-1 text-sm text-ink-500">
-              {calculateAge(patient.dob)} yrs · Cared for by you ({relationship}
-              ) · {patient.address}
+              {patient.dob ? calculateAge(patient.dob) : "—"} yrs · Cared for by you ({relationship}
+              ) · {patient.address ?? "No address"}
             </p>
           </div>
         </div>

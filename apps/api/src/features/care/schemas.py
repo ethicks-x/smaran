@@ -59,16 +59,15 @@ class CareLinkOut(BaseModel):
 
 
 class CareRequestOut(BaseModel):
-    """One patient waiting on this caregiver's answer.
-
-    Deliberately thin. Approving is the moment access is granted, so everything a caregiver
-    could use to recognise the patient sits behind the approval rather than in front of it —
-    before there is an `active` row there is nothing here this endpoint may say about them.
-    """
+    """One patient waiting on this caregiver's answer."""
 
     id: UUID
     patient_id: UUID
     status: CareLinkStatus
+    patient_name: str | None = None
+    patient_avatar_url: str | None = None
+    patient_email: str | None = None
+    patient_phone: str | None = None
 
 
 class CareRequestDecisionIn(BaseModel):

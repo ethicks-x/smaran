@@ -1,41 +1,61 @@
 "use client";
 
 import { Filter } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Badge } from "@/components/ui/Badge";
-import {
-  caregiver,
-  getPatient,
-  getPatientsForCaregiver,
-  questionEvents,
-} from "@/lib/mock-data";
-
-const activityLabel: Record<string, string> = {
-  who_is_this: "Who is this?",
-  what_is_this: "What is this?",
-  where_is_this: "Where is this?",
-};
+import { useApi } from "@/hooks/use-api";
+import { useMyPatients } from "@/lib/api/useMyPatients";
+import type { ActivityFeedApi, QuestionEventApi } from "@/lib/types";
 
 export default function ActivityPage() {
-  const myPatients = getPatientsForCaregiver(caregiver.id);
+  const { patients: myPatients } = useMyPatients();
+  const api = useApi();
   const [patientFilter, setPatientFilter] = useState("all");
+  const [events, setEvents] = useState<QuestionEventApi[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    return questionEvents
-      .filter((e) => patientFilter === "all" || e.patient_id === patientFilter)
-      .filter((e) => e.is_correct !== null)
-      .sort(
-        (a, b) =>
-          new Date(b.asked_at).getTime() - new Date(a.asked_at).getTime(),
-      );
-  }, [patientFilter]);
+  useEffect(() => {
+    let cancelled = false;
+    async function loadActivity() {
+      setLoading(true);
+      setError(null);
+      try {
+        const path =
+          patientFilter === "all"
+            ? "/dashboard/activity?limit=100"
+            : `/dashboard/activity?patient_id=${patientFilter}&limit=100`;
+        const res = await api<ActivityFeedApi>(path);
+        if (!cancelled) {
+          setEvents(res.events || []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : "Failed to load activity feed",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
 
-  const grouped = filtered.reduce<Record<string, typeof filtered>>((acc, e) => {
-    const day = e.asked_at.slice(0, 10);
-    acc[day] = acc[day] ? [...acc[day], e] : [e];
-    return acc;
-  }, {});
+    loadActivity();
+    return () => {
+      cancelled = true;
+    };
+  }, [api, patientFilter]);
+
+  const grouped = useMemo(() => {
+    return events.reduce<Record<string, QuestionEventApi[]>>((acc, e) => {
+      const day = e.asked_at ? e.asked_at.slice(0, 10) : "Recent";
+      acc[day] = acc[day] ? [...acc[day], e] : [e];
+      return acc;
+    }, {});
+  }, [events]);
 
   return (
     <DashboardShell>
@@ -44,7 +64,7 @@ export default function ActivityPage() {
           Activity & Progress
         </h1>
         <p className="mt-1.5 text-sm text-ink-500">
-          Every recognition question asked across everyone in your care.
+          Every game and cognitive exercise completed across everyone in your care.
         </p>
       </div>
 
@@ -66,61 +86,87 @@ export default function ActivityPage() {
         </select>
       </div>
 
-      <div className="space-y-8">
-        {Object.entries(grouped).map(([day, events]) => (
-          <div key={day}>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-              {day}
-            </p>
-            <div className="space-y-2.5">
-              {events.map((e) => {
-                const patient = getPatient(e.patient_id);
-                return (
-                  <div
-                    key={e.id}
-                    className="flex items-center justify-between gap-4 rounded-2xl border border-black/6 bg-surface p-4 shadow-[0_2px_8px_rgba(44,31,88,0.06)]"
-                  >
-                    <div className="flex items-center gap-3.5">
-                      {/** biome-ignore lint/performance/noImgElement: Image is used for visual purposes only */}
-                      <img
-                        src={patient?.avatar_url ?? undefined}
-                        alt={patient?.full_name}
-                        className="h-11 w-11 rounded-full object-cover"
-                      />
-                      <div>
-                        <p className="text-sm font-semibold text-ink-900">
-                          {patient?.full_name}
-                        </p>
-                        <p className="text-xs text-ink-500">
-                          {activityLabel[e.activity]} · {e.n_options} options ·{" "}
-                          {new Date(e.asked_at).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge tone={e.is_correct ? "mint" : "coral"}>
-                      {e.is_correct ? "Correct" : "Incorrect"}
-                    </Badge>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      {error && (
+        <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-700">
+          Couldn&apos;t reach the activity feed: {error}
+        </div>
+      )}
 
-        {filtered.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-black/15 bg-surface py-16 text-center">
-            <p className="font-display text-lg font-semibold text-ink-900">
-              No activity found
-            </p>
-            <p className="mt-1 text-sm text-ink-500">
-              Try a different patient filter.
-            </p>
-          </div>
-        )}
-      </div>
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-20 animate-pulse rounded-2xl bg-black/[0.04]"
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {Object.entries(grouped).map(([day, dayEvents]) => (
+            <div key={day}>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
+                {day}
+              </p>
+              <div className="space-y-2.5">
+                {dayEvents.map((e) => {
+                  return (
+                    <div
+                      key={e.id}
+                      className="flex items-center justify-between gap-4 rounded-2xl border border-black/6 bg-surface p-4 shadow-[0_2px_8px_rgba(44,31,88,0.06)]"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        {e.patient_avatar_url ? (
+                          <img
+                            src={e.patient_avatar_url}
+                            alt={e.patient_name ?? "Patient"}
+                            className="h-11 w-11 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-50 font-display text-sm font-semibold text-indigo-500">
+                            {(e.patient_name || "P").charAt(0)}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-semibold text-ink-900">
+                            {e.patient_name || "Patient"}
+                          </p>
+                          <p className="text-xs text-ink-500">
+                            {e.activity_label}
+                            {e.n_options ? ` · ${e.n_options} items` : ""}
+                            {e.time_taken_ms
+                              ? ` · ${Math.round(e.time_taken_ms / 1000)}s`
+                              : ""}{" "}
+                            ·{" "}
+                            {new Date(e.asked_at).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge tone={e.is_correct ? "mint" : "coral"}>
+                        {e.is_correct ? "Completed" : "Incomplete"}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {events.length === 0 && !error && (
+            <div className="rounded-2xl border border-dashed border-black/15 bg-surface py-16 text-center">
+              <p className="font-display text-lg font-semibold text-ink-900">
+                No activity found
+              </p>
+              <p className="mt-1 text-sm text-ink-500">
+                Games played by patients will automatically show up here.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </DashboardShell>
   );
 }

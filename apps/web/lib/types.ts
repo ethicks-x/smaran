@@ -119,6 +119,10 @@ export interface CareRequestApi {
 	id: string;
 	patient_id: string;
 	status: CareLinkStatus;
+	patient_name?: string | null;
+	patient_avatar_url?: string | null;
+	patient_email?: string | null;
+	patient_phone?: string | null;
 }
 
 export interface MemorySubjectApi {

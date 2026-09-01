@@ -1,6 +1,15 @@
+import asyncio
+import sys
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from core.config import settings
 from features.auth.router import router as auth_router
@@ -11,17 +20,22 @@ from features.sync.router import router as sync_router
 from features.user.router import router as user_router
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+    await init_db()
+    yield
+
+
 app = FastAPI(
     title="Hackathon API",
     description="Backend API for the hackathon project",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 
 # The caregiver dashboard runs on its own origin and calls this API straight from the
-# browser, which preflights anything carrying an Authorization header. Origins are listed
-# rather than wildcarded: `allow_credentials` with `*` is rejected by browsers, and a
-# wildcard on an API serving patient data (AGENTS.md §2.5) is not what we want anyway.
+# browser, which preflights anything carrying an Authorization header.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allow_origins,
@@ -29,11 +43,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    await init_db()
 
 
 app.include_router(

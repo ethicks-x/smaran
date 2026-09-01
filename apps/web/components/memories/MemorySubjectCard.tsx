@@ -2,10 +2,25 @@ import { MapPin, Package, Pencil, Trash2, User } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import type { MemorySubject } from "@/lib/types";
 
-const kindIcon = { person: User, place: MapPin, object: Package };
+export interface MemorySubjectCardItem {
+  id: string;
+  patient_id?: string;
+  kind: string;
+  name?: string | null;
+  relation?: string | null;
+  relationship?: string | null;
+  photo_url?: string | null;
+  is_active?: boolean;
+}
 
-export function MemorySubjectCard({ subject }: { subject: MemorySubject }) {
-  const Icon = kindIcon[subject.kind];
+const kindIcon: Record<string, typeof User> = {
+  person: User,
+  place: MapPin,
+  object: Package,
+};
+
+export function MemorySubjectCard({ subject }: { subject: MemorySubjectCardItem }) {
+  const Icon = kindIcon[subject.kind] || Package;
 
   return (
     <div className="group overflow-hidden rounded-2xl border border-black/[0.06] bg-surface shadow-[0_2px_8px_rgba(44,31,88,0.06)] transition-shadow hover:shadow-[0_12px_40px_rgba(44,31,88,0.12)]">
@@ -14,7 +29,7 @@ export function MemorySubjectCard({ subject }: { subject: MemorySubject }) {
           {/** biome-ignore lint/performance/noImgElement: Dynamic Images */}
           <img
             src={subject.photo_url}
-            alt={subject.name}
+            alt={subject.name ?? "Memory"}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         </div>

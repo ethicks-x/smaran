@@ -6,7 +6,7 @@ Routers stay thin; all database operations and calculations live here.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -44,6 +44,7 @@ from features.database.models import (
     PatientCaregiver,
     QuestionEvent,
     Reminder,
+    SessionEvent,
 )
 
 
@@ -57,8 +58,12 @@ ACTIVITY_LABELS: dict[str, str] = {
     "who_is_this": "Who is this?",
     "what_is_this": "What is this?",
     "where_is_this": "Where is this?",
+    "matching": "Matching Pairs",
     "pattern-match": "Matching Pairs",
+    "missing": "Missing Item",
     "daily-recall": "Daily Recall",
+    "chess": "Chess",
+    "sudoku": "Sudoku",
 }
 
 
@@ -142,26 +147,42 @@ async def _compute_patient_card(
     name = await _resolve_patient_display_name(patient)
     avatar = await _resolve_patient_avatar(patient)
 
-    # Session stats
-    sessions_count_stmt = select(func.count(GameSession.id)).where(
+    # Session stats from session_events (primary) and game_sessions (legacy)
+    session_events_stmt = (
+        select(SessionEvent)
+        .where(SessionEvent.patient_id == patient.id)
+        .order_by(SessionEvent.ended_at.desc())
+    )
+    s_events = (await session.scalars(session_events_stmt)).all()
+
+    legacy_sessions_count_stmt = select(func.count(GameSession.id)).where(
         GameSession.patient_id == patient.id
     )
-    sessions_count = (await session.scalar(sessions_count_stmt)) or 0
+    legacy_count = (await session.scalar(legacy_sessions_count_stmt)) or 0
+    sessions_count = len(s_events) + legacy_count
 
-    # Accuracy from question events
-    events_stmt = select(QuestionEvent.is_correct, QuestionEvent.asked_at).where(
-        QuestionEvent.patient_id == patient.id,
-        QuestionEvent.is_correct.is_not(None),
-    )
-    events = (await session.execute(events_stmt)).all()
-
-    total_answered = len(events)
-    correct_count = sum(1 for e in events if e.is_correct is True)
-    accuracy = round((correct_count / total_answered) * 100) if total_answered > 0 else 0
+    # Calculate overall accuracy
+    if s_events:
+        total_attempts = sum(e.attempts for e in s_events)
+        total_correct = sum(e.correct for e in s_events)
+        if total_attempts > 0:
+            accuracy = round((total_correct / total_attempts) * 100)
+        else:
+            accuracy = round((sum(e.accuracy for e in s_events) / len(s_events)) * 100)
+    else:
+        # Fallback to QuestionEvent if any
+        events_stmt = select(QuestionEvent.is_correct).where(
+            QuestionEvent.patient_id == patient.id,
+            QuestionEvent.is_correct.is_not(None),
+        )
+        q_events = (await session.scalars(events_stmt)).all()
+        total_answered = len(q_events)
+        correct_count = sum(1 for c in q_events if c is True)
+        accuracy = round((correct_count / total_answered) * 100) if total_answered > 0 else 0
 
     last_active_at = None
-    if events:
-        last_active_at = max(e.asked_at for e in events)
+    if s_events:
+        last_active_at = s_events[0].ended_at
     else:
         last_session_stmt = (
             select(GameSession.started_at)
@@ -215,11 +236,19 @@ async def get_dashboard_summary(session: AsyncSession, caregiver_id: str) -> Das
 
     if patient_ids:
         today_start = _utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_stmt = select(func.count(QuestionEvent.id)).where(
+        today_sessions_stmt = select(func.count(SessionEvent.id)).where(
+            SessionEvent.patient_id.in_(patient_ids),
+            SessionEvent.ended_at >= today_start,
+        )
+        sessions_today = (await session.scalar(today_sessions_stmt)) or 0
+
+        today_q_stmt = select(func.count(QuestionEvent.id)).where(
             QuestionEvent.patient_id.in_(patient_ids),
             QuestionEvent.asked_at >= today_start,
         )
-        activities_today = (await session.scalar(today_stmt)) or 0
+        q_today = (await session.scalar(today_q_stmt)) or 0
+
+        activities_today = sessions_today + q_today
 
         subjects_stmt = select(func.count(MemorySubject.id)).where(
             MemorySubject.patient_id.in_(patient_ids),
@@ -467,29 +496,53 @@ async def get_patient_progress(
     """Retrieve structured progress metrics, session history, and activity breakdown."""
     await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
 
-    # Fetch game sessions
+    # Fetch synced session events
+    s_events_stmt = (
+        select(SessionEvent)
+        .where(SessionEvent.patient_id == patient_id)
+        .order_by(SessionEvent.ended_at.desc())
+    )
+    s_events = (await session.scalars(s_events_stmt)).all()
+
+    # Fetch legacy game sessions and question events
     sessions_stmt = (
         select(GameSession)
         .where(GameSession.patient_id == patient_id)
         .order_by(GameSession.started_at.desc())
     )
-    sessions = (await session.scalars(sessions_stmt)).all()
+    legacy_sessions = (await session.scalars(sessions_stmt)).all()
 
-    # Fetch question events
     events_stmt = select(QuestionEvent).where(
         QuestionEvent.patient_id == patient_id,
         QuestionEvent.is_correct.is_not(None),
     )
-    events = (await session.scalars(events_stmt)).all()
+    q_events = (await session.scalars(events_stmt)).all()
 
-    # Session summaries
     session_summaries: list[SessionSummaryOut] = []
-    for s in sessions:
-        s_events = [e for e in events if e.session_id == s.id]
-        answered_count = len(s_events)
-        correct_count = sum(1 for e in s_events if e.is_correct is True)
+
+    # Map synced SessionEvent records
+    for se in s_events:
+        acc = round(se.accuracy * 100) if se.accuracy <= 1.0 else round(se.accuracy)
+        session_summaries.append(
+            SessionSummaryOut(
+                id=se.id,
+                date=se.started_at.strftime("%Y-%m-%d"),
+                questions_planned=se.total,
+                questions_answered=se.attempts,
+                accuracy=acc,
+                avg_time_ms=se.avg_response_ms,
+                started_at=se.started_at,
+                ended_at=se.ended_at,
+            )
+        )
+
+    # Map legacy GameSession records
+    for s in legacy_sessions:
+        s_q = [e for e in q_events if e.session_id == s.id]
+        answered_count = len(s_q)
+        correct_count = sum(1 for e in s_q if e.is_correct is True)
         acc = round((correct_count / answered_count) * 100) if answered_count > 0 else 0
-        times = [e.time_taken_ms for e in s_events if e.time_taken_ms is not None]
+        times = [e.time_taken_ms for e in s_q if e.time_taken_ms is not None]
         avg_time = round(sum(times) / len(times)) if times else 0
 
         session_summaries.append(
@@ -505,29 +558,69 @@ async def get_patient_progress(
             )
         )
 
-    # Activity breakdown
-    activity_types = ["who_is_this", "what_is_this", "where_is_this"]
-    breakdown: list[ActivityBreakdownItem] = []
-    for act in activity_types:
-        subset = [e for e in events if e.activity == act]
+    # Sort all sessions newest first
+    session_summaries.sort(key=lambda s: s.started_at, reverse=True)
+
+    # Activity breakdown from session_events (by game_id) and question_events (by activity)
+    breakdown_map: dict[str, dict[str, Any]] = {}
+
+    for se in s_events:
+        game_key = se.game_id
+        if game_key not in breakdown_map:
+            breakdown_map[game_key] = {
+                "activity": game_key,
+                "label": ACTIVITY_LABELS.get(
+                    game_key, game_key.replace("_", " ").replace("-", " ").title()
+                ),
+                "total_attempts": 0,
+                "total_correct": 0,
+                "count": 0,
+            }
+        breakdown_map[game_key]["total_attempts"] += se.attempts
+        breakdown_map[game_key]["total_correct"] += se.correct
+        breakdown_map[game_key]["count"] += 1
+
+    for act in ["who_is_this", "what_is_this", "where_is_this"]:
+        subset = [e for e in q_events if e.activity == act]
         if subset:
             cor = sum(1 for e in subset if e.is_correct is True)
-            breakdown.append(
-                ActivityBreakdownItem(
-                    activity=act,
-                    label=ACTIVITY_LABELS.get(act, act.replace("_", " ").title()),
-                    accuracy=round((cor / len(subset)) * 100),
-                    count=len(subset),
-                )
-            )
+            breakdown_map[act] = {
+                "activity": act,
+                "label": ACTIVITY_LABELS.get(act, act.replace("_", " ").title()),
+                "total_attempts": len(subset),
+                "total_correct": cor,
+                "count": len(subset),
+            }
 
-    total_answered = len(events)
-    total_correct = sum(1 for e in events if e.is_correct is True)
-    overall_acc = round((total_correct / total_answered) * 100) if total_answered > 0 else 0
+    breakdown: list[ActivityBreakdownItem] = []
+    for item in breakdown_map.values():
+        att = item["total_attempts"]
+        cor = item["total_correct"]
+        acc = round((cor / att) * 100) if att > 0 else 0
+        breakdown.append(
+            ActivityBreakdownItem(
+                activity=item["activity"],
+                label=item["label"],
+                accuracy=acc,
+                count=item["count"],
+            )
+        )
+
+    # Overall accuracy calculation
+    total_attempts_all = sum(se.attempts for se in s_events) + len(q_events)
+    total_correct_all = sum(se.correct for se in s_events) + sum(
+        1 for e in q_events if e.is_correct is True
+    )
+    if total_attempts_all > 0:
+        overall_acc = round((total_correct_all / total_attempts_all) * 100)
+    elif s_events:
+        overall_acc = round((sum(se.accuracy for se in s_events) / len(s_events)) * 100)
+    else:
+        overall_acc = 0
 
     return PatientProgressOut(
         patient_id=patient_id,
-        total_sessions=len(sessions),
+        total_sessions=len(session_summaries),
         overall_accuracy=overall_acc,
         sessions=session_summaries,
         activity_breakdown=breakdown,
@@ -544,39 +637,72 @@ async def get_patient_trends(
     """Daily rolled up accuracy and response time points for trend charts."""
     await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
 
-    query = select(QuestionEvent).where(
+    # Fetch SessionEvent records
+    se_query = select(SessionEvent).where(SessionEvent.patient_id == patient_id)
+    if from_date:
+        se_query = se_query.where(SessionEvent.started_at >= from_date)
+    if to_date:
+        se_query = se_query.where(SessionEvent.started_at <= to_date)
+    se_query = se_query.order_by(SessionEvent.started_at.asc())
+    s_events = (await session.scalars(se_query)).all()
+
+    # Fetch QuestionEvent records
+    qe_query = select(QuestionEvent).where(
         QuestionEvent.patient_id == patient_id,
         QuestionEvent.is_correct.is_not(None),
     )
     if from_date:
-        query = query.where(QuestionEvent.asked_at >= from_date)
+        qe_query = qe_query.where(QuestionEvent.asked_at >= from_date)
     if to_date:
-        query = query.where(QuestionEvent.asked_at <= to_date)
+        qe_query = qe_query.where(QuestionEvent.asked_at <= to_date)
+    qe_query = qe_query.order_by(QuestionEvent.asked_at.asc())
+    q_events = (await session.scalars(qe_query)).all()
 
-    query = query.order_by(QuestionEvent.asked_at.asc())
-    events = (await session.scalars(query)).all()
+    by_day: dict[str, dict[str, Any]] = {}
 
-    # Group by day
-    by_day: dict[str, list[QuestionEvent]] = {}
-    for e in events:
-        day_str = e.asked_at.strftime("%Y-%m-%d")
-        by_day.setdefault(day_str, []).append(e)
+    for se in s_events:
+        day_str = se.started_at.strftime("%Y-%m-%d")
+        if day_str not in by_day:
+            by_day[day_str] = {
+                "attempts": 0,
+                "correct": 0,
+                "resp_times": [],
+                "sessions_count": 0,
+            }
+        by_day[day_str]["attempts"] += se.attempts
+        by_day[day_str]["correct"] += se.correct
+        by_day[day_str]["resp_times"].append(se.avg_response_ms)
+        by_day[day_str]["sessions_count"] += 1
+
+    for qe in q_events:
+        day_str = qe.asked_at.strftime("%Y-%m-%d")
+        if day_str not in by_day:
+            by_day[day_str] = {
+                "attempts": 0,
+                "correct": 0,
+                "resp_times": [],
+                "sessions_count": 0,
+            }
+        by_day[day_str]["attempts"] += 1
+        if qe.is_correct:
+            by_day[day_str]["correct"] += 1
+        if qe.time_taken_ms:
+            by_day[day_str]["resp_times"].append(qe.time_taken_ms)
 
     points: list[TrendPointOut] = []
-    for day_str, day_events in sorted(by_day.items()):
-        total = len(day_events)
-        correct = sum(1 for e in day_events if e.is_correct is True)
-        accuracy = round((correct / total) * 100, 1) if total > 0 else 0.0
-        times = [e.time_taken_ms for e in day_events if e.time_taken_ms is not None]
+    for day_str, stats in sorted(by_day.items()):
+        att = stats["attempts"]
+        cor = stats["correct"]
+        acc = round((cor / att) * 100, 1) if att > 0 else 0.0
+        times = stats["resp_times"]
         avg_resp = round(sum(times) / len(times)) if times else 0
-        session_ids = {e.session_id for e in day_events}
 
         points.append(
             TrendPointOut(
                 date=day_str,
-                accuracy=accuracy,
+                accuracy=acc,
                 avg_response_ms=avg_resp,
-                sessions_count=len(session_ids),
+                sessions_count=stats["sessions_count"],
             )
         )
 
@@ -632,7 +758,7 @@ async def get_activity_feed(
     limit: int = 50,
     offset: int = 0,
 ) -> ActivityFeedOut:
-    """Retrieve a chronological question event feed across linked patients."""
+    """Retrieve a chronological question/session event feed across linked patients."""
     if patient_id:
         await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
         target_ids = [patient_id]
@@ -646,34 +772,66 @@ async def get_activity_feed(
     if not target_ids:
         return ActivityFeedOut(events=[], total=0)
 
-    # Count total
-    count_stmt = select(func.count(QuestionEvent.id)).where(
-        QuestionEvent.patient_id.in_(target_ids)
-    )
-    total = (await session.scalar(count_stmt)) or 0
-
-    # Query events
-    events_stmt = (
-        select(QuestionEvent)
-        .where(QuestionEvent.patient_id.in_(target_ids))
-        .order_by(QuestionEvent.asked_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
-    events = (await session.scalars(events_stmt)).all()
-
-    # Preload patient and memory subjects maps
+    # Preload patient map
     patients_stmt = select(Patient).where(Patient.id.in_(target_ids))
     patients_map = {p.id: p for p in (await session.scalars(patients_stmt)).all()}
 
-    subject_ids = {e.subject_id for e in events if e.subject_id is not None}
+    # Fetch SessionEvent rows
+    se_stmt = (
+        select(SessionEvent)
+        .where(SessionEvent.patient_id.in_(target_ids))
+        .order_by(SessionEvent.ended_at.desc())
+    )
+    s_events = (await session.scalars(se_stmt)).all()
+
+    # Fetch QuestionEvent rows
+    qe_stmt = (
+        select(QuestionEvent)
+        .where(QuestionEvent.patient_id.in_(target_ids))
+        .order_by(QuestionEvent.asked_at.desc())
+    )
+    q_events = (await session.scalars(qe_stmt)).all()
+
+    # Subject map for QuestionEvents
+    subject_ids = {e.subject_id for e in q_events if e.subject_id is not None}
     subjects_map: dict[UUID, MemorySubject] = {}
     if subject_ids:
         subj_stmt = select(MemorySubject).where(MemorySubject.id.in_(subject_ids))
         subjects_map = {s.id: s for s in (await session.scalars(subj_stmt)).all()}
 
     feed_items: list[QuestionEventOut] = []
-    for e in events:
+
+    # Map SessionEvent items
+    for se in s_events:
+        p = patients_map.get(se.patient_id)
+        p_name = await _resolve_patient_display_name(p) if p else None
+        p_avatar = await _resolve_patient_avatar(p) if p else None
+        act_label = ACTIVITY_LABELS.get(
+            se.game_id, se.game_id.replace("_", " ").replace("-", " ").title()
+        )
+
+        feed_items.append(
+            QuestionEventOut(
+                id=se.id,
+                session_id=se.id,
+                patient_id=se.patient_id,
+                patient_name=p_name,
+                patient_avatar_url=p_avatar,
+                subject_id=None,
+                subject_name=None,
+                activity=se.game_id,
+                activity_label=act_label,
+                n_options=se.total,
+                is_correct=se.completed,
+                time_taken_ms=se.duration_ms,
+                hints_used=0,
+                reason=f"Difficulty {se.difficulty}",
+                asked_at=se.ended_at,
+            )
+        )
+
+    # Map QuestionEvent items
+    for e in q_events:
         p = patients_map.get(e.patient_id)
         p_name = await _resolve_patient_display_name(p) if p else None
         p_avatar = await _resolve_patient_avatar(p) if p else None
@@ -702,7 +860,12 @@ async def get_activity_feed(
             )
         )
 
-    return ActivityFeedOut(events=feed_items, total=total)
+    # Sort combined feed newest first
+    feed_items.sort(key=lambda item: item.asked_at, reverse=True)
+    total = len(feed_items)
+    paged = feed_items[offset : offset + limit]
+
+    return ActivityFeedOut(events=paged, total=total)
 
 
 # --- Attention Flags & Notifications ---
@@ -739,13 +902,21 @@ async def get_attention_flags(
     for p in target_patients:
         name = await _resolve_patient_display_name(p)
 
-        # 1. Inactivity Flag
-        last_session = await session.scalar(
+        # 1. Inactivity Flag: check SessionEvent and GameSession
+        last_se_time = await session.scalar(
+            select(SessionEvent.ended_at)
+            .where(SessionEvent.patient_id == p.id)
+            .order_by(SessionEvent.ended_at.desc())
+            .limit(1)
+        )
+        last_gs_time = await session.scalar(
             select(GameSession.started_at)
             .where(GameSession.patient_id == p.id)
             .order_by(GameSession.started_at.desc())
             .limit(1)
         )
+        last_session = last_se_time or last_gs_time
+
         if last_session and last_session < two_days_ago:
             days_inactive = (now - last_session).days
             flags.append(
@@ -762,21 +933,24 @@ async def get_attention_flags(
             )
 
         # 2. Performance Deviation against 14-day baseline
-        events_stmt = select(QuestionEvent.is_correct, QuestionEvent.asked_at).where(
-            QuestionEvent.patient_id == p.id,
-            QuestionEvent.asked_at >= fourteen_days_ago,
-            QuestionEvent.is_correct.is_not(None),
-        )
-        recent_events = (await session.execute(events_stmt)).all()
+        recent_se = (
+            await session.scalars(
+                select(SessionEvent)
+                .where(
+                    SessionEvent.patient_id == p.id,
+                    SessionEvent.ended_at >= fourteen_days_ago,
+                )
+                .order_by(SessionEvent.ended_at.asc())
+            )
+        ).all()
 
-        if len(recent_events) >= 10:
-            # Split into baseline (older than 2 days) and latest (last 2 days)
-            baseline = [e for e in recent_events if e.asked_at < two_days_ago]
-            latest = [e for e in recent_events if e.asked_at >= two_days_ago]
+        if len(recent_se) >= 4:
+            baseline_se = [e for e in recent_se if e.ended_at < two_days_ago]
+            latest_se = [e for e in recent_se if e.ended_at >= two_days_ago]
 
-            if len(baseline) >= 5 and len(latest) >= 3:
-                base_acc = sum(1 for e in baseline if e.is_correct) / len(baseline)
-                latest_acc = sum(1 for e in latest if e.is_correct) / len(latest)
+            if len(baseline_se) >= 2 and len(latest_se) >= 1:
+                base_acc = sum(e.accuracy for e in baseline_se) / len(baseline_se)
+                latest_acc = sum(e.accuracy for e in latest_se) / len(latest_se)
 
                 # Deviation threshold > 20%
                 if (base_acc - latest_acc) > 0.20:
@@ -819,7 +993,7 @@ async def get_notifications(session: AsyncSession, caregiver_id: str) -> list[No
             )
         )
 
-    # 2. Recent session completions
+    # 2. Recent session completions from SessionEvent
     links_stmt = select(PatientCaregiver.patient_id).where(
         PatientCaregiver.caregiver_id == caregiver_id,
         PatientCaregiver.status == LINK_ACTIVE,
@@ -827,34 +1001,27 @@ async def get_notifications(session: AsyncSession, caregiver_id: str) -> list[No
     patient_ids = list((await session.scalars(links_stmt)).all())
 
     if patient_ids:
-        recent_sessions_stmt = (
-            select(GameSession, Patient)
-            .join(Patient, Patient.id == GameSession.patient_id)
-            .where(GameSession.patient_id.in_(patient_ids))
-            .order_by(GameSession.started_at.desc())
-            .limit(5)
+        recent_se_stmt = (
+            select(SessionEvent, Patient)
+            .join(Patient, Patient.id == SessionEvent.patient_id)
+            .where(SessionEvent.patient_id.in_(patient_ids))
+            .order_by(SessionEvent.ended_at.desc())
+            .limit(10)
         )
-        recent_sessions = (await session.execute(recent_sessions_stmt)).all()
+        recent_se = (await session.execute(recent_se_stmt)).all()
 
-        for s, p in recent_sessions:
+        for se, p in recent_se:
             name = await _resolve_patient_display_name(p)
-            questions_stmt = select(QuestionEvent.is_correct).where(
-                QuestionEvent.session_id == s.id,
-                QuestionEvent.is_correct.is_not(None),
-            )
-            s_events = list((await session.scalars(questions_stmt)).all())
-            ans_count = len(s_events)
-            cor_count = sum(1 for c in s_events if c is True)
-            acc = round((cor_count / ans_count) * 100) if ans_count > 0 else 0
-
+            acc = round(se.accuracy * 100) if se.accuracy <= 1.0 else round(se.accuracy)
+            game_name = ACTIVITY_LABELS.get(se.game_id, se.game_id.title())
             notifications.append(
                 NotificationOut(
-                    id=f"notif_session_{s.id}",
+                    id=f"notif_se_{se.id}",
                     type="activity",
-                    title=f"{name} completed a session",
-                    description=f"{ans_count} questions answered · {acc}% accuracy.",
-                    time=_format_time_ago(s.started_at),
-                    timestamp=s.started_at,
+                    title=f"{name} played {game_name}",
+                    description=f"{se.correct}/{se.attempts} correct · {acc}% accuracy.",
+                    time=_format_time_ago(se.ended_at),
+                    timestamp=se.ended_at,
                     read=False,
                     patient_id=p.id,
                 )

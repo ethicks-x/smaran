@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import atexit
 import tempfile
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 import boto3
 from fastapi import Depends
@@ -54,7 +54,7 @@ def load_s3_cert_to_tempfile() -> str | None:
 
 cert_path = load_s3_cert_to_tempfile()
 
-connect_args: dict[str, str] = {}
+connect_args: dict[str, Any] = {"prepare_threshold": None}
 if cert_path:
     connect_args["sslmode"] = "verify-full"
     connect_args["sslrootcert"] = cert_path
