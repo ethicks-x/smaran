@@ -61,6 +61,7 @@ this one.
 |---|---|
 | Root gate | `_layout.tsx` — splash held until Clerk + appearance + language load; `Stack.Protected` guards |
 | Clerk hosted auth | sign-in via Account Portal, `smaran://` deep link, `+native-intent.ts` |
+| Role enrolment | `use-role-enrolment.ts` — POSTs `/auth/patient-role` on the first session an account has on this phone, remembers the user id in the secure store, and is awaited by nothing. Offline is a no-op that retries next launch — D-28 |
 | Bottom `TopTabs` pager | five labelled tabs, swipeable, pill indicator |
 | Landing | animated intro pager, page dots, sign-in CTA — `landing.tsx`, `components/landing/` |
 | Recall | once-per-launch name warm-up; per-letter scoring, reveal after 3 misses, in-memory only |
@@ -123,7 +124,7 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 | Settings from env / `.env` | ✅ `src/core/config.py`, pydantic-settings; `.env.example` is the template |
 | Clerk token verification | ✅ `src/features/auth/service.py` — `authenticate`, `require_auth`, `require_caregiver`, `require_roles`, `granted_roles` |
 | Route guards | ✅ `@auth_required` / `@caregiver_required` in `decorators.py`; `requires_auth` / `requires_caregiver` / `optional_auth` in `dependencies.py` |
-| Role self-provisioning | ✅ `POST /auth/caregiver-role` grants caregiver role in Postgres for authenticated Clerk users |
+| Role self-enrolment | ✅ `POST /auth/caregiver-role` and `POST /auth/patient-role` — a signed-in Clerk user with **no** role yet claims one. Both go through `self_enroll()`, which is idempotent and refuses an account that already holds a different role, so neither route can widen access. `PATIENT_ROLE` joins `CAREGIVER_ROLE` in settings. Called by the dashboard's `/welcome` page after sign-up and by the phone's `useRoleEnrolment()` on first session — D-28 |
 | Clerk user profile resolution | ✅ `src/core/clerk.py` resolves names, email, avatars from Clerk Backend API |
 | `GET /users/me` | ✅ `@auth_required`; returns Clerk id, granted roles, `is_caregiver`, and linked `patient` row |
 | Dashboard API for Caregiver Web PWA | ✅ Full suite under `/dashboard`: summary stats, patient CRUD, memory subjects CRUD, progress/session summaries, trend rollups, casual play logs, activity feed, notifications & baseline attention flags |
@@ -144,7 +145,7 @@ TanStack Query is still not installed, and no PWA/offline cache.
 
 | Item | State |
 |---|---|
-| Auth (Clerk) | ✅ `ClerkProvider` in the root layout, `proxy.ts` protecting every non-public route, `<SignIn>`/`<SignUp>` at `/login` and `/signup`, working sign-out in Settings |
+| Auth (Clerk) | ✅ `ClerkProvider` in the root layout, `proxy.ts` protecting every non-public route, `<SignIn>`/`<SignUp>` at `/login` and `/signup`, working sign-out in Settings. A new sign-up is forced through `/welcome`, which claims the caregiver role from the API before the dashboard is asked for — D-28 |
 | API client | ✅ `lib/api.ts` (transport) + `lib/api-server.ts` `api()` + `hooks/use-api.ts` `useApi()` — D-27 |
 | Screens fed by the API | ⬜ every screen still reads `lib/mock-data.ts`. The client exists; nothing calls it yet |
 | Identity on screen | 🟡 the header shows the real Clerk user; Settings still renders the mock caregiver |

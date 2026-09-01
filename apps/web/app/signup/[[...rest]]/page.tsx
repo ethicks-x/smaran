@@ -27,7 +27,16 @@ export default function SignupPage() {
         </p>
 
         <div className="mt-8 flex justify-center">
-          <SignUp appearance={clerkAppearance} signInUrl="/login" />
+          {/* Every new account lands on /welcome, never straight on the
+              dashboard: Clerk creates the user, but the caregiver role that
+              opens every dashboard route is granted by our own API and has to
+              be asked for once. `forceRedirectUrl` rather than a fallback so
+              the env var pointing sign-up at /dashboard cannot skip it. */}
+          <SignUp
+            appearance={clerkAppearance}
+            signInUrl="/login"
+            forceRedirectUrl="/welcome"
+          />
         </div>
       </div>
     </div>

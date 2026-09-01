@@ -11,6 +11,7 @@ import "@/i18n";
 import { AppearanceProvider, useAppearance } from "@/hooks/use-appearance";
 import { LanguageProvider, useLanguage } from "@/hooks/use-language";
 import { RecallProvider, useRecall } from "@/hooks/use-recall";
+import { useRoleEnrolment } from "@/hooks/use-role-enrolment";
 import { useTheme } from "@/hooks/use-theme";
 import type { ThemeColors } from "@/theme";
 
@@ -57,6 +58,11 @@ function RootNavigator() {
 	const { isLoaded: isLanguageLoaded } = useLanguage();
 	const { isRecalled } = useRecall();
 	const { isDark, colors } = useTheme();
+
+	// Fires on the first session this account has on this phone, and is awaited by
+	// nothing — the splash below lifts on Clerk and the stored preferences, never
+	// on a network call.
+	useRoleEnrolment();
 
 	const isLoaded = isAuthLoaded && isAppearanceLoaded && isLanguageLoaded;
 

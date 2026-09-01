@@ -54,6 +54,10 @@ class Settings(BaseSettings):
         "caregiver",
         description="Value of roles.role that marks a caregiver",
     )
+    patient_role: str = Field(
+        "patient",
+        description="Value of roles.role that marks a patient",
+    )
 
     @field_validator("clerk_authorized_parties", "cors_allow_origins", mode="before")
     @classmethod

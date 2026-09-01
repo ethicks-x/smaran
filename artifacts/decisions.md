@@ -1050,3 +1050,51 @@ Now there are two clients with different answers. Either leave it unset, or set 
 **What is not done.** Every screen still renders `lib/mock-data.ts`; the client exists and
 nothing calls it yet. The header shows the real Clerk user, but Settings still renders the
 mock caregiver. Deleting the mocks is the next task on this app, not part of this one.
+
+---
+
+## D-28 · 2026-09-01 · A new account claims its role once, from the client that created it
+
+**Decision.** Roles live in the `roles` table and only there (D-20), and Clerk does not
+write to it — so a brand-new account has an identity and no permissions at all. The client
+that created the account is what tells the API which kind it is: `apps/web` calls
+`POST /auth/caregiver-role` after a sign-up, `apps/mobile` calls `POST /auth/patient-role`
+on the first session it holds for an account. `PATIENT_ROLE` (default `patient`) joins
+`CAREGIVER_ROLE` in `core/config.py`, for the same reason — the name of a value in our own
+column, never a literal in code.
+
+**Both routes go through one function, `self_enroll(user_id, role)`, and it only grants to
+an account holding nothing.** Self-enrolment is a claim made by the caller, so it is trusted
+exactly once: an account that already holds a role is left alone and told `granted: false`.
+Without that, `/auth/caregiver-role` is an escalation route — anyone holding a patient's
+token could ask for the caregiver role and then read that patient's data through the
+dashboard API (§2.5). Widening a role after the fact is a caregiver-side act and belongs on
+a guarded route, not on an open one.
+
+**It is idempotent, because the clients retry.** Asking twice for a role already held
+answers `granted: true` and writes nothing. That is what lets both clients treat the call as
+fire-and-forget rather than as a step that must not be missed.
+
+**The dashboard puts it on a page, the phone does not.** `/welcome` is a real screen with a
+visible failure and a "Try again" button: the API is a separate origin, it can be down when
+an account is minutes old, and a new caregiver landing on a 403-ing dashboard would read it
+as their account being broken. `SignUp` uses `forceRedirectUrl` rather than a fallback so
+`NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` cannot route around it.
+
+The phone gets the opposite treatment. `useRoleEnrolment()` runs from the root layout,
+blocks nothing, shows nothing and says nothing when it fails — §2.1 forbids a patient screen
+waiting on the network, and §2.3 forbids telling a reader about a failure they cannot act
+on. The marker is written only on success, so a phone that was offline at sign-in asks again
+next launch.
+
+**The marker holds the Clerk user id, not a boolean.** A phone can be handed on or signed in
+as somebody else; a bare "done" flag would leave the second person unenrolled forever.
+
+**Mobile cannot tell sign-up from sign-in, and does not try.** The Account Portal hands back
+a session either way without saying which it was, so the hook asks on the first session it
+sees for a given user id. The endpoint's idempotence is what makes that safe.
+
+**Would change it if:** enrolment ever needs to be something other than self-asserted — a
+caregiver provisioning a patient's device, which the PS's enrollment model implies. That
+grant comes from a caregiver-guarded route and would make the phone's call redundant, not
+wrong.
