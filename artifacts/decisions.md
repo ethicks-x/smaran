@@ -1098,3 +1098,36 @@ sees for a given user id. The endpoint's idempotence is what makes that safe.
 caregiver provisioning a patient's device, which the PS's enrollment model implies. That
 grant comes from a caregiver-guarded route and would make the phone's call redundant, not
 wrong.
+
+---
+
+## D-29 · 2026-09-01 · Clerk loads from a device resource cache, so the app opens with the radio off
+
+**Decision.** `ClerkProvider` in `apps/mobile/src/app/_layout.tsx` is given
+`__experimental_resourceCache={resourceCache}` from `@clerk/expo/resource-cache`, alongside
+the token cache it already had.
+
+**Why.** The token cache persists the client JWT; it does not let Clerk *start*. Without a
+resource cache, `@clerk/expo` can only resolve its environment and client by calling Clerk's
+API, so with no network `useAuth().isLoaded` never flips. The root gate holds the splash on
+exactly that flag, so the app did not open offline at all — a §2.1 failure of the most
+literal kind, on the one screen that has to work everywhere.
+
+With the cache, Clerk restores the last known environment and client from secure storage,
+`isLoaded` resolves from disk, and a retry loop refreshes both in the background once there
+is a network again. Nothing on the reader's path waits on that retry.
+
+**A first-ever launch offline still lands on `landing`.** There is no cached session to
+restore, so Clerk loads dummy resources and reports signed out, which is the truth: an
+account has to be created online once. Every launch after that opens straight into the app.
+
+**The API is `__experimental_`.** That is Clerk's label, not a hedge on our part — it is the
+only offline-load mechanism the SDK offers, and the alternative is an app that does not
+start. If the option is renamed in a later `@clerk/expo`, follow the rename; do not drop it.
+
+**Also.** `apiFetch` now treats a throwing `getToken()` as `ApiUnreachableError`. Refreshing
+an expired session token is itself a call to Clerk, so offline it fails before our own API is
+reached — the same "we could not ask" case, and callers already handle that one.
+
+**Would change it if:** Clerk ships offline restore as a stable, default behaviour, at which
+point the explicit option comes out.

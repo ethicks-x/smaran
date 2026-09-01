@@ -61,6 +61,7 @@ this one.
 |---|---|
 | Root gate | `_layout.tsx` — splash held until Clerk + appearance + language load; `Stack.Protected` guards |
 | Clerk hosted auth | sign-in via Account Portal, `smaran://` deep link, `+native-intent.ts` |
+| Clerk offline load | `ClerkProvider` is given `__experimental_resourceCache` from `@clerk/expo/resource-cache`, so a signed-in session restores from the device with the radio off and the splash lifts. Without it Clerk only finishes loading by reaching its API and the app never opened offline — D-29 |
 | Role enrolment | `use-role-enrolment.ts` — POSTs `/auth/patient-role` on the first session an account has on this phone, remembers the user id in the secure store, and is awaited by nothing. Offline is a no-op that retries next launch — D-28 |
 | Bottom `TopTabs` pager | five labelled tabs, swipeable, pill indicator |
 | Landing | animated intro pager, page dots, sign-in CTA — `landing.tsx`, `components/landing/` |
