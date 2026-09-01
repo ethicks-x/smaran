@@ -7,7 +7,7 @@ is the grading rubric; check any feature request against it.
 
 | # | Required capability | Status | Where it lives / what's missing | Owner |
 |---|---|---|---|---|
-| 1 | Interactive cognitive games — memory, attention, routine recall, pattern/object recognition, emotional engagement | ⬜ | **No game code at all.** `recall.tsx` is a name warm-up, not a game. People/Memories tabs cover the emotional-engagement and recognition strands but are empty shells | Rupam |
+| 1 | Interactive cognitive games — memory, attention, routine recall, pattern/object recognition, emotional engagement | ⬜ | **No game code at all.** `recall.tsx` is a name warm-up, not a game. The Memories tab covers the emotional-engagement strand but is an empty shell, and People lost its tab to Games (`decisions.md` D-41) without a replacement home | Rupam |
 | 2 | AI/ML-driven adaptive difficulty | ⬜ | Design frozen (`architecture.md` §6, D-07): pure module, rules in v1, model later behind the same signature. No code; blocked on §1 and local storage | Rupam |
 | 3 | Multilingual, voice-assisted interaction | ⬜ | Every string is hardcoded English; no TTS. Both are hard requirements and both get more expensive the more screens exist | Sinchan |
 | 4 | Culturally familiar themes, visuals, sounds, regional language | 🟡 | Palette, type scale and warm plain-language copy are done and genuinely elder-tuned. Every string is now translated into Hindi, Bengali and Assamese and switchable offline (`decisions.md` D-12) — translations still need native review. No regional imagery or sounds yet | Sinchan / Ananya |

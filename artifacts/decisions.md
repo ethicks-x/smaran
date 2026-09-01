@@ -1884,3 +1884,26 @@ one generic line, losing whichever one was actually true.
 CORS block by definition. A bucket still needs a policy allowing the dashboard's origin,
 `PUT`, and the `content-type` header (S3-compatible providers all share this shape); D-39's
 "Consequences" note is now a confirmed cause rather than a guess.
+
+---
+
+## D-41 · 2026-09-02 · Games is a tab; People is not
+
+**Decision.** The five bottom tabs are now **Today · Games · Memories · Help · Account**.
+The games list moved from `games/index.tsx` to `src/app/(tabs)/games.tsx` and the People
+tab was removed. `src/app/games/` keeps its `Stack` and its boards, so a game still opens
+*over* the tabs; the folder simply no longer holds the list. The four-tile grid on Today is
+unchanged and its "All games" tile now lands on the tab.
+
+**Why.** Requested. It also holds the count D-06 set at five rather than adding a sixth
+destination, and it puts the app's core deliverable — the games — one labelled tap from
+anywhere instead of only from a card on Today. D-18's placement argument is superseded on
+that one point; everything else it decided (the stack, one file per game, each screen
+carrying its own way out) still stands.
+
+**Consequences.** People — the familiar-faces strand of capability 1, and the down-sync
+target for the `person` table — has no route at all now. Its `EmptyState` screen is deleted
+and its `people.*` string keys are gone from all four catalogues. Whoever builds the real
+circle picks a home for it first: a card on Today, a push from Memories, or a swap back
+into the bar. Nothing in `src/db/schema.ts` or the sync work changed; the table is still
+there and still unread by any screen.

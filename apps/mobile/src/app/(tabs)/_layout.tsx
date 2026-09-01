@@ -16,9 +16,9 @@ const PILL_HEIGHT = scale(42);
 
 /** Pill, gap, label — plus a little air above and below. */
 const TAB_ITEM_HEIGHT =
-  PILL_HEIGHT + Spacing.xs + TextStyles.caption.lineHeight + Spacing.md;
+	PILL_HEIGHT + Spacing.xs + TextStyles.caption.lineHeight + Spacing.md;
 
-type TabIconName = "today" | "people" | "memories" | "help" | "settings";
+type TabIconName = "today" | "games" | "memories" | "help" | "settings";
 
 /** What the tab bar hands the icon and label renderers for each state. */
 type TabStateProps = { focused: boolean; color: ColorValue };
@@ -37,103 +37,103 @@ type TabStateProps = { focused: boolean; color: ColorValue };
  * where a 3pt line does not.
  */
 export default function TabLayout() {
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
+	const { colors } = useTheme();
+	const insets = useSafeAreaInsets();
+	const { t } = useTranslation();
 
-  return (
-    <TopTabs
-      tabBarPosition="bottom"
-      screenOptions={{
-        swipeEnabled: true,
-        // Tapping a tab cuts straight to that screen instead of paging
-        // through the ones between. Only the pager animates, and only
-        // because a swipe should track the finger that drives it.
-        animationEnabled: false,
-        tabBarShowIcon: true,
-        // Labels never collapse into icon-only tabs, at any width.
-        tabBarShowLabel: true,
-        tabBarAllowFontScaling: true,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        // No ripple, no press dimming — the pill moving to the tapped
-        // tab is the whole feedback.
-        tabBarPressColor: "transparent",
-        tabBarPressOpacity: 1,
-        // The pill is the indicator; a sliding rule on top of it is noise.
-        tabBarIndicator: () => null,
-        tabBarItemStyle: {
-          height: TAB_ITEM_HEIGHT,
-          padding: 0,
-        },
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: colors.border,
-          // The bar sits in the layout flow, so it owns the bottom inset.
-          paddingBottom: insets.bottom,
-          paddingTop: Spacing.xs,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-      }}
-    >
-      <TopTabs.Screen
-        name="index"
-        options={{
-          title: t("tabs.today"),
-          tabBarIcon: (props: TabStateProps) => (
-            <TabIcon name="today" {...props} />
-          ),
-          tabBarLabel: TabLabel,
-        }}
-      />
+	return (
+		<TopTabs
+			tabBarPosition="bottom"
+			screenOptions={{
+				swipeEnabled: true,
+				// Tapping a tab cuts straight to that screen instead of paging
+				// through the ones between. Only the pager animates, and only
+				// because a swipe should track the finger that drives it.
+				animationEnabled: false,
+				tabBarShowIcon: true,
+				// Labels never collapse into icon-only tabs, at any width.
+				tabBarShowLabel: true,
+				tabBarAllowFontScaling: true,
+				tabBarActiveTintColor: colors.primary,
+				tabBarInactiveTintColor: colors.textSecondary,
+				// No ripple, no press dimming — the pill moving to the tapped
+				// tab is the whole feedback.
+				tabBarPressColor: "transparent",
+				tabBarPressOpacity: 1,
+				// The pill is the indicator; a sliding rule on top of it is noise.
+				tabBarIndicator: () => null,
+				tabBarItemStyle: {
+					height: TAB_ITEM_HEIGHT,
+					padding: 0,
+				},
+				tabBarStyle: {
+					backgroundColor: colors.surface,
+					borderTopWidth: StyleSheet.hairlineWidth,
+					borderTopColor: colors.border,
+					// The bar sits in the layout flow, so it owns the bottom inset.
+					paddingBottom: insets.bottom,
+					paddingTop: Spacing.xs,
+					elevation: 0,
+					shadowOpacity: 0,
+				},
+			}}
+		>
+			<TopTabs.Screen
+				name="index"
+				options={{
+					title: t("tabs.today"),
+					tabBarIcon: (props: TabStateProps) => (
+						<TabIcon name="today" {...props} />
+					),
+					tabBarLabel: TabLabel,
+				}}
+			/>
 
-      <TopTabs.Screen
-        name="people"
-        options={{
-          title: t("tabs.people"),
-          tabBarIcon: (props: TabStateProps) => (
-            <TabIcon name="people" {...props} />
-          ),
-          tabBarLabel: TabLabel,
-        }}
-      />
+			<TopTabs.Screen
+				name="games"
+				options={{
+					title: t("tabs.games"),
+					tabBarIcon: (props: TabStateProps) => (
+						<TabIcon name="games" {...props} />
+					),
+					tabBarLabel: TabLabel,
+				}}
+			/>
 
-      <TopTabs.Screen
-        name="memories"
-        options={{
-          title: t("tabs.memories"),
-          tabBarIcon: (props: TabStateProps) => (
-            <TabIcon name="memories" {...props} />
-          ),
-          tabBarLabel: TabLabel,
-        }}
-      />
+			<TopTabs.Screen
+				name="memories"
+				options={{
+					title: t("tabs.memories"),
+					tabBarIcon: (props: TabStateProps) => (
+						<TabIcon name="memories" {...props} />
+					),
+					tabBarLabel: TabLabel,
+				}}
+			/>
 
-      <TopTabs.Screen
-        name="help"
-        options={{
-          title: t("tabs.help"),
-          tabBarIcon: (props: TabStateProps) => (
-            <TabIcon name="help" {...props} />
-          ),
-          tabBarLabel: TabLabel,
-        }}
-      />
+			<TopTabs.Screen
+				name="help"
+				options={{
+					title: t("tabs.help"),
+					tabBarIcon: (props: TabStateProps) => (
+						<TabIcon name="help" {...props} />
+					),
+					tabBarLabel: TabLabel,
+				}}
+			/>
 
-      <TopTabs.Screen
-        name="settings"
-        options={{
-          title: t("tabs.settings"),
-          tabBarIcon: (props: TabStateProps) => (
-            <TabIcon name="settings" {...props} />
-          ),
-          tabBarLabel: TabLabel,
-        }}
-      />
-    </TopTabs>
-  );
+			<TopTabs.Screen
+				name="settings"
+				options={{
+					title: t("tabs.settings"),
+					tabBarIcon: (props: TabStateProps) => (
+						<TabIcon name="settings" {...props} />
+					),
+					tabBarLabel: TabLabel,
+				}}
+			/>
+		</TopTabs>
+	);
 }
 
 /**
@@ -142,54 +142,54 @@ export default function TabLayout() {
  * icon never shifts as you swipe.
  */
 function TabIcon({
-  name,
-  focused,
-  color,
+	name,
+	focused,
+	color,
 }: TabStateProps & { name: TabIconName }) {
-  const { colors } = useTheme();
+	const { colors } = useTheme();
 
-  return (
-    <View
-      style={[styles.pill, focused && { backgroundColor: colors.primaryMuted }]}
-    >
-      <NativeHost>
-        <Icon
-          name={AppIcons[name]}
-          size={TAB_ICON_SIZE}
-          color={color as string}
-        />
-      </NativeHost>
-    </View>
-  );
+	return (
+		<View
+			style={[styles.pill, focused && { backgroundColor: colors.primaryMuted }]}
+		>
+			<NativeHost>
+				<Icon
+					name={AppIcons[name]}
+					size={TAB_ICON_SIZE}
+					color={color as string}
+				/>
+			</NativeHost>
+		</View>
+	);
 }
 
 function TabLabel({
-  focused,
-  color,
-  children,
+	focused,
+	color,
+	children,
 }: TabStateProps & { children: string }) {
-  return (
-    <Text
-      variant="caption"
-      numberOfLines={1}
-      style={[styles.label, { color, fontWeight: focused ? "700" : "500" }]}
-    >
-      {children}
-    </Text>
-  );
+	return (
+		<Text
+			variant="caption"
+			numberOfLines={1}
+			style={[styles.label, { color, fontWeight: focused ? "700" : "500" }]}
+		>
+			{children}
+		</Text>
+	);
 }
 
 const styles = StyleSheet.create({
-  pill: {
-    width: PILL_WIDTH,
-    height: PILL_HEIGHT,
-    borderRadius: Radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  label: {
-    marginTop: Spacing.xs,
-    textAlign: "center",
-    fontSize: TextStyles.caption.fontSize - 2,
-  },
+	pill: {
+		width: PILL_WIDTH,
+		height: PILL_HEIGHT,
+		borderRadius: Radius.pill,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	label: {
+		marginTop: Spacing.xs,
+		textAlign: "center",
+		fontSize: TextStyles.caption.fontSize - 2,
+	},
 });

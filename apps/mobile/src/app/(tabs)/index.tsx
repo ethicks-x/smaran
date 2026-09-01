@@ -81,11 +81,8 @@ export default function TodayScreen() {
 				/>
 			) : null}
 
-			{/* The way into the games, and the only one — five tabs is the ceiling
-          (D-06), so the games live on top of the tabs and are reached from the
-          screen the reader starts on.
-
-          Three boards are offered by name and the fourth tile opens the rest,
+			{/* A second way into the games, alongside the Games tab. Three boards
+          are offered by name and the fourth tile opens the tab with the rest,
           so the common case is one tap from the screen the reader starts on
           and the full list is still one tap away. */}
 			<Section
@@ -106,7 +103,7 @@ export default function TodayScreen() {
 
 /**
  * The four tiles: the first three games in the catalogue by name, and the way
- * to all of them. Fewer than three games ships fewer than three tiles rather
+ * to the Games tab for all of them. Fewer than three games ships fewer than three tiles rather
  * than a placeholder — the grid is a short row and no reader is told about a
  * game that is not there.
  */

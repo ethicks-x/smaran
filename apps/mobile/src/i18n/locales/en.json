@@ -13,7 +13,7 @@
 	},
 	"tabs": {
 		"today": "Today",
-		"people": "People",
+		"games": "Games",
 		"memories": "Memories",
 		"help": "Help",
 		"settings": "Account"
@@ -336,13 +336,6 @@
 			"again": "Play this board again",
 			"finish": "I have finished"
 		}
-	},
-	"people": {
-		"title": "People",
-		"subtitle": "The people close to you, and how to reach them.",
-		"circle": "Your circle",
-		"emptyTitle": "No one added yet",
-		"emptyMessage": "Family and carers added on the caregiver dashboard will appear here with their photo and name."
 	},
 	"memories": {
 		"title": "Memories",
