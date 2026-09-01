@@ -153,16 +153,6 @@ export interface MemoryAssetApi {
 	view_url: string | null;
 }
 
-/** Where to PUT the file. The browser uploads to `upload_url` directly, not via the API. */
-export interface MemoryUploadTicketApi {
-	asset_id: string;
-	upload_url: string;
-	object_key: string;
-	/** Must be sent back as the PUT's Content-Type: it is part of what the URL is signed over. */
-	content_type: string;
-	expires_in: number;
-}
-
 export interface SessionSummaryApi {
 	id: string;
 	date: string;

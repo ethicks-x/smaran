@@ -1907,3 +1907,51 @@ and its `people.*` string keys are gone from all four catalogues. Whoever builds
 circle picks a home for it first: a card on Today, a push from Memories, or a swap back
 into the bar. Nothing in `src/db/schema.ts` or the sync work changed; the table is still
 there and still unread by any screen.
+
+---
+
+## D-42 · 2026-09-02 · The bucket refuses a presigned PUT, so the picture goes to the API instead
+
+**Decision.** D-32's design — the browser PUTs straight to the bucket with a presigned URL,
+so a photo never crosses this API — assumed the provider would sign a PUT. It does not: it
+signs a GET or a HEAD, and nothing else. `apps/api/src/core/storage.py`'s `presign_put` is
+replaced by `upload_object`, a live SDK-authenticated `put_object` this process performs
+itself, and the three-step upload (`POST /uploads` → browser `PUT` → `POST .../confirm`)
+collapses to one: `POST /patients/{id}/memories/assets`, taking the file as multipart form
+data and writing it to the bucket before returning. Reads are unaffected — `view_url` still
+hands out a presigned GET, which the provider does accept.
+
+**Why there is no longer a confirm step.** Confirm existed to ask the bucket whether a write
+the API did not perform had actually landed. Once the API performs the write itself, that
+question has no object: `upload_object`'s return is the only truth about whether the picture
+is in the bucket, known synchronously, in the same request that created the row. A row still
+passes through `pending` before `ready` — `put_object` is atomic, but the row exists before
+it's called, so there is a real (if brief) window either way, and `pending` is what a crash
+between the two would leave behind for a caregiver to just re-add rather than trust.
+
+**Size is now enforced while reading, not after.** The presigned design had to trust the
+browser's claimed size until confirm could ask the bucket what actually landed. Here the API
+reads the multipart body itself, so it checks the running total against
+`S3_MAX_UPLOAD_BYTES` chunk by chunk and rejects before ever calling `put_object` — there is
+no oversized object left in the bucket to clean up, because one is never written.
+
+**What this gives up, deliberately.** D-32's whole point was that the bytes never touch an
+API worker, so a slow upload never holds one open. That is no longer true — a photo now
+occupies a request here for as long as the upload takes. There was no alternative that kept
+it true: the provider's refusal of a presigned PUT is not a preference this codebase can
+route around, only work within. A presigned POST policy (a different, older signing shape)
+might have preserved the direct-to-bucket property, but the provider's own answer named only
+GET and HEAD, not POST, so it was not assumed to be available either.
+
+**Consequences.** D-40's CORS-specific catch around the browser's own `fetch()` PUT is now
+dead code and has been removed along with the PUT it wrapped: the browser talks only to this
+API from here on, which already needs `CORS_ALLOW_ORIGINS` correctly set for every other
+call, so there is no second, upload-specific CORS surface to get wrong. Fixed in the same
+pass: the page's error handler read `err.message` off anything that looked like an `Error`,
+which for the API's own `ApiError` is a templated `"API request failed with 413"` rather than
+`.detail` — the actual plain-language message this endpoint (and every other) was already
+sending. The caregiver now sees the real one.
+
+**Would change it if:** the provider starts signing PUT, or the bucket moves somewhere that
+does. `upload_object` and `presign_put` differ only in where the signature comes from — the
+row shape, the routes' URLs, and everything downstream of the write are unaffected either way.

@@ -177,35 +177,6 @@ class ReminderUpdateIn(BaseModel):
     active: bool | None = None
 
 
-class MemoryUploadCreateIn(BaseModel):
-    """Payload asking for somewhere to put a picture."""
-
-    file_name: str = Field(
-        ..., min_length=1, max_length=255, description="The caregiver's own filename"
-    )
-    content_type: str = Field(..., description="MIME type; must be one we accept")
-    size_bytes: int = Field(
-        ..., gt=0, description="Size the browser reports, checked again on confirm"
-    )
-    kind: str = Field("photo", description="photo, audio, or story")
-    description: str | None = Field(None, description="What the caregiver wrote about this memory")
-    subject_id: UUID | None = Field(
-        None, description="Set when the picture is a memory subject's photo"
-    )
-
-
-class MemoryUploadOut(BaseModel):
-    """Where to PUT the file, and the row that is waiting for it."""
-
-    asset_id: UUID
-    upload_url: str
-    object_key: str
-    # The browser must send exactly this back as its Content-Type header, because the value
-    # is part of what the URL is signed over.
-    content_type: str
-    expires_in: int
-
-
 class MemoryAssetOut(BaseModel):
     """A stored memory. `view_url` is short-lived unless the bucket is public."""
 
@@ -222,15 +193,6 @@ class MemoryAssetOut(BaseModel):
     status: str
     created_at: datetime
     view_url: str | None = None
-
-
-class MemoryAssetConfirmIn(BaseModel):
-    """Sent once the browser's PUT has landed. Everything here is verified against S3."""
-
-    # Optional: the server reads the real values from the bucket. A client that sends them
-    # is only offering a cross-check, never the source of truth.
-    etag: str | None = None
-    size_bytes: int | None = None
 
 
 class SessionSummaryOut(BaseModel):
