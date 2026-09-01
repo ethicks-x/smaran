@@ -1,6 +1,6 @@
 import { Icon } from "@expo/ui";
 import type { ReactNode } from "react";
-import { Modal, ScrollView, StyleSheet, View } from "react-native";
+import { Modal, Platform, ScrollView, StyleSheet, View } from "react-native";
 
 import { type AppIconName, AppIcons } from "@/components/ui/icons";
 import { NativeHost } from "@/components/ui/native-host";
@@ -21,8 +21,8 @@ export type DialogProps = {
 	/** One warm sentence under the title. */
 	message?: string;
 	icon?: AppIconName;
-	/** Painted behind the card — a celebration, usually nothing. */
-	backdrop?: ReactNode;
+	/** Played over the whole dialog — a celebration, usually nothing. */
+	celebration?: ReactNode;
 	/** Anything that belongs between the message and the buttons — a summary of
 	 * what just happened, most often. Kept apart from `children` so the buttons
 	 * stay the last thing in the card and the first thing reached. */
@@ -47,7 +47,7 @@ export function Dialog({
 	title,
 	message,
 	icon,
-	backdrop,
+	celebration,
 	details,
 	onRequestClose,
 	children,
@@ -63,12 +63,6 @@ export function Dialog({
 			onRequestClose={onRequestClose}
 		>
 			<View style={[styles.scrim, { backgroundColor: colors.overlay }]}>
-				{/* Behind the card, and never in front of it: whatever is playing out
-            here is decoration, and the words have to stay readable through it. */}
-				<View style={StyleSheet.absoluteFill} pointerEvents="none">
-					{backdrop}
-				</View>
-
 				{/* The width lives on the wrapper: `Surface` hands its own style to the
             card inside the shadow, and a card sized as a share of a wrapper it
             is itself sizing would have nothing to measure against. */}
@@ -110,6 +104,15 @@ export function Dialog({
 						</ScrollView>
 					</Surface>
 				</View>
+
+				{/* Over the card rather than behind it. It is laid out last, and raised
+						on Android besides, because the card carries an elevation of its own
+						and a later sibling without one would still paint underneath it. It
+						takes no touches and the paper is sparse, so the words stay both
+						reachable and readable through it. */}
+				<View style={styles.celebration} pointerEvents="none">
+					{celebration}
+				</View>
 			</View>
 		</Modal>
 	);
@@ -143,6 +146,15 @@ const styles = StyleSheet.create({
 	content: {
 		alignItems: "center",
 		gap: Spacing.md,
+	},
+	celebration: {
+		position: "absolute",
+		top: 0,
+		right: 0,
+		bottom: 0,
+		left: 0,
+		zIndex: 1,
+		...Platform.select({ android: { elevation: 24 }, default: {} }),
 	},
 	actions: {
 		alignSelf: "stretch",

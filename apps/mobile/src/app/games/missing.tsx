@@ -491,7 +491,7 @@ export default function MissingScreen() {
 				icon="celebrate"
 				title={t("games.missing.doneTitle")}
 				message={t("games.missing.doneMessage", { count: toFind })}
-				backdrop={<Confetti run={round} />}
+				celebration={<Confetti run={round} />}
 				details={
 					summary ? (
 						<>

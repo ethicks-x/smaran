@@ -382,7 +382,7 @@ export default function MatchingScreen() {
 				icon="celebrate"
 				title={t("games.matching.doneTitle")}
 				message={t("games.matching.doneMessage", { count: pairs })}
-				backdrop={<Confetti run={round} />}
+				celebration={<Confetti run={round} />}
 				details={
 					summary ? (
 						<>
