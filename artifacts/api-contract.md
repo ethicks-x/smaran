@@ -52,6 +52,7 @@ audiences — a patient gets their `patients` row, a caregiver gets `patient: nu
   "user_id": "user_2ab…",        // Clerk's id, the value every person-shaped column holds
   "roles": ["caregiver"],        // from the `roles` table only, never from a token claim (D-14)
   "is_caregiver": true,
+  "smaran_id": 100000042,        // the nine-digit shareable id from `roles` (D-37); null until enrolled
   "patient": {                   // null for a caregiver, and for a device not yet enrolled
     "id": "b91bf55d-…",
     "dob": "1948-03-09",

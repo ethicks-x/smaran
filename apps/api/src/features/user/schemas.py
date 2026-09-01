@@ -33,6 +33,11 @@ class UserProfile(BaseModel):
     user_id: str
     roles: list[str]
     is_caregiver: bool
+    # The nine-digit number the caregiver reads out and the patient types in (D-37). It is an
+    # identifier, not a secret — the link it starts is `pending` until approved — so it is
+    # safe to hand back to whoever it belongs to. `null` only until the caller has a row in
+    # `roles`; the sequence fills it on insert and it never changes after that.
+    smaran_id: int | None = None
     # `null` for a caregiver, and also for a patient whose device has been signed in but not
     # yet enrolled against a record. The app must treat the second case as "not set up yet",
     # never as an error the reader is shown (§2.3).
