@@ -1609,3 +1609,40 @@ that remains true only while `sync_queue.payload` is a snapshot rather than a po
 genuinely two-way and need a conflict rule — `updated_at` last-write-wins is the cheap
 answer and it would quietly lose a caregiver's edit, which is the outcome this decision
 exists to prevent.
+
+---
+
+## D-37 · 2026-09-01 · A nine-digit Smaran id is how a caregiver gets linked, and the link starts `pending`
+
+**Decision.** `roles.smaran_id` is an `INTEGER NOT NULL UNIQUE` filled from a Postgres
+sequence, `smaran_id_seq`, starting at 100,000,000. `patient_caregivers` gains
+`status` — `pending` · `active` · `revoked` — defaulting to `pending`. Both arrive in
+`alembic/versions/0002_smaran_id_and_caregiver_status.py`.
+
+**Why nine digits from a sequence.** The id exists to be read out loud: a patient (or the
+family member holding their phone) says it, a caregiver types it in. That rules out uuids,
+letters and anything case-sensitive. Starting at 100,000,000 means the first id is already
+nine digits wide and none of them ever grows a digit, so every field, every label and every
+validator can assume exactly nine. Postgres owns the counter because a sequence is the only
+version of "next number" that two simultaneous sign-ups cannot both win; computing
+`max + 1` in the service would hand out collisions under exactly the load a launch produces.
+`INTEGER` is enough — the ceiling is 2,147,483,647, twice the largest nine-digit number.
+
+**It lives on `roles`, not on `patients`.** `roles` is the one person-keyed table (D-20) and
+its primary key is the Clerk user id, so one row is one account and the id is unique per
+account without a second table to join. A patient with no Clerk account has no Smaran id,
+which is correct: there is nobody to read one out.
+
+**Why the link starts `pending`.** A number short enough to say over the phone is a number
+that can be guessed or overheard, so it must not be a credential. Quoting somebody's Smaran
+id creates a `pending` row and nothing more — no patient data is readable until an approval
+moves it to `active`. `revoked` is a state rather than a delete, because who had access and
+when it ended is exactly what a family may need to ask about later (§2.5).
+
+**Not built yet.** This is schema only. No route issues, reads or validates a Smaran id, and
+nothing moves a link out of `pending` — the approval step is a screen and an endpoint that
+do not exist. Any code added later must check `status = 'active'` and not merely the row's
+existence, or the pending state buys nothing.
+
+**Would change it if:** ids ever needed to be unguessable, in which case the answer is a
+longer random id *plus* the approval step, never the id alone.

@@ -158,7 +158,11 @@ All of §2's tables exist as SQLAlchemy models and are created by `alembic/versi
   the server mirrors nothing about a person, the device holds the name it greets with, and
   Clerk holds it for anyone with an account
 - `roles` ✅ / `patient_caregivers` ✅ — the enrollment link, keyed by Clerk id. There is no
-  `caregivers` table and there will not be one (D-20)
+  `caregivers` table and there will not be one (D-20). `roles.smaran_id` is the nine-digit
+  number a person reads out so a caregiver can be linked to them, drawn from the
+  `smaran_id_seq` sequence that starts at 100,000,000 (D-37). `patient_caregivers.status`
+  is `pending` · `active` · `revoked` — a link typed in from a Smaran id is `pending` until
+  it is approved, so the id alone grants nothing
 - `devices` ✅ — id (the device's own uuid), patient_id, app_version, `last_synced_seq`
   (the watermark every ingest response reports), last_seen_at, enrolled_at
 - `people` ✅ / `memory_items` ✅ — the down-sync content, owned by caregivers

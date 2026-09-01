@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Sequence,
     SmallInteger,
     String,
     Text,
@@ -46,6 +47,19 @@ def _clerk_id() -> String:
     return String(64)
 
 
+# The Smaran id is what one person reads out to another — a patient gives theirs to the
+# family member who is setting the phone up, and the caregiver types it in. So it is nine
+# digits and nothing else: no letters to spell out, no case to get wrong, no hyphens to
+# mistype, and short enough to say over a phone call in one breath. Postgres owns the
+# counter because a sequence is the only way two concurrent sign-ups cannot be handed the
+# same number, and it starts at 100,000,000 so the very first one is already nine digits
+# wide and no id ever grows a digit.
+#
+# It is an identifier, not a secret: knowing one gets nobody access, because the link it
+# starts arrives as `pending` and stays there until it is approved (see `PatientCaregiver`).
+smaran_id_seq = Sequence("smaran_id_seq", start=100_000_000, metadata=Base.metadata)
+
+
 class Role(Base):
     """A role granted to a Clerk user. `id` is the Clerk user id, not a generated uuid."""
 
@@ -55,6 +69,17 @@ class Role(Base):
     # Not unique: a role is held by many people. Indexed because the only query is
     # "who are the caregivers", never "what role is this".
     role: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    # The sequence is passed positionally *and* as the server default for the same reason
+    # `_pk()` sets both: the ORM then knows the number it just inserted, and a raw insert
+    # that names no `smaran_id` still gets one. `Integer` is deliberate — the ceiling is
+    # 2,147,483,647, which is a digit more headroom than a nine-digit id can ever use.
+    smaran_id: Mapped[int] = mapped_column(
+        Integer,
+        smaran_id_seq,
+        server_default=smaran_id_seq.next_value(),
+        unique=True,
+        nullable=False,
+    )
 
 
 class Patient(Base):
@@ -122,6 +147,14 @@ class PatientCaregiver(Base):
     # The attribute cannot be called `relationship` — that name is the imported ORM function
     # and shadowing it breaks every relationship() call below it in the class body.
     relation: Mapped[str | None] = mapped_column("relationship", String(100), nullable=True)
+    # `pending` · `active` · `revoked`. A row typed in from a Smaran id starts `pending`,
+    # so quoting somebody's id at this table grants nothing on its own — only an approval
+    # moves it to `active`, and only an `active` row may read a patient's data (§2.5).
+    # Revoking sets `revoked` rather than deleting the row, because who once had access and
+    # when it ended is exactly the thing a family may need to ask about later.
+    status: Mapped[str] = mapped_column(
+        String(16), default="pending", server_default=text("'pending'"), nullable=False
+    )
 
     patient: Mapped[Patient] = relationship(back_populates="patient_caregivers")
 
@@ -549,4 +582,5 @@ __all__ = [
     "ReminderEvent",
     "Role",
     "SessionEvent",
+    "smaran_id_seq",
 ]
