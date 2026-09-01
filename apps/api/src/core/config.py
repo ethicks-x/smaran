@@ -17,7 +17,8 @@ class Settings(BaseSettings):
         False, description="Create tables from the models on startup instead of migrating"
     )
 
-    # S3-compatible SSL Certificate Settings
+    # S3-compatible storage. One set of credentials serves every bucket below — the CA
+    # certificate the database connection verifies against, and the memory media bucket.
     s3_cert_bucket: str | None = Field(None, description="S3 bucket containing the CA certificate")
     s3_cert_key: str | None = Field(None, description="S3 object key/path for the CA certificate")
     s3_endpoint_url: str | None = Field(
@@ -27,6 +28,31 @@ class Settings(BaseSettings):
     s3_region_name: str | None = Field(None, description="AWS/S3 region name")
     s3_access_key_id: str | None = Field(None, description="S3 Access Key ID")
     s3_secret_access_key: str | None = Field(None, description="S3 Secret Access Key")
+
+    # Memory media. The dashboard uploads a photo straight at this bucket with a presigned
+    # URL and the phone reads it back the same way, so the bytes never cross this API.
+    s3_memories_bucket: str | None = Field(
+        None, description="S3 bucket holding memory photos, audio and stories"
+    )
+    s3_memories_prefix: str = Field(
+        "memories/",
+        description="Key prefix every memory object is written under, inside the bucket",
+    )
+    # Set only when the bucket is fronted by a CDN or is public. Left unset, the API signs
+    # a short-lived GET per object instead — which is the right default for photographs of
+    # a named person with dementia, since a public object URL is an unauthenticated one.
+    s3_memories_public_base_url: str | None = Field(
+        None,
+        description="Public/CDN base URL for the memory bucket. Unset means presigned reads",
+    )
+    # Long enough for a slow NER connection to finish a photo, short enough that a URL
+    # copied out of a browser log is useless by the time anyone reads it.
+    s3_presign_expiry_seconds: int = Field(
+        3600, description="Lifetime of a presigned upload or download URL, in seconds"
+    )
+    s3_max_upload_bytes: int = Field(
+        26_214_400, description="Largest memory upload accepted, in bytes (default 25 MiB)"
+    )
 
     # Uvicorn settings
     UVICORN_HOST: str = Field("0.0.0.0", description="Uvicorn host")

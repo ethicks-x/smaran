@@ -1296,6 +1296,56 @@ fix would be to raise it rather than to pin every bar.
 
 ---
 
+## D-32 · 2026-09-01 · Memory media goes straight to an S3 bucket; the database stores the key, the picture's name and its description
+
+**Decision.** `memory_assets` in `apps/api/src/features/database/models.py`, plus the
+`S3_MEMORIES_*` settings in `core/config.py` and `.env.example`. One row per object in the
+bucket: `bucket` + `object_key` locate the bytes, `file_name` keeps the picture's name as
+the caregiver knows it, `description` holds what they wrote about it, and `status` says
+whether the object is actually there yet. The dashboard uploads with a presigned PUT
+directly at the bucket and the phone reads back with a presigned GET, so **media never
+passes through `apps/api`** — only the row describing it does.
+
+**Why not store the photo in Postgres, or proxy it through the API.** Bytes in a row make
+every query that touches the table drag them along, and the connection pool this API has is
+sized for analytics rows, not for megabytes. Proxying is worse in the specific way that
+matters here: an upload from a caregiver on an NER mobile connection can take minutes, and
+each one would hold an API worker open for its whole duration. The bucket is built for
+exactly this and the browser can talk to it directly.
+
+**Why the row exists before the object does.** Minting the presigned URL is what writes the
+row — there is nothing else to hang the key on. So a row can name bytes that never arrived,
+and `status` is the difference between a memory and a promise. The phone must sync down
+`ready` rows only; caching a `pending` one puts a broken image where a face should be, which
+on this app's Memories tab is not a missing asset but a person the reader was expecting to
+see.
+
+**Why `object_key` is ours and `file_name` is theirs.** The key is generated: an uploaded
+filename collides across patients, often carries the patient's own name — which then travels
+in every URL, log line and error that names the object, exactly what §2.5 forbids — and can
+hold characters that need escaping forever after. The caregiver's name for the picture is
+still worth keeping, because it is what they will recognise it by in the dashboard and what
+a download should save as. The two are different jobs and a single column does one of them
+badly.
+
+**Why the bucket name is a column and not just config.** A row written today has to resolve
+after a migration to a different bucket or provider. Config says where *new* objects go; the
+row says where *this* object went.
+
+**Deletes are soft, and this is not optional.** Down-sync is watermark-based: a device asks
+what changed since a timestamp, so a row that is simply deleted is a row it can never be
+told about, and the picture stays on the phone forever. `is_active` going false is the only
+signal that reaches it.
+
+**Consequences.** The bucket needs CORS for the dashboard's origin (the browser PUTs at it
+directly) and should stay private — `S3_MEMORIES_PUBLIC_BASE_URL` is left unset by default,
+because a public object URL for a photograph of a named person with dementia is an
+unauthenticated one that never expires. A `pending` row whose upload was abandoned is
+litter; a sweep for old `pending` rows is owed, and does not exist yet.
+
+**Would change it if:** the deployment ends up somewhere with no S3-compatible storage at
+all. The seam is `bucket` + `object_key` — a different backing store keeps the columns and
+changes only what mints the URLs.
 ## D-32 · 2026-09-01 · The server's synced tables mirror the device's, and the hypertable's keys carry `ended_at`
 
 **Decision.** `apps/api/src/features/database/models.py` now holds a server-side table for

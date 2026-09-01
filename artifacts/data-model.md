@@ -2,6 +2,9 @@
 
 **Device: ✅ built** (2026-09-01) — all nine tables exist in `apps/mobile/src/db/schema.ts`,
 created by `src/db/migrations.ts`. See `decisions.md` D-24.
+**Server: 🟡** — `apps/api` has SQLAlchemy models, `memory_assets` among them, but no
+migrations, no hypertable and no continuous aggregates; §2 below is otherwise still the
+design to build against.
 **Server: 🟡** — `apps/api/src/features/database/models.py` now has a SQLAlchemy model for
 every table that crosses the sync boundary (D-32), and `POST /sync/sessions` /
 `POST /sync/reminder-events` write `devices`, `session_events` and `reminder_events` (D-33).
@@ -152,6 +155,40 @@ All of §2's tables exist as SQLAlchemy models and are created by `alembic/versi
 (D-35). None of the Timescale machinery does — `create_hypertable` needs to run in a migration
 **before** `session_events` holds meaningful data, because it rewrites the table.
 
+### `memory_assets` ✅ — the media the family uploads
+One row per object in the memory bucket. **The row is the record; the bucket holds the
+bytes and neither knows about the other except through `bucket` + `object_key`.** The
+dashboard PUTs a file straight at the bucket with a presigned URL and the phone GETs it
+back the same way, so media never crosses `apps/api` (`decisions.md` D-32).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `patient_id` | uuid FK → `patients` | CASCADE; whose memory it is |
+| `subject_id` | uuid FK → `memory_subjects`, null | SET NULL. Set when the picture *is* a recognition subject's photo |
+| `kind` | text | `photo` · `audio` · `story` — the device's `memory_item.kind`, spelled the same |
+| `bucket` | text | On the row, not only in config: a deployment's bucket can change and old rows must still resolve |
+| `object_key` | text | What S3 answers to. **Ours to generate, never the uploaded filename** |
+| `file_name` | text, null | The picture's name as the caregiver knows it — what the dashboard lists and what a download saves as |
+| `content_type` / `size_bytes` / `etag` | text / int / text | `etag` is how the phone's media cache knows a file is stale without spending a download |
+| `description` | text, null | The caption the phone shows and, once there is TTS, reads aloud. Never a clinical note (§3.6) |
+| `status` | text | `pending` → `ready` (or `failed`). The row exists before the object does |
+| `uploaded_at` | timestamptz, null | Set when the PUT is confirmed |
+| `is_active` | bool | Soft delete — see below |
+| `uploaded_by` | text | Clerk id |
+| `created_at` / `updated_at` | timestamptz | `updated_at` is the down-sync watermark, so every edit must move it |
+
+Unique on `(bucket, object_key)`; index on `(patient_id, updated_at)` — the down-sync
+query, and the only one. `patient_id` has no index of its own: the composite leads on it.
+
+**The phone syncs down `ready` rows only.** A `pending` row names bytes that may never
+arrive, and a device that caches one shows a gap where a face should be.
+
+**Deletes are soft.** Down-sync is watermark-based, so a device can never learn about a row
+that is simply gone — it would keep showing a removed picture forever. Flipping `is_active`
+is what tells it to drop the cached file.
+
+### Hypertable: `session_events`
 ### Relational
 - `patients` ✅ — id, `user_id` (Clerk), dob, address, contact number, preferred language,
   `enrolled_at`, `enrolled_by`. **No display name** — D-20 wins over the earlier line here:
