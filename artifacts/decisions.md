@@ -933,7 +933,9 @@ button, so the screen keeps one primary action (`AGENTS.md` §2.3).
 **The time picker is four buttons, not a wheel.** `TimeField` steps the hour by one and the
 minutes by five, both wrapping, because a spun wheel or a dragged dial is the one gesture a
 hand with a tremor cannot reliably finish. The time is written out large in the reader's
-language beside them.
+language beside them. *Superseded in form by D-42 — the picker is now a grid of tappable
+values behind a summary row. The no-wheel rule it set is unchanged and is the reason that
+grid exists.*
 
 **Every store call on Today is guarded.** `src/db` is a native module and a development
 build made before it was installed cannot open the file at all (D-24). Today is the screen
@@ -2015,3 +2017,98 @@ click-tested.
 **Would change it if:** Clerk test credentials become available in an agent's environment —
 worth a real click-through then, since the request-shape verification here is strong but not
 the same thing as watching the modal actually open, submit, and close in a browser.
+## D-42 · 2026-09-02 · The add-reminder dialog is a four-question form: name, kind, time, days
+
+**Decision.** Requested. `AddReminderDialog` now asks, in this order: what it should say, a
+**kind chosen from a closed row** (`SelectField`), a **time chosen from a grid**
+(`TimeField`, rewritten), and **which days it repeats on** (`RepeatField`). The days the
+reader picks are the mask that goes into `schedule` — until now every phone-added reminder
+was hardcoded to `EveryDay`.
+
+Three primitives came out of it, all in `src/components/ui`: `FieldTrigger` (a labelled row
+that says what a field holds and opens the picker that changes it), `SelectField` (the kind
+dropdown), and `RepeatField` (seven round day toggles under a summary line). `TimeField`
+keeps its props and its `formatTime` export, so nothing that renders a time changed. Both
+pickers were ours to begin with and are the platform's as of D-43.
+
+**Why the kind folded into a row.** Four full-width `ChoiceGroup` rows on a card that also
+has a text field and a time pushed the fourth question below the fold, and the primary
+action with it — which `AGENTS.md` §2.3 does not allow. The closed row keeps the current
+answer legible without opening anything, and the options, when wanted, are the same ticked
+full-width list they were inline. `ChoiceGroup` is still the right control for a screen
+that asks one question; this is the form case.
+
+**Superseded by D-43 on two points.** The first cut of this built both pickers by hand — a
+grid of tappable hours and minutes, and a `Dialog` over `ChoiceGroup` for the kind — on the
+reading that `@react-native-community/datetimepicker` was not installed and a dependency was
+out of scope. `@expo/ui` already carries both controls natively, which is the better answer
+and needs nothing installed. And the "no date" note here was wrong about the constraint
+rather than the storage: `schedule` grew a one-off form instead. See D-43.
+
+**A reminder can never end up on no days.** Switching the last day off is ignored rather
+than refused — a reminder with an empty mask never comes due again and the reader would have
+no way of seeing that had happened, and a message saying so would be scolding them for a
+tap.
+
+**Consequences.** `common.hourEarlier` / `hourLater` / `minutesEarlier` / `minutesLater` are
+gone from all four catalogues with the stepper that used them; `common.done`, `am`, `pm`,
+`halfOfDay`, `everyDay`, `weekdays`, `weekends` and `today.add.repeatLabel` are new, and
+`today.add.message` no longer promises "every day". Day names and the am/pm reading come
+from `Intl` through `useLocale()` (D-12), not from the catalogues. The dialog now opens
+dialogs — nested `Modal`s — which is the first place in the app that happens. Editing a
+reminder on the phone is still not possible (D-25): the device may create one and only
+create one.
+
+---
+
+## D-43 · 2026-09-02 · The pickers are the platform's own, and a reminder can be set for one date
+
+**Decision.** Requested, and in two parts.
+
+**Every picker in the reminder form is now a platform control.** The kind and the "how
+often" question are `SelectField`, which is `@expo/ui`'s universal `Picker` — a Material 3
+exposed dropdown menu on Android, a SwiftUI picker on iOS, a `<select>` on web — inside a
+`NativeHost` so it arrives in Smaran's colours. The time and the date are `SchedulePicker`,
+which is `schedule-picker.android.tsx` on Android: Material 3's own `DatePickerDialog` and
+`TimePickerDialog`. Every hand-built control from D-42's first cut is gone.
+
+**Why.** The platform's widget is the one the reader has already met in every clock and
+calendar app on the phone. It is translated by the OS, it grows with their system text size,
+and the accessibility services already know it — three things a control of ours has to earn
+one at a time and can silently lose in a refactor. It is the same argument `ActionButton`
+already makes for buttons.
+
+**D-25's no-wheel rule is not repealed.** Material's time dialog *is* a clock dial, and the
+answer is the keyboard-entry toggle Material puts beside it: a tap-only way through the same
+dialog, on the same screen, that the reader can find without us. What D-25 forbids is a wheel
+as the *only* way in, and that is still true here. Where there is no platform dialog — iOS
+and web — `schedule-picker.tsx` falls back to one dropdown per part, which is tap-only
+throughout.
+
+**`schedule` has a second form: `HH:MM@YYYY-MM-DD`.** A reminder that happens once, on a
+named day. `ReminderSchedule` is now a union of `RepeatingSchedule` and `OneOffSchedule`,
+`isOneOff()` tells them apart, and `remindersFor(day)` matches a one-off on the date rather
+than the weekday. A date the regex accepts but the calendar does not — the 31st of February
+— is rejected in `parseSchedule` rather than guessed at, since a regex cannot count the days
+in a month. `localDate()` formats a date in the reader's own timezone, never `toISOString()`:
+east of Greenwich that turns an evening into tomorrow, and the reminder would land on the
+wrong day.
+
+**The API and the dashboard took the new form with it.** `SCHEDULE_PATTERN` in
+`features/dashboard/schemas.py` accepts both shapes — `features/sync` imports it, so this is
+the door for the phone's up-sync as well as the caregiver's CRUD. Widening it was not
+optional: a one-off reminder against the old pattern is a 422, and 422 is the one status the
+sync client gives up on (D-33), so the reminder would have been dropped from the queue and
+never seen by anyone. On the dashboard, `ReminderList` reads both shapes — it would have
+thrown on the `@` form, since it split on `|` and called `.split` on the half that was not
+there — and `ReminderForm` gained a "Repeats" select and a date input, so a caregiver editing
+a one-off does not silently turn it into something that repeats forever.
+
+**Consequences.** The mobile app has its first platform-specific module (`.android.tsx`), so
+the props type lives in `schedule-picker-props.ts` — a file cannot import a type from the
+module Metro swapped it out for. `usesHour12()` asks `Intl` whether the reader's language
+writes 9 pm or 21:00, and guesses twelve-hour where `resolvedOptions().hour12` is missing,
+because a Material clock set to the wrong one would disagree with the time written on the row
+above it. A one-off whose day has passed simply stops appearing, which is why the date picker
+offers nothing before today. `expo-notifications` is still not installed, so none of this
+fires with the app closed (D-25).

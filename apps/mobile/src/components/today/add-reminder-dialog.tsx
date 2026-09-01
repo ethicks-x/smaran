@@ -4,16 +4,22 @@ import { StyleSheet, View } from "react-native";
 
 import {
 	ActionButton,
-	type Choice,
-	ChoiceGroup,
+	DateField,
 	Dialog,
-	Text,
+	RepeatField,
+	SelectField,
+	type SelectOption,
 	TextField,
 	TimeField,
 	type TimeOfDay,
 } from "@/components/ui";
 import type { ReminderKind } from "@/db/schema";
-import { EveryDay, type NewReminder } from "@/lib/reminders";
+import {
+	EveryDay,
+	localDate,
+	type NewReminder,
+	type ReminderSchedule,
+} from "@/lib/reminders";
 import { Spacing } from "@/theme";
 
 const KINDS: readonly ReminderKind[] = [
@@ -23,6 +29,11 @@ const KINDS: readonly ReminderKind[] = [
 	"appointment",
 ];
 
+/** How often a reminder comes back, as the card asks it. */
+type Repeat = "everyDay" | "someDays" | "once";
+
+const REPEATS: readonly Repeat[] = ["everyDay", "someDays", "once"];
+
 export type AddReminderDialogProps = {
 	visible: boolean;
 	/** The way out without adding anything. Android's back gesture lands here. */
@@ -31,19 +42,24 @@ export type AddReminderDialogProps = {
 };
 
 /**
- * Adding a reminder, asked as three questions on one card: what it is for, what
- * it should say, and when.
+ * Adding a reminder, asked as four questions on one card: what it should say,
+ * what it is for, what time, and how often.
  *
- * Every question is answered by tapping except the words themselves, and the
- * words start out already filled in from the kind — so a reader who wants
- * "Medicine, every day at nine" never has to open the keyboard at all. Nothing
- * here is required of them twice, and nothing is validated at them: the only
- * way to get it wrong is to leave the words empty, and then the button is
- * simply not offered yet.
+ * Every question but the words themselves is answered by tapping, and the words
+ * start out already filled in from the kind — so a reader who wants "Medicine,
+ * every day at nine" never has to open the keyboard at all. Nothing here is
+ * required of them twice, and nothing is validated at them: the only way to get
+ * it wrong is to leave the words empty, and then the button is simply not
+ * offered yet.
  *
- * It repeats every day. A days-of-the-week picker is a fourth question for a
- * reader who is answering three, and the schedule format already carries the
- * mask for when the caregiver dashboard starts sending definitions down.
+ * The words come first because they are the one answer nothing else can supply,
+ * and because the kind is a suggestion for them — a question that arrives after
+ * the thing it is suggesting has already been written would be the wrong way
+ * round.
+ *
+ * "How often" only opens what it needs: the days matter when some of them are
+ * chosen, and the date matters when the reminder happens once. A reader taking
+ * the default answer sees three rows and a button.
  */
 export function AddReminderDialog({
 	visible,
@@ -58,10 +74,18 @@ export function AddReminderDialog({
 	// them — their sentence outranks our suggestion.
 	const [written, setWritten] = useState(false);
 	const [time, setTime] = useState<TimeOfDay>(nextHour);
+	const [repeat, setRepeat] = useState<Repeat>("everyDay");
+	const [days, setDays] = useState<readonly number[]>(EveryDay);
+	const [date, setDate] = useState<Date>(today);
 
-	const options: readonly Choice<ReminderKind>[] = KINDS.map((value) => ({
+	const kinds: readonly SelectOption<ReminderKind>[] = KINDS.map((value) => ({
 		value,
 		label: t(`today.kinds.${value}`),
+	}));
+
+	const repeats: readonly SelectOption<Repeat>[] = REPEATS.map((value) => ({
+		value,
+		label: t(`today.add.repeats.${value}`),
 	}));
 
 	const chooseKind = (next: ReminderKind) => {
@@ -77,6 +101,9 @@ export function AddReminderDialog({
 		setTitle(t("today.kinds.medicine"));
 		setWritten(false);
 		setTime(nextHour());
+		setRepeat("everyDay");
+		setDays(EveryDay);
+		setDate(today());
 	};
 
 	const close = () => {
@@ -85,11 +112,16 @@ export function AddReminderDialog({
 	};
 
 	const add = () => {
-		onAdd({
-			kind,
-			title,
-			schedule: { hour: time.hour, minute: time.minute, days: EveryDay },
-		});
+		const schedule: ReminderSchedule =
+			repeat === "once"
+				? { hour: time.hour, minute: time.minute, date: localDate(date) }
+				: {
+						hour: time.hour,
+						minute: time.minute,
+						days: repeat === "everyDay" ? EveryDay : days,
+					};
+
+		onAdd({ kind, title, schedule });
 		close();
 	};
 
@@ -102,18 +134,6 @@ export function AddReminderDialog({
 			onRequestClose={close}
 			details={
 				<View style={styles.form}>
-					<View style={styles.question}>
-						<Text variant="caption" color="textSecondary">
-							{t("today.add.kindLabel")}
-						</Text>
-						<ChoiceGroup
-							label={t("today.add.kindLabel")}
-							options={options}
-							value={kind}
-							onChange={chooseKind}
-						/>
-					</View>
-
 					<TextField
 						label={t("today.add.nameLabel")}
 						hint={t("today.add.nameHint")}
@@ -124,11 +144,41 @@ export function AddReminderDialog({
 						}}
 					/>
 
+					<SelectField
+						label={t("today.add.kindLabel")}
+						options={kinds}
+						value={kind}
+						onChange={chooseKind}
+					/>
+
 					<TimeField
 						label={t("today.add.timeLabel")}
 						value={time}
 						onChange={setTime}
 					/>
+
+					<SelectField
+						label={t("today.add.repeatLabel")}
+						options={repeats}
+						value={repeat}
+						onChange={setRepeat}
+					/>
+
+					{repeat === "someDays" ? (
+						<RepeatField
+							label={t("today.add.daysLabel")}
+							value={days}
+							onChange={setDays}
+						/>
+					) : null}
+
+					{repeat === "once" ? (
+						<DateField
+							label={t("today.add.dateLabel")}
+							value={date}
+							onChange={setDate}
+						/>
+					) : null}
 				</View>
 			}
 		>
@@ -147,12 +197,18 @@ function nextHour(): TimeOfDay {
 	return { hour: (new Date().getHours() + 1) % 24, minute: 0 };
 }
 
+/** Today, at midnight — a one-off reminder takes its time from the time field. */
+function today(): Date {
+	const day = new Date();
+
+	day.setHours(0, 0, 0, 0);
+
+	return day;
+}
+
 const styles = StyleSheet.create({
 	form: {
 		alignSelf: "stretch",
 		gap: Spacing.lg,
-	},
-	question: {
-		gap: Spacing.xs,
 	},
 });

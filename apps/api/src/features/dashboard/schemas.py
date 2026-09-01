@@ -135,7 +135,8 @@ class ReminderOut(BaseModel):
     kind: str  # "medicine" | "hydration" | "activity" | "appointment"
     title: str
     detail: str | None = None
-    # `HH:MM|1111111` — a 24-hour local time and a days mask, Sunday first.
+    # `HH:MM|1111111` — a 24-hour local time and a days mask, Sunday first — or
+    # `HH:MM@YYYY-MM-DD` for a reminder that happens once.
     schedule: str
     active: bool = True
     created_by: str | None = None
@@ -147,9 +148,13 @@ class ReminderOut(BaseModel):
 # nothing recognisable on the device, so it is refused here rather than shipped to a screen.
 REMINDER_KINDS = ("medicine", "hydration", "activity", "appointment")
 
-# `HH:MM|1111111`, matching `parseSchedule` in `apps/mobile/src/lib/reminders.ts`. A string
-# the phone cannot parse is a reminder it silently skips, so it is rejected at the door.
-SCHEDULE_PATTERN = r"^([01]\d|2[0-3]):([0-5]\d)\|[01]{7}$"
+# `HH:MM|1111111` for a reminder that repeats, or `HH:MM@YYYY-MM-DD` for one that happens
+# once, both matching `parseSchedule` in `apps/mobile/src/lib/reminders.ts`. A string the
+# phone cannot parse is a reminder it silently skips, so it is rejected at the door. The
+# one-off form is what the phone now sends up for an appointment on a named day (D-43); a
+# date that does not exist — the 31st of February — is refused by the phone rather than
+# here, since a regex cannot count the days in a month.
+SCHEDULE_PATTERN = r"^([01]\d|2[0-3]):([0-5]\d)(\|[01]{7}|@\d{4}-\d{2}-\d{2})$"
 
 
 # The one place the four kinds are written down. `features/sync` imports it, so the phone's

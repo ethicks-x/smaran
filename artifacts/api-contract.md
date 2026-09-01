@@ -172,6 +172,8 @@ of connectivity.
   "reminders": [
     { "id": "…", "kind": "medicine", "title": "…", "detail": null,
       "schedule": "21:00|1111111", "active": true, "deleted": false }
+    // `schedule` is `HH:MM|1111111` (a time and a days mask, Sunday first) or
+    // `HH:MM@YYYY-MM-DD` for a reminder that happens once — D-43
   ],
   "sessions": [],            // only when `restore=true`
   "sessions_truncated": false

@@ -33,16 +33,10 @@ import {
  */
 
 /**
- * When a reminder comes due: a time of day, and the days of the week it repeats
- * on with Sunday first.
- *
- * Stored as `HH:MM|1111111` — a 24-hour time and a seven-character mask — which
- * is the "simple time-of-day plus a days mask" `data-model.md` §1 allows for.
- * A string rather than two columns because the server's definitions are
- * rrule-ish and will need somewhere to land; a parse that fails is a reminder
- * this build does not understand, and it is skipped rather than guessed at.
+ * A reminder that comes back: a time of day and the days of the week it repeats
+ * on, Sunday first.
  */
-export type ReminderSchedule = {
+export type RepeatingSchedule = {
 	/** 0 - 23, local time. Reminders are wall-clock things, not instants. */
 	hour: number;
 	/** 0 - 59, local time. */
@@ -51,36 +45,92 @@ export type ReminderSchedule = {
 	days: readonly number[];
 };
 
-/** The days of the week, Sunday first — and the only repeat the app offers. */
+/** A reminder that happens once: a time of day and the one date it falls on. */
+export type OneOffSchedule = {
+	hour: number;
+	minute: number;
+	/** `YYYY-MM-DD`, local. An appointment is on a date, not at an instant. */
+	date: string;
+};
+
+/**
+ * When a reminder comes due.
+ *
+ * Stored as `HH:MM|1111111` — a 24-hour time and a seven-character days mask —
+ * or, for something that happens once, `HH:MM@YYYY-MM-DD`. Both are the "simple
+ * time-of-day plus a days mask" `data-model.md` §1 allows for; the second is the
+ * degenerate case of it, written as a date because a mask cannot say *which*
+ * Tuesday. A string rather than columns because the server's definitions are
+ * rrule-ish and will need somewhere to land; a parse that fails is a reminder
+ * this build does not understand, and it is skipped rather than guessed at.
+ */
+export type ReminderSchedule = RepeatingSchedule | OneOffSchedule;
+
+/** True for a reminder that happens on one date and then never again. */
+export function isOneOff(schedule: ReminderSchedule): schedule is OneOffSchedule {
+	return "date" in schedule;
+}
+
+/** The days of the week, Sunday first. */
 export const EveryDay: readonly number[] = [0, 1, 2, 3, 4, 5, 6];
 
-const SCHEDULE = /^([01]\d|2[0-3]):([0-5]\d)\|([01]{7})$/;
+const REPEATING = /^([01]\d|2[0-3]):([0-5]\d)\|([01]{7})$/;
+const ONE_OFF = /^([01]\d|2[0-3]):([0-5]\d)@(\d{4})-(\d{2})-(\d{2})$/;
 
-export function encodeSchedule({
-	hour,
-	minute,
-	days,
-}: ReminderSchedule): string {
-	const mask = EveryDay.map((day) => (days.includes(day) ? "1" : "0")).join("");
+export function encodeSchedule(schedule: ReminderSchedule): string {
+	const at = `${pad(schedule.hour)}:${pad(schedule.minute)}`;
 
-	return `${pad(hour)}:${pad(minute)}|${mask}`;
+	if (isOneOff(schedule)) {
+		return `${at}@${schedule.date}`;
+	}
+
+	const mask = EveryDay.map((day) =>
+		schedule.days.includes(day) ? "1" : "0",
+	).join("");
+
+	return `${at}|${mask}`;
 }
 
 /** The stored string, read back — or null if this build cannot read it. */
 export function parseSchedule(text: string): ReminderSchedule | null {
-	const match = SCHEDULE.exec(text);
+	const repeating = REPEATING.exec(text);
 
-	if (!match) {
+	if (repeating) {
+		const [, hour, minute, mask] = repeating;
+
+		return {
+			hour: Number(hour),
+			minute: Number(minute),
+			days: [...mask].flatMap((day, index) => (day === "1" ? [index] : [])),
+		};
+	}
+
+	const once = ONE_OFF.exec(text);
+
+	if (!once) {
 		return null;
 	}
 
-	const [, hour, minute, mask] = match;
+	const [, hour, minute, year, month, day] = once;
+	const date = `${year}-${month}-${day}`;
 
-	return {
-		hour: Number(hour),
-		minute: Number(minute),
-		days: [...mask].flatMap((day, index) => (day === "1" ? [index] : [])),
-	};
+	// The regex cannot tell the 31st of February from a real date, and a day that
+	// does not exist is a reminder that would never come due. Skipped, not guessed.
+	if (localDate(new Date(Number(year), Number(month) - 1, Number(day))) !== date) {
+		return null;
+	}
+
+	return { hour: Number(hour), minute: Number(minute), date };
+}
+
+/**
+ * A date as `YYYY-MM-DD` in the reader's own timezone.
+ *
+ * Not `toISOString()`, which is UTC: east of Greenwich that turns the evening
+ * into tomorrow, and a reminder set for tonight would arrive on the wrong day.
+ */
+export function localDate(day: Date): string {
+	return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
 }
 
 /**
@@ -147,7 +197,15 @@ export function remindersFor(day: Date = new Date()): ReminderOccurrence[] {
 		.flatMap((row) => {
 			const schedule = parseSchedule(row.schedule);
 
-			if (!schedule?.days.includes(weekday)) {
+			if (!schedule) {
+				return [];
+			}
+
+			if (
+				isOneOff(schedule)
+					? schedule.date !== localDate(day)
+					: !schedule.days.includes(weekday)
+			) {
 				return [];
 			}
 
