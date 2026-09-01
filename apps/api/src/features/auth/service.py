@@ -152,15 +152,72 @@ async def require_roles(request: Request, *roles: str) -> AuthContext:
     return context
 
 
+async def grant_role(user_id: str, role_name: str) -> None:
+    """Grant a role to a Clerk user id in the `roles` table if not already granted."""
+    norm_role = _normalise_role(role_name)
+    if not norm_role:
+        return
+    async with SessionLocal() as session:
+        existing = await session.scalar(
+            select(Role).where(Role.id == user_id, Role.role == norm_role)
+        )
+        if existing is None:
+            session.add(Role(id=user_id, role=norm_role))
+            await session.commit()
+
+
+async def grant_caregiver_role(user_id: str) -> None:
+    """Grant the caregiver role to a Clerk user id."""
+    await grant_role(user_id, settings.caregiver_role)
+
+
+async def grant_patient_role(user_id: str) -> None:
+    """Grant the patient role to a Clerk user id."""
+    await grant_role(user_id, settings.patient_role)
+
+
+# Self-enrolment is how a brand-new account gets its first row: the client that created the
+# account says which of the two it is. That is a claim by the caller, so it is only trusted
+# while the caller holds nothing — an account that already has a role cannot add a second
+# one by asking, which is what stops a patient's phone (or anyone holding a patient's token)
+# from talking this route into a caregiver grant and reading someone's data (§2.5).
+#
+# Widening a role later is a caregiver-side act and belongs on a guarded route, not here.
+async def self_enroll(user_id: str, role_name: str) -> bool:
+    """Grant `role_name` to a signed-in caller that holds no role yet.
+
+    Returns whether the caller now holds it. Idempotent: asking twice for the same role is
+    the ordinary case — a client that could not reach us on sign-up retries on the next
+    launch — and answers True both times. A caller that already holds a *different* role is
+    left exactly as it was and gets False.
+    """
+    wanted = _normalise_role(role_name)
+    if not wanted:
+        return False
+
+    held = await granted_roles(user_id)
+    if wanted in held:
+        return True
+    if held:
+        return False
+
+    await grant_role(user_id, wanted)
+    return True
+
+
 __all__ = [
     "FORBIDDEN_MESSAGE",
     "SIGNED_OUT_MESSAGE",
     "authenticate",
     "authenticate_state",
     "granted_roles",
+    "grant_caregiver_role",
+    "grant_patient_role",
+    "grant_role",
     "has_role",
     "is_caregiver",
     "require_auth",
     "require_caregiver",
     "require_roles",
+    "self_enroll",
 ]

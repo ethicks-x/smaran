@@ -1,11 +1,12 @@
 "use client";
 
+import { Camera, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Camera, Check } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { Card } from "@/components/ui/Card";
 
 export default function AddPatientPage() {
   const router = useRouter();
@@ -14,7 +15,9 @@ export default function AddPatientPage() {
   return (
     <DashboardShell>
       <div className="mx-auto max-w-xl">
-        <h1 className="font-display text-2xl font-bold text-ink-900 sm:text-3xl">Add a Patient</h1>
+        <h1 className="font-display text-2xl font-bold text-ink-900 sm:text-3xl">
+          Add a Patient
+        </h1>
         <p className="mt-1.5 text-sm text-ink-500">
           These details map directly to your patient record.
         </p>
@@ -42,7 +45,10 @@ export default function AddPatientPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink-700" htmlFor="full_name">
+              <label
+                className="mb-1.5 block text-sm font-medium text-ink-700"
+                htmlFor="full_name"
+              >
                 Full Name
               </label>
               <input
@@ -55,7 +61,10 @@ export default function AddPatientPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink-700" htmlFor="dob">
+                <label
+                  className="mb-1.5 block text-sm font-medium text-ink-700"
+                  htmlFor="dob"
+                >
                   Date of Birth
                 </label>
                 <input
@@ -66,7 +75,10 @@ export default function AddPatientPage() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-ink-700" htmlFor="lang">
+                <label
+                  className="mb-1.5 block text-sm font-medium text-ink-700"
+                  htmlFor="lang"
+                >
                   Preferred Language
                 </label>
                 <select
@@ -82,7 +94,10 @@ export default function AddPatientPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink-700" htmlFor="address">
+              <label
+                className="mb-1.5 block text-sm font-medium text-ink-700"
+                htmlFor="address"
+              >
                 Address
               </label>
               <input
@@ -93,7 +108,10 @@ export default function AddPatientPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink-700" htmlFor="contact">
+              <label
+                className="mb-1.5 block text-sm font-medium text-ink-700"
+                htmlFor="contact"
+              >
                 Contact Number
               </label>
               <input
@@ -105,7 +123,10 @@ export default function AddPatientPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink-700" htmlFor="relationship">
+              <label
+                className="mb-1.5 block text-sm font-medium text-ink-700"
+                htmlFor="relationship"
+              >
                 Your Relationship to the Patient
               </label>
               <input
@@ -115,7 +136,7 @@ export default function AddPatientPage() {
               />
             </div>
 
-            <div className="flex justify-end border-t border-black/[0.06] pt-5">
+            <div className="flex justify-end border-t border-black/6 pt-5">
               <Button type="submit" className="gap-2">
                 <Check size={16} /> Save Patient
               </Button>

@@ -1,49 +1,79 @@
 import { useUser } from "@clerk/expo";
 import { router } from "expo-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, View } from "react-native";
 
 import { GameCard } from "@/components/games";
-import { EmptyState, Screen, Section, Surface, Text } from "@/components/ui";
+import {
+	AddReminderDialog,
+	NextReminderCard,
+	ReminderList,
+} from "@/components/today";
+import { ActionButton, EmptyState, Screen, Section } from "@/components/ui";
 import { useLocale } from "@/hooks/use-language";
-import { Spacing, TouchTarget } from "@/theme";
+import { useReminders } from "@/hooks/use-reminders";
 
 /**
  * Today — the home screen and the answer to "what am I meant to be doing?".
  *
- * TODO: replace the placeholders with the day's plan from `GET /dashboard`.
+ * The day's plan is the reader's own: reminders come from the device store
+ * (`lib/reminders.ts`), which is where they will still be when the phone has no
+ * signal. The dashboard will one day send definitions down and they will land in
+ * the same table — nothing on this screen has to change when it does.
+ *
+ * The day is two things and not four: the card at the top is what to do now,
+ * and everything else is one grouped list under a single heading. A card per
+ * reminder spent most of the screen on the gaps between them and made every
+ * reminder look equally urgent, which is the opposite of the point.
+ *
+ * One filled button on the page, and it is "I have done this" on the reminder
+ * that is next. Adding a reminder is the quieter, outlined action underneath the
+ * day, because it is the caregiver's errand and not the reader's.
  */
 export default function TodayScreen() {
 	const { user } = useUser();
 	const { t } = useTranslation();
 	const locale = useLocale();
+	const { nextUp, rest, available, add, markDone } = useReminders();
+
+	const [adding, setAdding] = useState(false);
+
+	// Nothing at all today, which is different from everything being done: the
+	// card says "nothing to do just now", an empty day says so more warmly.
+	const empty = nextUp === null && rest.length === 0;
 
 	const firstName = user?.firstName?.trim();
 
 	return (
 		<Screen title={greeting(t, firstName)} subtitle={formatToday(locale)}>
-			<Section title={t("today.nextUp")}>
-				{/* TODO: render the next reminder here — time, what to do, and a single
-            large "Done" button. */}
-				<Surface tone="primary">
-					<Text variant="caption" color="textSecondary">
-						{t("today.nothingScheduled")}
-					</Text>
-					<Text variant="bodyLarge">{t("today.nextUpPlaceholder")}</Text>
-				</Surface>
-			</Section>
-
-			<Section
-				title={t("today.restOfDay")}
-				description={t("today.restOfDayDescription")}
-			>
-				{/* TODO: list today's remaining reminders, oldest first. */}
+			{empty ? (
 				<EmptyState
 					icon="reminder"
 					title={t("today.emptyTitle")}
 					message={t("today.emptyMessage")}
 				/>
-			</Section>
+			) : (
+				<NextReminderCard
+					occurrence={nextUp}
+					onDone={() => nextUp && markDone(nextUp)}
+				/>
+			)}
+
+			{rest.length > 0 ? (
+				<Section title={t("today.restOfDay")}>
+					<ReminderList occurrences={rest} />
+				</Section>
+			) : null}
+
+			{/* Hidden rather than disabled when the store could not be opened: a
+          button that cannot do its job should not be offered at all. */}
+			{available ? (
+				<ActionButton
+					label={t("today.addReminder")}
+					variant="outlined"
+					onPress={() => setAdding(true)}
+				/>
+			) : null}
 
 			{/* The way into the games, and the only one — five tabs is the ceiling
           (D-06), so the games live on top of the tabs and are reached from the
@@ -57,7 +87,11 @@ export default function TodayScreen() {
 				/>
 			</Section>
 
-			<View style={styles.spacer} />
+			<AddReminderDialog
+				visible={adding}
+				onClose={() => setAdding(false)}
+				onAdd={add}
+			/>
 		</Screen>
 	);
 }
@@ -91,19 +125,3 @@ function formatToday(locale: string) {
 		month: "long",
 	});
 }
-
-const styles = StyleSheet.create({
-	headerButton: {
-		width: TouchTarget.min,
-		height: TouchTarget.min,
-		borderRadius: TouchTarget.min / 2,
-		alignItems: "center",
-		justifyContent: "center",
-	},
-	pressed: {
-		opacity: 0.6,
-	},
-	spacer: {
-		height: Spacing.lg,
-	},
-});

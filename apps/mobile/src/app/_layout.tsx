@@ -1,4 +1,5 @@
 import { ClerkProvider, useAuth } from "@clerk/expo";
+import { resourceCache } from "@clerk/expo/resource-cache";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -11,6 +12,7 @@ import "@/i18n";
 import { AppearanceProvider, useAppearance } from "@/hooks/use-appearance";
 import { LanguageProvider, useLanguage } from "@/hooks/use-language";
 import { RecallProvider, useRecall } from "@/hooks/use-recall";
+import { useRoleEnrolment } from "@/hooks/use-role-enrolment";
 import { useTheme } from "@/hooks/use-theme";
 import type { ThemeColors } from "@/theme";
 
@@ -32,7 +34,16 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
 	return (
-		<ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+		// Without a resource cache Clerk can only finish loading by reaching its
+		// API, so with the radio off `isLoaded` never flips and the splash below
+		// never lifts — the app simply does not open (§2.1). The cache lets it
+		// restore the last known session and environment from the device instead,
+		// and it refreshes them in the background once there is a network again.
+		<ClerkProvider
+			publishableKey={publishableKey}
+			tokenCache={tokenCache}
+			__experimental_resourceCache={resourceCache}
+		>
 			<LanguageProvider>
 				<AppearanceProvider>
 					<RecallProvider>
@@ -57,6 +68,11 @@ function RootNavigator() {
 	const { isLoaded: isLanguageLoaded } = useLanguage();
 	const { isRecalled } = useRecall();
 	const { isDark, colors } = useTheme();
+
+	// Fires on the first session this account has on this phone, and is awaited by
+	// nothing — the splash below lifts on Clerk and the stored preferences, never
+	// on a network call.
+	useRoleEnrolment();
 
 	const isLoaded = isAuthLoaded && isAppearanceLoaded && isLanguageLoaded;
 

@@ -1,4 +1,4 @@
-import { HTMLAttributes } from "react";
+import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 type Tone = "indigo" | "mint" | "amber" | "coral" | "neutral";
@@ -21,7 +21,7 @@ export function Badge({
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
         toneClasses[tone],
-        className
+        className,
       )}
       {...props}
     />

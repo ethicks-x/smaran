@@ -1,6 +1,6 @@
-import { Pencil, Trash2, User, MapPin, Package } from "lucide-react";
-import { MemorySubject } from "@/lib/types";
+import { MapPin, Package, Pencil, Trash2, User } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import type { MemorySubject } from "@/lib/types";
 
 const kindIcon = { person: User, place: MapPin, object: Package };
 
@@ -11,6 +11,7 @@ export function MemorySubjectCard({ subject }: { subject: MemorySubject }) {
     <div className="group overflow-hidden rounded-2xl border border-black/[0.06] bg-surface shadow-[0_2px_8px_rgba(44,31,88,0.06)] transition-shadow hover:shadow-[0_12px_40px_rgba(44,31,88,0.12)]">
       {subject.photo_url ? (
         <div className="relative h-40 w-full overflow-hidden">
+          {/** biome-ignore lint/performance/noImgElement: Dynamic Images */}
           <img
             src={subject.photo_url}
             alt={subject.name}
@@ -24,18 +25,30 @@ export function MemorySubjectCard({ subject }: { subject: MemorySubject }) {
       )}
       <div className="p-4">
         <div className="flex items-start justify-between gap-2">
-          <p className="font-display text-base font-semibold text-ink-900">{subject.name}</p>
+          <p className="font-display text-base font-semibold text-ink-900">
+            {subject.name}
+          </p>
           <Badge tone="indigo" className="capitalize">
             {subject.kind}
           </Badge>
         </div>
-        {subject.relationship && <p className="mt-0.5 text-xs text-ink-500 capitalize">{subject.relationship}</p>}
+        {subject.relationship && (
+          <p className="mt-0.5 text-xs text-ink-500 capitalize">
+            {subject.relationship}
+          </p>
+        )}
 
         <div className="mt-3.5 flex items-center gap-2 border-t border-black/[0.06] pt-3">
-          <button className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium text-ink-600 hover:bg-black/[0.04]">
+          <button
+            type="button"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium text-ink-600 hover:bg-black/[0.04]"
+          >
             <Pencil size={13} /> Edit
           </button>
-          <button className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium text-coral-500 hover:bg-coral-50">
+          <button
+            type="button"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium text-coral-500 hover:bg-coral-50"
+          >
             <Trash2 size={13} /> Remove
           </button>
         </div>

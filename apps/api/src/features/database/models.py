@@ -155,8 +155,8 @@ class QuestionEvent(Base):
     patient_id: Mapped[UUID] = mapped_column(
         ForeignKey("patients.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    subject_id: Mapped[UUID] = mapped_column(
-        ForeignKey("memory_subjects.id", ondelete="CASCADE"), index=True, nullable=False
+    subject_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("memory_subjects.id", ondelete="SET NULL"), index=True, nullable=True
     )
     activity: Mapped[str] = mapped_column(String(50), nullable=False)
     n_options: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
@@ -172,7 +172,7 @@ class QuestionEvent(Base):
 
     session: Mapped[GameSession] = relationship(back_populates="question_events")
     patient: Mapped[Patient] = relationship(back_populates="question_events")
-    subject: Mapped[MemorySubject] = relationship(back_populates="question_events")
+    subject: Mapped[MemorySubject | None] = relationship(back_populates="question_events")
 
 
 class CasualPlayLog(Base):

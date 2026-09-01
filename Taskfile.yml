@@ -83,7 +83,7 @@ tasks:
     dir: apps/api
     cmds:
       - echo "Starting development API server..."
-      - uv run --with watchfiles watchfiles "uv run src/main.py"
+      - uv run src/main.py
     silent: true
 
   dev:web:

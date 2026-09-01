@@ -1,7 +1,7 @@
-import { Pencil, Heart } from "lucide-react";
-import { Patient } from "@/lib/types";
+import { Heart, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import type { Patient } from "@/lib/types";
 import { calculateAge } from "@/lib/utils";
 
 export function PatientProfileHeader({
@@ -15,6 +15,7 @@ export function PatientProfileHeader({
     <div className="rounded-2xl border border-black/[0.06] bg-surface p-6 shadow-[0_2px_8px_rgba(44,31,88,0.06)]">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
         <div className="flex items-center gap-4">
+          {/** biome-ignore lint/performance/noImgElement: Image is used for visual purposes only */}
           <img
             src={patient.avatar_url ?? undefined}
             alt={patient.full_name}
@@ -22,11 +23,14 @@ export function PatientProfileHeader({
           />
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="font-display text-2xl font-bold text-ink-900">{patient.full_name}</h1>
+              <h1 className="font-display text-2xl font-bold text-ink-900">
+                {patient.full_name}
+              </h1>
               <Badge tone="mint">Active</Badge>
             </div>
             <p className="mt-1 text-sm text-ink-500">
-              {calculateAge(patient.dob)} yrs · Cared for by you ({relationship}) · {patient.address}
+              {calculateAge(patient.dob)} yrs · Cared for by you ({relationship}
+              ) · {patient.address}
             </p>
           </div>
         </div>

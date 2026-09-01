@@ -1,11 +1,13 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
 import type { BoardCard, SymbolId, SymbolPool } from "@/components/games";
 import {
 	GameFrame,
+	GameStatsDetail,
+	GameSummary,
 	MemoryBoard,
 	SymbolPools,
 	Symbols,
@@ -17,6 +19,10 @@ import {
 	ProgressBar,
 	Text,
 } from "@/components/ui";
+import { useGameSession } from "@/hooks/use-game-session";
+import { adjustDifficulty, type DifficultyAdvice } from "@/lib/adaptive";
+import { recentSessions } from "@/lib/game-history";
+import type { SessionStats } from "@/lib/game-stats";
 import { Spacing } from "@/theme";
 
 /**
@@ -35,6 +41,9 @@ import { Spacing } from "@/theme";
  * here because a board that is too big to finish is still a board you can put
  * down, and nothing in this game punishes putting it down.
  */
+/** The key this game's sessions are grouped under, here and on the server. */
+const GAME_ID = "matching";
+
 const LEVELS = [
 	{ id: "four", columns: 4, pool: "plain" },
 	{ id: "six", columns: 6, pool: "plain" },
@@ -80,16 +89,33 @@ type Phase = "preview" | "playing" | "won";
  * over and the board is exactly as it was. Finishing one is a dialog and a
  * handful of paper, and even that has no hurry in it.
  *
- * Everything here is on-device and in memory. TODO: when the local store lands
- * (`expo-sqlite` + Drizzle), write one session row per board — cards, pairs,
- * turns taken and how long each turn was held — and let `adjustDifficulty`
- * (D-07) choose the opening board from **this** reader's own history rather
- * than always starting at six (D-08).
+ * Everything here is on-device. Every board is measured by `useGameSession` —
+ * turns taken, how many found a pair, how long each turn was held, and whether
+ * the board was finished or put down — and the row is written to SQLite before
+ * the win dialog has finished animating. None of it is shown to the reader and
+ * none of it is a score: §2.3 forbids anything that scolds, and a percentage
+ * under a finished board is exactly that. It is there for the caregiver
+ * dashboard and for the engine.
+ *
+ * The engine (`adjustDifficulty`, D-07) reads those rows twice: once on the way
+ * in, to choose which board this reader is handed instead of always starting at
+ * four by four, and once when a board is finished, to decide what to offer next
+ * and — the part that matters — to say why in a sentence they can read. An
+ * adjustment nobody can see is indistinguishable from no adjustment at all.
+ *
+ * Both reads happen here rather than inside the engine, which stays a pure
+ * function over numbers (`AGENTS.md` §6).
  */
 export default function MatchingScreen() {
 	const { t } = useTranslation();
 
-	const [levelIndex, setLevelIndex] = useState(0);
+	const session = useGameSession({ gameId: GAME_ID });
+
+	// Where this reader starts is their own recent rounds' business, not the
+	// ladder's (D-08). Read once, on the first render: nothing changes the
+	// history while the screen is open except this screen finishing a board, and
+	// that is handled where it happens.
+	const [levelIndex, setLevelIndex] = useState(openingIndex);
 	const level = LEVELS[levelIndex] ?? LEVELS[0];
 
 	/** Counts the boards dealt this sitting. Nothing in the game reads it as a
@@ -97,11 +123,28 @@ export default function MatchingScreen() {
 	 * new board and not the last one still running. */
 	const [round, setRound] = useState(0);
 
-	const [deck, setDeck] = useState<Card[]>(() => deal(LEVELS[0]));
+	const [deck, setDeck] = useState<Card[]>(() =>
+		deal(LEVELS[levelIndex] ?? LEVELS[0]),
+	);
 	const [phase, setPhase] = useState<Phase>("preview");
 	const [faceUp, setFaceUp] = useState<string[]>([]);
 	const [matched, setMatched] = useState<string[]>([]);
 	const [previewLeft, setPreviewLeft] = useState(1);
+
+	/** The finished board's own numbers, kept so the dialog can show what just
+	 * happened. Null until a board is cleared, and cleared again with the next
+	 * deal — the card is about this board and no other. */
+	const [summary, setSummary] = useState<SessionStats | null>(null);
+
+	/** What the engine made of the board that was just finished — which board to
+	 * offer next, and the reason the dialog says out loud. Null until one is
+	 * finished, and cleared with the next deal, exactly like `summary`. */
+	const [advice, setAdvice] = useState<DifficultyAdvice | null>(null);
+
+	/** The two cards the last attempt was counted for. Settling the same pair can
+	 * be reached twice — by the timer, and by a third tap that got there first —
+	 * and a turn counted twice would quietly halve the board's accuracy. */
+	const lastCounted = useRef<string | null>(null);
 
 	const pairs = pairsOf(level);
 	const pairsFound = matched.length / 2;
@@ -122,15 +165,29 @@ export default function MatchingScreen() {
 		(pending: string[]) => {
 			const [first, second] = pending;
 
-			if (first && second && symbolOf(deck, first) === symbolOf(deck, second)) {
-				setMatched((cards) =>
-					cards.includes(first) ? cards : [...cards, first, second],
-				);
+			if (first && second) {
+				const isPairTurned = symbolOf(deck, first) === symbolOf(deck, second);
+
+				if (isPairTurned) {
+					setMatched((cards) =>
+						cards.includes(first) ? cards : [...cards, first, second],
+					);
+				}
+
+				// One turn is one attempt, whichever way it went. This is the only
+				// place the game learns anything about how the board is going, so it
+				// is the only place that counts.
+				const turn = `${first}|${second}`;
+
+				if (lastCounted.current !== turn) {
+					lastCounted.current = turn;
+					session.record(isPairTurned);
+				}
 			}
 
 			setFaceUp((cards) => (cards === pending ? [] : cards));
 		},
-		[deck],
+		[deck, session],
 	);
 
 	// The look at the board is the only thing in the game that happens on a
@@ -147,10 +204,23 @@ export default function MatchingScreen() {
 		// the timer cannot drift apart.
 		setPreviewLeft(0);
 
-		const timer = setTimeout(() => setPhase("playing"), previewMs);
+		const timer = setTimeout(() => {
+			// The session's clock starts when the cards turn over, not when the board
+			// is dealt. The preview is something shown to the reader rather than
+			// something they are doing, and counting it would make a long, careful
+			// look at the cards read afterwards as a slow start.
+			session.begin({
+				difficulty: levelIndex + 1,
+				total: pairs,
+				// A board can be cleared in one turn per pair. That perfect run is what
+				// this run is measured against — never another person's (§2.4).
+				idealAttempts: pairs,
+			});
+			setPhase("playing");
+		}, previewMs);
 
 		return () => clearTimeout(timer);
-	}, [phase, previewMs]);
+	}, [phase, previewMs, session, levelIndex, pairs]);
 
 	// Two cards are up: hold them there long enough to be looked at, then either
 	// keep them or turn them back.
@@ -169,12 +239,37 @@ export default function MatchingScreen() {
 
 	useEffect(() => {
 		if (deck.length > 0 && matched.length === deck.length) {
+			const stats = session.finish();
+
 			setPhase("won");
+
+			// Only the call that actually closed the board has numbers; a second
+			// pass through here gets null, and letting that through would empty the
+			// card the reader is looking at.
+			if (stats) {
+				setSummary(stats);
+
+				// `finish` has already written the row, so the board just played is the
+				// newest thing in the history the engine is about to read — which is
+				// what makes the offer about the round the reader is looking at.
+				setAdvice(
+					adjustDifficulty(recentSessions({ gameId: GAME_ID }), {
+						current: stats.difficulty,
+						rungs: LEVELS.length,
+					}),
+				);
+			}
 		}
-	}, [matched.length, deck.length]);
+	}, [matched.length, deck.length, session]);
 
 	const start = (index: number) => {
 		const next = LEVELS[index] ?? LEVELS[0];
+
+		// A board still in play when the next one is dealt was put down, and it is
+		// written down as one rather than lost. Nothing about an unfinished board
+		// counts against the reader — `data-model.md` keeps it precisely because
+		// walking away half way through is ordinary and worth knowing about.
+		session.abandon();
 
 		setLevelIndex(index);
 		setRound((dealt) => dealt + 1);
@@ -183,6 +278,9 @@ export default function MatchingScreen() {
 		setFaceUp([]);
 		setPreviewLeft(1);
 		setPhase("preview");
+		setSummary(null);
+		setAdvice(null);
+		lastCounted.current = null;
 	};
 
 	const turnOver = (id: string) => {
@@ -216,7 +314,12 @@ export default function MatchingScreen() {
 				: "faceDown",
 	}));
 
-	const hasNextLevel = levelIndex + 1 < LEVELS.length;
+	// The rung the engine offered, and whether taking it means a different board
+	// at all — at the top of the ladder, or on a run that read as ordinary, the
+	// honest offer is this board again.
+	const offeredIndex = advice ? advice.difficulty - 1 : levelIndex;
+	const offered = LEVELS[offeredIndex] ?? level;
+	const offersAnotherBoard = advice !== null && offeredIndex !== levelIndex;
 
 	return (
 		<GameFrame
@@ -280,19 +383,54 @@ export default function MatchingScreen() {
 				title={t("games.matching.doneTitle")}
 				message={t("games.matching.doneMessage", { count: pairs })}
 				backdrop={<Confetti run={round} />}
+				details={
+					summary ? (
+						<>
+							<GameSummary
+								stats={summary}
+								foundLabel={t("games.matching.pairsLabel")}
+							/>
+							{/* Why the buttons below say what they say, in one sentence, in
+                  their language. This is the whole of the adaptive engine as
+                  far as the reader is concerned: it compares this board
+                  against their own last few rounds and never against anybody
+                  else's (§2.4), and if it did that silently there would be
+                  nothing here to see. Sits directly above the buttons on
+                  purpose — it is the reason for the choice, so it is read
+                  immediately before the choice is made. */}
+							{advice ? (
+								<Text variant="bodyLarge" center>
+									{t(`games.matching.reason.${advice.reason}`)}
+								</Text>
+							) : null}
+
+							{/* Stripped from a release build, so the reader never meets it —
+                  see `GameStatsDetail`. */}
+							{__DEV__ ? <GameStatsDetail stats={summary} /> : null}
+						</>
+					) : null
+				}
 				onRequestClose={() => router.back()}
 			>
-				{hasNextLevel ? (
+				{/* The one filled button, and it names the board rather than a
+            direction: "Try the six by six board" is a thing you can picture,
+            "Try a bigger board" is a thing you have to work out. */}
+				{offersAnotherBoard ? (
 					<ActionButton
-						label={t("games.matching.bigger")}
+						label={t(
+							offeredIndex > levelIndex
+								? "games.matching.offer.up"
+								: "games.matching.offer.down",
+							{ board: t(`games.matching.levels.${offered.id}.phrase`) },
+						)}
 						size="large"
-						onPress={() => start(levelIndex + 1)}
+						onPress={() => start(offeredIndex)}
 					/>
 				) : null}
 				<ActionButton
 					label={t("games.matching.again")}
-					variant={hasNextLevel ? "outlined" : "filled"}
-					size={hasNextLevel ? "comfortable" : "large"}
+					variant={offersAnotherBoard ? "outlined" : "filled"}
+					size={offersAnotherBoard ? "comfortable" : "large"}
 					onPress={() => start(levelIndex)}
 				/>
 				<ActionButton
@@ -344,6 +482,26 @@ function statusOf({
 		count: pairsFound,
 		total: pairs,
 	});
+}
+
+/**
+ * Which rung to open on, from this reader's own history.
+ *
+ * A device with nothing on it opens on the gentlest board, which is also what
+ * the engine says about an empty history — so there is no special case here,
+ * only the ordinary answer to an ordinary question.
+ */
+function openingIndex(): number {
+	const history = recentSessions({ gameId: GAME_ID });
+
+	const { difficulty } = adjustDifficulty(history, {
+		// The rung they last played is where the ladder is for them. On a device
+		// with no history the engine ignores this and starts at the bottom.
+		current: history[0]?.difficulty ?? 1,
+		rungs: LEVELS.length,
+	});
+
+	return difficulty - 1;
 }
 
 /**

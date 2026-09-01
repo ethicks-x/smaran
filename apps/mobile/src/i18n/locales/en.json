@@ -2,7 +2,14 @@
 	"common": {
 		"back": "Back",
 		"goBack": "Go back",
-		"notSetYet": "Not set yet"
+		"notSetYet": "Not set yet",
+		"cancel": "Cancel",
+		"hour": "Hour",
+		"minutes": "Minutes",
+		"hourEarlier": "An hour earlier",
+		"hourLater": "An hour later",
+		"minutesEarlier": "Five minutes earlier",
+		"minutesLater": "Five minutes later"
 	},
 	"tabs": {
 		"today": "Today",
@@ -69,11 +76,29 @@
 	"today": {
 		"nextUp": "Next up",
 		"nothingScheduled": "Nothing scheduled yet",
-		"nextUpPlaceholder": "When your family adds a reminder, it will appear here first.",
+		"nextUpPlaceholder": "Nothing to do just now. Anything added below shows up here first.",
 		"restOfDay": "Rest of the day",
-		"restOfDayDescription": "Everything else planned for today.",
 		"emptyTitle": "No reminders today",
-		"emptyMessage": "Your day is clear. Anything your family adds will show up here."
+		"emptyMessage": "Your day is clear. Add a reminder below and it will be here every day.",
+		"addReminder": "Add a reminder",
+		"markDone": "I have done this",
+		"markDoneOf": "I have done this: {{title}}",
+		"doneAt": "Done at {{time}}",
+		"kinds": {
+			"medicine": "Medicine",
+			"hydration": "A drink of water",
+			"activity": "Something to do",
+			"appointment": "An appointment"
+		},
+		"add": {
+			"title": "Add a reminder",
+			"message": "It will be here on this page every day, at the time you choose.",
+			"kindLabel": "What is it for",
+			"nameLabel": "What should it say",
+			"nameHint": "A few words, like “Take the blue tablet”.",
+			"timeLabel": "What time",
+			"save": "Add this reminder"
+		}
 	},
 	"games": {
 		"title": "Games",
@@ -87,21 +112,36 @@
 			"title": "Games",
 			"description": "A few gentle games, whenever you feel like playing one."
 		},
+		"summary": {
+			"found": "Answers found",
+			"foundValue": "{{found}} of {{total}}",
+			"turns": "Turns taken",
+			"accuracy": "Turns that were right",
+			"time": "Time taken",
+			"timeSeconds_one": "{{count}} second",
+			"timeSeconds_other": "{{count}} seconds",
+			"timeMinutes_one": "About {{count}} minute",
+			"timeMinutes_other": "About {{count}} minutes"
+		},
 		"matching": {
 			"name": "Matching pairs",
 			"shortDescription": "Turn two cards over and find the pairs.",
 			"levels": {
 				"four": {
-					"name": "Four by four"
+					"name": "Four by four",
+					"phrase": "four by four"
 				},
 				"six": {
-					"name": "Six by six"
+					"name": "Six by six",
+					"phrase": "six by six"
 				},
 				"eight": {
-					"name": "Eight by eight"
+					"name": "Eight by eight",
+					"phrase": "eight by eight"
 				},
 				"twelve": {
-					"name": "Twelve by twelve"
+					"name": "Twelve by twelve",
+					"phrase": "twelve by twelve"
 				}
 			},
 			"close": "Close the game",
@@ -118,7 +158,19 @@
 			"doneTitle": "Every pair is found",
 			"doneMessage_one": "You found the pair on this board.",
 			"doneMessage_other": "You found all {{count}} pairs on this board.",
-			"bigger": "Try a bigger board",
+			"pairsLabel": "Pairs found",
+			"offer": {
+				"up": "Try the {{board}} board",
+				"down": "Play the {{board}} board"
+			},
+			"reason": {
+				"firstBoard": "A gentle board to begin with.",
+				"easy": "That went quicker than your own last few rounds, so there is a bigger board ready if you would like it.",
+				"steady": "That went much like your own last few rounds — this board suits you nicely.",
+				"hard": "That board asked a lot this time, so here is a gentler one. There is no hurry at all.",
+				"topBoard": "That went quicker than your own last few rounds, and this is the biggest board there is.",
+				"gentlest": "This is the gentlest board there is, and it is a good one to stay with."
+			},
 			"again": "Play this board again",
 			"finish": "I have finished",
 			"symbols": {

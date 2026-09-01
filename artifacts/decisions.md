@@ -714,3 +714,420 @@ it and is what a build sets.
 
 **Would change it if:** the enrollment flow (D-01, still open) gives a device its own
 credential rather than a Clerk session — the wrapper is then the one place that changes.
+
+---
+
+## D-22 · 2026-08-31 · Game stats are a shared hook over a pure module, and the reader never sees them
+
+**Decision.** Every game measures itself the same way, through two pieces:
+`src/lib/game-stats.ts` — pure, no clock, no storage — turns a described run into a
+`SessionStats`; `src/hooks/use-game-session.ts` owns the clock, times each attempt and hands
+the closed session to `src/lib/game-history.ts`. A game calls `begin` when play starts,
+`record(correct)` once per attempt, and `finish` or `abandon`. Matching pairs is wired to it.
+
+`SessionStats` carries `accuracy` (of the attempts made, the share that were right),
+`precision` (how close the run came to the fewest attempts the round could take, null when a
+game has no such floor), `completion` (how much of the round was finished), `durationMs` and
+`timeOnTaskMs`, `avgResponseMs` and `medianResponseMs`, `consistency` (one minus the
+coefficient of variation of response times, null under two attempts), `longestStreak`, and
+the raw `attempts` / `correct` / `total` counts.
+
+**Why split it.** The engine's signature is frozen pure (D-07) and it will read these rows;
+if the arithmetic that produces them reads a clock, neither half can be tested by handing it
+numbers. The split keeps the impure part to about thirty lines.
+
+**Raw counts are kept next to the ratios**, as `data-model.md` §1 requires. What "accuracy"
+means will be argued about again; the facts underneath it should not have to be recollected.
+
+**Consistency is a coefficient of variation, not a variance in milliseconds** — spread
+measured against the reader's own mean. A slow, steady reader and a quick, steady one both
+score near 1, which is the only way the number stays a personal one (§2.4).
+
+**None of it is shown to the patient.** No percentage, no turn counter, no "you took 4:32"
+under a finished board. §2.3 forbids anything that scolds and a score is exactly that; these
+rows exist for the caregiver dashboard and for the adaptive engine. An abandoned board
+records identically to a finished one, flagged `completed: false` and never penalised.
+
+**The preview is not timed.** The session's clock starts when the cards turn over, so a long,
+careful look at the board does not read afterwards as a slow start.
+
+**Durations come off a monotonic clock** (`performance.now()`), placed against one `Date.now()`
+taken at the start. A phone correcting its clock mid-board would otherwise record a run that
+took minus twenty minutes.
+
+**Consequences.** `game-history.ts` is an in-memory list that lives as long as the app is
+open — the placeholder wearing the shape of the `game_session` table. Replacing it with
+SQLite + Drizzle should not require editing either caller. The next game adds a
+`useGameSession` call and nothing else.
+
+**Would change it if:** a game turns up whose unit of work is not a right-or-wrong attempt —
+a free recall or a spoken answer scored by degree. `Attempt.correct` would become a score,
+and every derived ratio with it.
+
+---
+
+## D-23 · 2026-08-31 · The reader sees four lines after a board; every metric is `__DEV__` only
+
+**Decision.** Finishing a board shows `GameSummary` inside the win dialog: **pairs found**,
+**turns taken**, **the share of turns that were right**, and **roughly how long it took**.
+Under `__DEV__` a second card, `GameStatsDetail`, prints every field of the `SessionStats`
+row plus this launch's history for the game. `Dialog` gained a `details` slot for the card
+and now scrolls its own content.
+
+**Why four and no more.** The card sits above three buttons on a phone at a text size the
+reader can double. A fifth line is what pushes "I have finished" off the bottom edge, and
+`longestStreak`, response times and consistency are all in the row for the dashboard and the
+engine to read (D-22) — they do not need to be on this card.
+
+**They are facts, not a grade.** No pass mark, no target, no colour that turns a low number
+into a warning, and nothing compared against anyone else (§2.4). The line that comes closest
+to a score is the share of turns that found a pair, and it is labelled as what it literally
+counts rather than as how well they did. §2.3 forbids anything that scolds; a number the
+reader asked to see and can read plainly is not that, but a red one would be.
+
+**Time is coarse on purpose** — seconds under a minute, whole minutes above it ("About four
+minutes"). An exact figure invites beating it, and nothing in this game is timed. The precise
+duration is in the row and in the developer card.
+
+**The developer card is English literals**, the same exception the Settings developer row
+takes (D-21): it is compiled out of a release build, so no reader can meet an untranslated
+string from it. It is also the only place in the app that shows a raw metric as a metric.
+
+**`Dialog` scrolls now.** A card carrying a summary and three buttons is taller than a small
+phone at the largest text size, and a button pushed off the bottom edge would leave the
+reader with no way out — the dialog has no other dismissal (it cannot be tapped away).
+
+**Would change it if:** the four lines turn out to read as a report card in front of a real
+reader. The fix is fewer lines, not smaller ones — and the metrics lose nothing, because the
+row behind the card is unchanged.
+
+---
+
+## D-24 · 2026-09-01 · The device store is SQLite + Drizzle, opened synchronously, migrated by hand
+
+**Decision.** `apps/mobile` has a local database. `expo-sqlite` holds the file,
+`drizzle-orm` describes it. All nine device tables from `data-model.md` §1 exist:
+`patient`, `device`, `game_session`, `session_event`, `reminder`, `reminder_event`,
+`person`, `memory_item`, `sync_queue`.
+
+- `src/db/schema.ts` — the tables, typed. The only place a column name is written in
+  TypeScript.
+- `src/db/migrations.ts` — the DDL, one string per version, applied in order.
+- `src/db/client.ts` — opens `smaran.db` on first import, sets `WAL` and `foreign_keys`,
+  migrates, ensures the `device` row, exports `db`.
+- `src/db/device.ts` — the device identity and the `seq` counter.
+
+`src/lib/game-history.ts` is now that table. `remember()` is an insert, `recentSessions()`
+a query ordered by `ended_at desc`. **Neither caller changed** — `useGameSession` and
+`GameStatsDetail` still call the same two functions with the same arguments, which is what
+that module was built to make possible (D-22).
+
+**Everything is synchronous.** `expo-sqlite` has a sync API and Drizzle's Expo driver is
+built on it, so a read is a function call and not a promise. That is the whole reason the
+seam held: `GameStatsDetail` asks for history while it renders, and making the store async
+would have pushed a loading state up through every caller for a query that reads fifty rows
+off local flash. There is no provider, no hook and no `isReady` flag.
+
+**But the file is opened lazily, on first use — `db()` is a function, not a constant.**
+Opening at module scope read better and was wrong: it put the open, the migration and the
+device row on the import path of every screen that transitively reaches `src/db/`, so a
+database that could not be opened *at all* took down expo-router, and every route in the app
+reported nothing worse than "missing the required default export". Lazy, a store failure
+costs the games screen and leaves Today, People, Memories and Settings working. It also
+keeps the open off the splash-screen path. `open()` catches and rethrows with the actual
+remedy, because the underlying failure — a development build made before `expo-sqlite` was
+installed — surfaces as `undefined is not a function` from inside the native bridge and
+names neither the cause nor the fix.
+
+**`expo-sqlite` is a native module.** Installing it is not enough; the development build has
+to be rebuilt (`bunx expo run:android` / `run:ios`) or it is not in the binary.
+
+**Migrations are hand-written rather than generated by `drizzle-kit`.** The official Expo
+path bundles generated SQL through a Babel plugin and a Metro resolver change. That is real
+build-pipeline surgery on a bundler that currently works, two days before a demo, for a
+schema that fits on one screen. `PRAGMA user_version` and a list of strings do the same job
+with nothing between the source and the file — a fresh install runs every entry, an upgrade
+runs the tail, and the whole run is one transaction so a migration interrupted mid-upgrade
+leaves the file exactly as it was.
+
+**The cost is that nothing checks the two halves agree.** `schema.ts` is what queries are
+built from; `migrations.ts` is what actually exists on disk. The rules that keep them
+honest: never edit a migration that has shipped, and every schema change is a new entry.
+To verify a change, run the migrations into an in-memory SQLite and round-trip an insert
+and a select through the Drizzle schema for each table it touched — a mismatched column
+name fails loudly there. That is how this schema was checked.
+
+**A session and its `sync_queue` entry are written in one transaction**, as
+`data-model.md` §1 requires. A session without a queue entry is a silently lost sync and
+nothing later would notice. `payload` is a JSON snapshot, not a pointer, so a retry sends
+what the first attempt sent and draining never joins back to a row that may have been
+pruned.
+
+**`seq` is claimed with `UPDATE device SET next_seq = next_seq + 1 RETURNING next_seq`**,
+inside the caller's transaction. One statement, so a number cannot be handed out twice —
+it is half of the `(device_id, seq)` idempotency key the ingest endpoint upserts on (D-09),
+and a duplicate there is two rounds the server would record as one.
+
+**The table is not trimmed.** The in-memory version capped itself at fifty rows because an
+unbounded array on a device that is never closed is a leak. A table is not, and pruning by
+count would drop rows that had not synced yet. `recentSessions()` keeps the fifty-row
+default as a *read* window — the engine wants recent, not lifetime (D-08) — and rows leave
+when they have been acknowledged.
+
+**`game_session` has more columns than `data-model.md` first listed.** `duration_ms`,
+`time_on_task_ms`, `median_response_ms`, `precision`, `completion` and `longest_streak` are
+stored because they are measured facts that cannot be recomputed from the counts, and
+because storing them is what lets a row read back as exactly the `SessionStats` the game
+produced. `data-model.md` has been updated to match.
+
+**Would change it if:** the schema grows past what one person can hold in their head, or a
+second device store appears — then `drizzle-kit generate` with the Babel and Metro wiring
+earns its keep, and `migrations.ts` becomes the generated journal instead of a hand-written
+list. Nothing above `src/db/` would have to change.
+
+---
+
+## D-25 · 2026-09-01 · Reminders are on-device, computed per day, and added from Today
+
+**Decision.** Today draws the reader's real reminders out of the `reminder` table
+(`src/lib/reminders.ts`, `src/hooks/use-reminders.ts`), and a button on that screen opens a
+dialog that writes a new one. Marking one done writes a `reminder_event` and its
+`sync_queue` entry in a single transaction, exactly as a game session does.
+
+**A day's occurrences are computed, not stored.** A row per reminder per day would be a
+table that grows forever and something to fill it — and there is nothing that may be
+assumed to run in the background (`AGENTS.md` §2.2). `remindersFor(day)` reads the active
+definitions, keeps the ones whose days mask includes that weekday, and works out `dueAt`
+from the schedule at the moment the screen draws. Seven reminders and a weekday check cost
+nothing.
+
+**`schedule` is `HH:MM|1111111`** — a 24-hour local time and a seven-character days mask,
+Sunday first — which is the "time-of-day plus a days mask" `data-model.md` §1 allows for.
+A string rather than two columns because the server's definitions are rrule-ish and will
+need somewhere to land. A schedule this build cannot parse is skipped, never guessed at.
+
+**Definitions do not sync up; events do.** `SyncEntity` is `game_session | reminder_event`
+and stays that way: `data-model.md` §4 has reminders as server-authoritative definitions
+that devices *pull*. A reminder added on the phone is therefore local to that phone until
+the dashboard owns the definitions, and that is the honest shape — what the caregiver needs
+from the device is adherence, which is entirely in `reminder_event`.
+
+**Nothing is scheduled with the OS.** `expo-notifications` is not installed, so
+`reminder.notification_ids` stays `[]` and a reminder is something the reader *sees* on
+Today rather than something the phone announces. Installing it is a separate change and
+`lib/reminders.ts` is already the place it goes; no screen changes when it lands.
+
+**Today is one card and one list, not a card per reminder.** The next thing to do is a
+raised card with the time set in `display` and the screen's only filled button; everything
+else is a grouped list of rows behind one edge, divided by hairlines
+(`components/today/reminder-list.tsx`). Stacked cards spent most of the screen on the gaps
+between them and made every reminder look equally urgent, which is the opposite of what
+this screen is for.
+
+**A done reminder stays on the page, quietly.** In the list, muted, with the time it was
+done and a tick. Someone who cannot remember whether they took the tablet needs to be able
+to look and see that they did — a row that vanished would leave exactly the doubt it was
+there to settle. Only the next undone reminder can be marked, and it is the one with the
+button, so the screen keeps one primary action (`AGENTS.md` §2.3).
+
+**The time picker is four buttons, not a wheel.** `TimeField` steps the hour by one and the
+minutes by five, both wrapping, because a spun wheel or a dragged dial is the one gesture a
+hand with a tremor cannot reliably finish. The time is written out large in the reader's
+language beside them.
+
+**Every store call on Today is guarded.** `src/db` is a native module and a development
+build made before it was installed cannot open the file at all (D-24). Today is the screen
+the reader lands on and it is not allowed to be the screen a missing native module takes
+down: a failure costs the reminders, leaves the greeting and the games alone, and hides the
+add button rather than offering an action that would silently do nothing.
+
+**Would change it if:** the dashboard starts sending definitions down — then `reminder`
+becomes a synced-down table like `person`, the dialog becomes a caregiver-side screen, and
+this module keeps the same two reads. Or reminders need to fire with the app closed, which
+is `expo-notifications` and a scheduling pass over the same rows.
+
+---
+
+## D-26 · 2026-09-01 · The engine returns a rung *and* a reason code, and the reason is on the screen
+
+**Decision.** `src/lib/adaptive.ts` — `adjustDifficulty(history, { current, rungs })` →
+`{ difficulty, direction, reason }`. Pure, as D-07 froze it: the history arrives as an array
+of `SessionStats`, the rung comes back, and nothing in the file reads a clock, a table or the
+network. Matching pairs calls it twice, both times doing its own `recentSessions()` read —
+once on the first render to pick the opening board, and once when a board is finished to pick
+what to offer next.
+
+**The reason is a code, not a sentence** — `easy | steady | hard | firstBoard | topBoard |
+gentlest` — and the words live in the four locale catalogues under
+`games.matching.reason.*`, one whole sentence per code per language (D-12). A pure function
+must not know English, and the sentence has to be sayable four ways.
+
+**Why the sentence is the point.** An engine that adapts silently is indistinguishable from
+no engine, to a caregiver and to a judge alike. The dialog after a finished board now says
+*why* the board it is offering is the board it is offering, immediately above the button that
+takes it, and the sentence names the comparison out loud: this reader's own last few rounds
+(§2.4). The button names the board — "Try the six by six board" — rather than a direction,
+because a named board is something you can picture. That needed a lowercase in-sentence
+`levels.<id>.phrase` beside the existing title-case `name`.
+
+**The signature widened from D-07's `(recentSessions, current)`** to take `rungs` as well.
+The engine clamps its own answer into the ladder, so a game never has to check whether the
+rung it was handed exists — and the reason changes with the clamp (`topBoard`, `gentlest`)
+rather than the copy promising a bigger board that isn't there.
+
+**Every threshold is a margin, not a benchmark.** There is no target accuracy in the file and
+no par time. `MARGIN` is how far from the *reader's own* recent mean a round has to land to
+count as different; `BASELINE_WINDOW` is five earlier rounds, recent rather than lifetime, so
+a good month in spring is not still setting the bar in autumn. The single exception is a
+first-ever board, which has no earlier round to sit against and is judged against the board's
+own arithmetic — the fewest turns it could have taken. That is a fact about the board, not
+about a cohort (D-08).
+
+**Pace can earn a bigger board and can never cost one.** A round that reads as ordinary but
+was clearly quicker than their own recent median goes up; a slow round does not go down.
+Nothing here is timed and §2.3 forbids treating slowness as a fault.
+
+**An abandoned board needs no penalty.** It arrives with a low `completion` because less of
+it was found, which is a fact about the round rather than a judgement about the reader.
+
+**Would change it if:** a second game wants a ladder that is not a line of rungs, or there is
+finally enough data to replace the rules with a model — which is the swap D-07 exists for,
+and it touches this file only.
+
+---
+
+## D-27 · 2026-09-01 · The dashboard is a Clerk client too, and calls the API from the browser with the same bearer token
+
+**Decision.** `apps/web` authenticates with Clerk against the *same* Clerk instance as
+`apps/mobile` and `apps/api` — one instance, three clients (D-01). `ClerkProvider` wraps
+`<html>` in the root layout, and `proxy.ts` holds the gate.
+
+**It is `proxy.ts`, not `middleware.ts`.** Next.js 16 deprecated and renamed the file
+convention; the app runs 16.3.3. If a future agent adds `middleware.ts` from memory, Next
+will not run it and every dashboard route silently becomes public. The bundled docs at
+`apps/web/node_modules/next/dist/docs/` are the authority here, not training data.
+
+**The matcher lists what is *public*, not what is protected.** `/`, `/login(.*)`,
+`/signup(.*)`, and the PWA manifest and icons. Everything else calls `auth.protect()`. This
+is deliberate: every other screen is caregiver-facing patient data (§2.5), so a new route
+that nobody remembered to list fails *closed* rather than open.
+
+**Sign-in and sign-up are Clerk's prebuilt components, not the hand-built forms.** The two
+pages previously rendered email/password inputs that submitted nothing — the login button
+was a `<Link href="/dashboard">`. They are now `<SignIn>` / `<SignUp>` at catch-all routes
+(`app/login/[[...rest]]/page.tsx`), which is what Clerk's multi-step flows require. The
+page keeps its own logo, heading and sub-heading and hides Clerk's `header` element, so the
+branding survives; `lib/clerk-appearance.ts` feeds Clerk the app's CSS custom properties
+rather than literal colours, so the widget follows the light/dark switch with everything
+else.
+
+Note that Clerk v7 renamed the appearance variables: it is `colorForeground`,
+`colorMutedForeground`, `colorInput` and `colorInputForeground` — **not** `colorText`,
+`colorTextSecondary`, `colorInputBackground` or `colorInputText`, which are what most
+examples online still show and which fail to type-check here.
+
+**The API client is split in three, because the session is read differently on each side.**
+`lib/api.ts` holds the transport and imports nothing from Clerk; `lib/api-server.ts`
+exports `api()` for server components and actions (session from `auth()`); `hooks/use-api.ts`
+exports `useApi()` for client components (session from `useAuth()`). Both hand their own
+`getToken` to the same `apiFetch`. It is kept deliberately in step with
+`apps/mobile/src/lib/api.ts` — same `ApiError` / `ApiUnreachableError` split, same
+per-call token (D-21), same reading of FastAPI's `detail` body — so the two clients do not
+drift into two different ideas of what a failed request means.
+
+**The browser talks to `apps/api` directly, so the API needed CORS.** It had none: every
+authenticated call from the dashboard is preflighted, and every one of them would have
+failed. `main.py` now mounts `CORSMiddleware` from a new `CORS_ALLOW_ORIGINS` setting
+(default `http://localhost:3000`). Origins are listed rather than wildcarded —
+`allow_credentials` with `*` is rejected by browsers anyway, and a wildcard on an API
+serving patient data is not what we want.
+
+**This is the moment D-21 warned about.** `CLERK_AUTHORIZED_PARTIES` could stay empty while
+mobile was the only client, because a native Expo client has no web origin to put in `azp`.
+Now there are two clients with different answers. Either leave it unset, or set it to cover
+**both** — a value listing only the dashboard's origin silently 401s every phone.
+
+**What is not done.** Every screen still renders `lib/mock-data.ts`; the client exists and
+nothing calls it yet. The header shows the real Clerk user, but Settings still renders the
+mock caregiver. Deleting the mocks is the next task on this app, not part of this one.
+
+---
+
+## D-28 · 2026-09-01 · A new account claims its role once, from the client that created it
+
+**Decision.** Roles live in the `roles` table and only there (D-20), and Clerk does not
+write to it — so a brand-new account has an identity and no permissions at all. The client
+that created the account is what tells the API which kind it is: `apps/web` calls
+`POST /auth/caregiver-role` after a sign-up, `apps/mobile` calls `POST /auth/patient-role`
+on the first session it holds for an account. `PATIENT_ROLE` (default `patient`) joins
+`CAREGIVER_ROLE` in `core/config.py`, for the same reason — the name of a value in our own
+column, never a literal in code.
+
+**Both routes go through one function, `self_enroll(user_id, role)`, and it only grants to
+an account holding nothing.** Self-enrolment is a claim made by the caller, so it is trusted
+exactly once: an account that already holds a role is left alone and told `granted: false`.
+Without that, `/auth/caregiver-role` is an escalation route — anyone holding a patient's
+token could ask for the caregiver role and then read that patient's data through the
+dashboard API (§2.5). Widening a role after the fact is a caregiver-side act and belongs on
+a guarded route, not on an open one.
+
+**It is idempotent, because the clients retry.** Asking twice for a role already held
+answers `granted: true` and writes nothing. That is what lets both clients treat the call as
+fire-and-forget rather than as a step that must not be missed.
+
+**The dashboard puts it on a page, the phone does not.** `/welcome` is a real screen with a
+visible failure and a "Try again" button: the API is a separate origin, it can be down when
+an account is minutes old, and a new caregiver landing on a 403-ing dashboard would read it
+as their account being broken. `SignUp` uses `forceRedirectUrl` rather than a fallback so
+`NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` cannot route around it.
+
+The phone gets the opposite treatment. `useRoleEnrolment()` runs from the root layout,
+blocks nothing, shows nothing and says nothing when it fails — §2.1 forbids a patient screen
+waiting on the network, and §2.3 forbids telling a reader about a failure they cannot act
+on. The marker is written only on success, so a phone that was offline at sign-in asks again
+next launch.
+
+**The marker holds the Clerk user id, not a boolean.** A phone can be handed on or signed in
+as somebody else; a bare "done" flag would leave the second person unenrolled forever.
+
+**Mobile cannot tell sign-up from sign-in, and does not try.** The Account Portal hands back
+a session either way without saying which it was, so the hook asks on the first session it
+sees for a given user id. The endpoint's idempotence is what makes that safe.
+
+**Would change it if:** enrolment ever needs to be something other than self-asserted — a
+caregiver provisioning a patient's device, which the PS's enrollment model implies. That
+grant comes from a caregiver-guarded route and would make the phone's call redundant, not
+wrong.
+
+---
+
+## D-29 · 2026-09-01 · Clerk loads from a device resource cache, so the app opens with the radio off
+
+**Decision.** `ClerkProvider` in `apps/mobile/src/app/_layout.tsx` is given
+`__experimental_resourceCache={resourceCache}` from `@clerk/expo/resource-cache`, alongside
+the token cache it already had.
+
+**Why.** The token cache persists the client JWT; it does not let Clerk *start*. Without a
+resource cache, `@clerk/expo` can only resolve its environment and client by calling Clerk's
+API, so with no network `useAuth().isLoaded` never flips. The root gate holds the splash on
+exactly that flag, so the app did not open offline at all — a §2.1 failure of the most
+literal kind, on the one screen that has to work everywhere.
+
+With the cache, Clerk restores the last known environment and client from secure storage,
+`isLoaded` resolves from disk, and a retry loop refreshes both in the background once there
+is a network again. Nothing on the reader's path waits on that retry.
+
+**A first-ever launch offline still lands on `landing`.** There is no cached session to
+restore, so Clerk loads dummy resources and reports signed out, which is the truth: an
+account has to be created online once. Every launch after that opens straight into the app.
+
+**The API is `__experimental_`.** That is Clerk's label, not a hedge on our part — it is the
+only offline-load mechanism the SDK offers, and the alternative is an app that does not
+start. If the option is renamed in a later `@clerk/expo`, follow the rename; do not drop it.
+
+**Also.** `apiFetch` now treats a throwing `getToken()` as `ApiUnreachableError`. Refreshing
+an expired session token is itself a call to Clerk, so offline it fails before our own API is
+reached — the same "we could not ask" case, and callers already handle that one.
+
+**Would change it if:** Clerk ships offline restore as a stable, default behaviour, at which
+point the explicit option comes out.

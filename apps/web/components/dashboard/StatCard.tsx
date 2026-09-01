@@ -1,4 +1,4 @@
-import { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function StatCard({
@@ -26,10 +26,17 @@ export function StatCard({
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-ink-500">{label}</p>
-          <p className="mt-2 font-display text-3xl font-bold text-ink-900">{value}</p>
+          <p className="mt-2 font-display text-3xl font-bold text-ink-900">
+            {value}
+          </p>
           {subtext && <p className="mt-1.5 text-xs text-ink-500">{subtext}</p>}
         </div>
-        <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", toneMap[tone])}>
+        <div
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+            toneMap[tone],
+          )}
+        >
           <Icon size={20} />
         </div>
       </div>

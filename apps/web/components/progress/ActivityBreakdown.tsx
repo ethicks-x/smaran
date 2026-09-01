@@ -21,7 +21,9 @@ export function ActivityBreakdown({
           </div>
         </div>
       ))}
-      {data.length === 0 && <p className="text-sm text-ink-500">No answered questions yet.</p>}
+      {data.length === 0 && (
+        <p className="text-sm text-ink-500">No answered questions yet.</p>
+      )}
     </div>
   );
 }

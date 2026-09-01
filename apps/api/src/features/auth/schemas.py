@@ -27,4 +27,10 @@ class AuthContext(BaseModel):
     claims: dict[str, Any] = Field(default_factory=dict, repr=False)
 
 
-__all__ = ["AuthContext"]
+class RoleGrantOut(BaseModel):
+    user_id: str
+    role: str
+    granted: bool
+
+
+__all__ = ["AuthContext", "RoleGrantOut"]

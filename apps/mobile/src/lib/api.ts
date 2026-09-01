@@ -74,7 +74,16 @@ export async function apiFetch<T>(
 	getToken: GetToken,
 	init: RequestInit = {},
 ): Promise<T> {
-	const token = await getToken();
+	let token: string | null;
+
+	try {
+		token = await getToken();
+	} catch (cause) {
+		// Refreshing an expired session token is itself a call to Clerk, so with
+		// the radio off this throws before we ever reach our own API. It is the
+		// same "we could not ask" case as a failed fetch and is reported as one.
+		throw new ApiUnreachableError(cause);
+	}
 
 	let response: Response;
 

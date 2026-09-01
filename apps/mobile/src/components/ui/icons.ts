@@ -37,6 +37,18 @@ export const AppIcons = {
 		ios: "bell.fill",
 		android: require("@expo/material-symbols/notifications.xml"),
 	}),
+	water: Icon.select({
+		ios: "drop.fill",
+		android: require("@expo/material-symbols/water_drop.xml"),
+	}),
+	activity: Icon.select({
+		ios: "figure.walk",
+		android: require("@expo/material-symbols/directions_walk.xml"),
+	}),
+	appointment: Icon.select({
+		ios: "calendar",
+		android: require("@expo/material-symbols/event.xml"),
+	}),
 	check: Icon.select({
 		ios: "checkmark.circle.fill",
 		android: require("@expo/material-symbols/check_circle.xml"),
@@ -60,6 +72,10 @@ export const AppIcons = {
 	chevronDown: Icon.select({
 		ios: "chevron.down",
 		android: require("@expo/material-symbols/keyboard_arrow_down.xml"),
+	}),
+	chevronUp: Icon.select({
+		ios: "chevron.up",
+		android: require("@expo/material-symbols/keyboard_arrow_up.xml"),
 	}),
 	textSize: Icon.select({
 		ios: "textformat.size",

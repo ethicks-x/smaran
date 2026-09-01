@@ -21,45 +21,49 @@ class Base(DeclarativeBase):
     pass
 
 
-def load_s3_cert_to_tempfile() -> str:
-    """Download CA cert from S3 into a secure temporary file and return its path."""
-    s3_kwargs: dict[str, str | None] = {}
-    if settings.s3_endpoint_url:
-        s3_kwargs["endpoint_url"] = settings.s3_endpoint_url
-    if settings.s3_region_name:
-        s3_kwargs["region_name"] = settings.s3_region_name
-    if settings.s3_access_key_id and settings.s3_secret_access_key:
-        s3_kwargs["aws_access_key_id"] = settings.s3_access_key_id
-        s3_kwargs["aws_secret_access_key"] = settings.s3_secret_access_key
+def load_s3_cert_to_tempfile() -> str | None:
+    """Download CA cert from S3 into a secure temporary file if configured, and return its path."""
+    if not settings.s3_cert_bucket or not settings.s3_cert_key:
+        return None
+    try:
+        s3_client = boto3.client(
+            "s3",
+            endpoint_url=settings.s3_endpoint_url,
+            region_name=settings.s3_region_name,
+            aws_access_key_id=settings.s3_access_key_id,
+            aws_secret_access_key=settings.s3_secret_access_key,
+        )
+        response = s3_client.get_object(Bucket=settings.s3_cert_bucket, Key=settings.s3_cert_key)
+        cert_data = response["Body"].read()
 
-    s3_client = boto3.client("s3", **s3_kwargs)
-    response = s3_client.get_object(Bucket=settings.s3_cert_bucket, Key=settings.s3_cert_key)
-    cert_data = response["Body"].read()
+        # Create a persistent temp file for the runtime process
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".crt") as temp_cert:
+            temp_cert.write(cert_data)
+            temp_cert.flush()
+            temp_cert.close()
 
-    # Create a persistent temp file for the runtime process
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".crt") as temp_cert:
-        temp_cert.write(cert_data)
-        temp_cert.flush()
-        temp_cert.close()
+            # Clean up file on process exit
+            import os
 
-        # Clean up file on process exit
-        import os
+            atexit.register(lambda: os.path.exists(temp_cert.name) and os.remove(temp_cert.name))
 
-        atexit.register(lambda: os.path.exists(temp_cert.name) and os.remove(temp_cert.name))
-
-        return temp_cert.name
+            return temp_cert.name
+    except Exception:
+        return None
 
 
 cert_path = load_s3_cert_to_tempfile()
+
+connect_args: dict[str, str] = {}
+if cert_path:
+    connect_args["sslmode"] = "verify-full"
+    connect_args["sslrootcert"] = cert_path
 
 engine = create_async_engine(
     settings.database_url,
     echo=settings.db_echo,
     future=True,
-    connect_args={
-        "sslmode": "verify-full",
-        "sslrootcert": cert_path,
-    },
+    connect_args=connect_args,
 )
 
 SessionLocal = async_sessionmaker(

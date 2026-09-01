@@ -1,16 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Users,
-  Heart,
   BarChart3,
   Bell,
-  Settings,
   Brain,
+  LayoutDashboard,
+  Settings,
+  Users,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -31,8 +30,12 @@ export function Sidebar() {
           <Brain size={20} />
         </div>
         <div>
-          <p className="font-display text-lg font-bold leading-none text-ink-900">Smaran</p>
-          <p className="mt-1 text-[11px] leading-none text-ink-500">Cognitive Care</p>
+          <p className="font-display text-lg font-bold leading-none text-ink-900">
+            Smaran
+          </p>
+          <p className="mt-1 text-[11px] leading-none text-ink-500">
+            Cognitive Care
+          </p>
         </div>
       </div>
 
@@ -49,14 +52,16 @@ export function Sidebar() {
                 "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
                 isActive
                   ? "bg-indigo-50 text-indigo-700"
-                  : "text-ink-500 hover:bg-black/[0.04] hover:text-ink-900"
+                  : "text-ink-500 hover:bg-black/[0.04] hover:text-ink-900",
               )}
             >
               <item.icon
                 size={19}
                 className={cn(
                   "shrink-0",
-                  isActive ? "text-indigo-600" : "text-ink-300 group-hover:text-ink-500"
+                  isActive
+                    ? "text-indigo-600"
+                    : "text-ink-300 group-hover:text-ink-500",
                 )}
               />
               <span className="truncate">{item.label}</span>
