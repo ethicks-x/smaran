@@ -149,12 +149,26 @@ export default function AddMemorySubjectPage() {
 					},
 				);
 
-				const put = await fetch(ticket.upload_url, {
-					method: "PUT",
-					body: photo,
-					// Signed into the URL, so it has to match exactly or the bucket refuses it.
-					headers: { "Content-Type": ticket.content_type },
-				});
+				let put: Response;
+				try {
+					put = await fetch(ticket.upload_url, {
+						method: "PUT",
+						body: photo,
+						// Signed into the URL, so it has to match exactly or the bucket refuses it.
+						headers: { "Content-Type": ticket.content_type },
+					});
+				} catch {
+					// fetch() rejects here — rather than resolving with a non-ok response — only
+					// when the request never reached the bucket at all: almost always the bucket's
+					// CORS policy not yet allowing this app's origin, method and Content-Type
+					// header. The raw browser exception ("Failed to fetch" / "NetworkError when
+					// attempting to fetch resource") is jargon a caregiver cannot act on (AGENTS.md
+					// §2.3), so it is never shown — and unlike an ordinary failed request, retrying
+					// will not help until that policy changes.
+					throw new Error(
+						"Couldn't reach photo storage. Ask whoever set up the app to check the storage connection, then try again.",
+					);
+				}
 				if (!put.ok) {
 					throw new Error(
 						"The picture did not finish uploading. Please try again.",
