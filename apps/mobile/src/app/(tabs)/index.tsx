@@ -85,12 +85,12 @@ export default function TodayScreen() {
           are offered by name and the fourth tile opens the tab with the rest,
           so the common case is one tap from the screen the reader starts on
           and the full list is still one tap away. */}
-			<Section
+			{/* <Section
 				title={t("games.home.section")}
 				description={t("games.home.description")}
 			>
 				<GameGrid tiles={homeTiles(t)} />
-			</Section>
+			</Section> */}
 
 			<AddReminderDialog
 				visible={adding}

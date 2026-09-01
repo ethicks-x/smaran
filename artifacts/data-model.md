@@ -102,7 +102,7 @@ retention window; never sync unless a session is flagged for review.
 | `id` | text PK | |
 | `kind` | text | `medicine` · `hydration` · `activity` · `appointment` |
 | `title` / `detail` | text | shown and spoken |
-| `schedule` | text | rrule-ish or a simple time-of-day + days mask |
+| `schedule` | text | rrule-ish, or `HH:MM\|1111111` — a time of day plus a days mask — or `HH:MM@YYYY-MM-DD` for one that happens once (D-43) |
 | `active` | integer | 0/1 |
 | `notification_ids` | text | JSON array of scheduled `expo-notifications` ids, so a change can cancel cleanly |
 

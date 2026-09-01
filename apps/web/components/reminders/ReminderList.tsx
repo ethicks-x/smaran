@@ -27,16 +27,35 @@ const KIND_TONES: Record<ReminderKind, "coral" | "indigo" | "mint" | "amber"> =
 		appointment: "amber",
 	};
 
+// `HH:MM|1111111` for a reminder that repeats, `HH:MM@YYYY-MM-DD` for one the patient set
+// for a single day on their phone. Both shapes reach this list, so both are read here.
 function parseSchedule(schedule: string): { time: string; days: string } {
+	if (schedule.includes("@")) {
+		const [time, date] = schedule.split("@");
+
+		return { time, days: `Once on ${formatDate(date)}` };
+	}
+
 	const [time, daysMask] = schedule.split("|");
 	const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-	const activeDays = daysMask
+	const activeDays = (daysMask ?? "")
 		.split("")
 		.map((bit, i) => (bit === "1" ? daysOfWeek[i] : null))
 		.filter(Boolean)
 		.join(", ");
 
 	return { time, days: activeDays || "Never" };
+}
+
+function formatDate(date: string): string {
+	const [year, month, day] = date.split("-").map(Number);
+
+	return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+		weekday: "short",
+		day: "numeric",
+		month: "long",
+		year: "numeric",
+	});
 }
 
 export function ReminderList({

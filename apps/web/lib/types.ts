@@ -222,7 +222,7 @@ export interface ReminderApi {
 	kind: ReminderKind;
 	title: string;
 	detail: string | null;
-	schedule: string; // "HH:MM|1111111" format
+	schedule: string; // "HH:MM|1111111" weekly, or "HH:MM@YYYY-MM-DD" once
 	active: boolean;
 	created_by: string | null;
 	created_at: string;
@@ -233,7 +233,7 @@ export interface ReminderCreateInput {
 	kind: ReminderKind;
 	title: string;
 	detail?: string | null;
-	schedule: string; // "HH:MM|1111111" format
+	schedule: string; // "HH:MM|1111111" weekly, or "HH:MM@YYYY-MM-DD" once
 	active?: boolean;
 }
 

@@ -6,10 +6,16 @@
 		"cancel": "Cancel",
 		"hour": "Hour",
 		"minutes": "Minutes",
-		"hourEarlier": "An hour earlier",
-		"hourLater": "An hour later",
-		"minutesEarlier": "Five minutes earlier",
-		"minutesLater": "Five minutes later"
+		"done": "Done",
+		"am": "Morning (am)",
+		"pm": "Afternoon (pm)",
+		"halfOfDay": "Morning or afternoon",
+		"everyDay": "Every day",
+		"weekdays": "Monday to Friday",
+		"weekends": "Saturday and Sunday",
+		"day": "Day",
+		"month": "Month",
+		"year": "Year"
 	},
 	"tabs": {
 		"today": "Today",
@@ -111,11 +117,19 @@
 		},
 		"add": {
 			"title": "Add a reminder",
-			"message": "It will be here on this page every day, at the time you choose.",
-			"kindLabel": "What is it for",
+			"message": "It will be here on this page at the time you choose, on the days you choose.",
 			"nameLabel": "What should it say",
 			"nameHint": "A few words, like “Take the blue tablet”.",
+			"kindLabel": "What is it for",
 			"timeLabel": "What time",
+			"repeatLabel": "How often",
+			"repeats": {
+				"everyDay": "Every day",
+				"someDays": "Only on some days",
+				"once": "Just once, on a day"
+			},
+			"daysLabel": "Which days",
+			"dateLabel": "Which day",
 			"save": "Add this reminder"
 		}
 	},
