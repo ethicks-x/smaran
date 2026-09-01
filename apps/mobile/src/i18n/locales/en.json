@@ -109,8 +109,9 @@
 		"moreMessage": "New games will appear on this list as they are ready. Every one of them works with no signal.",
 		"home": {
 			"section": "Something to do",
-			"title": "Games",
-			"description": "A few gentle games, whenever you feel like playing one."
+			"description": "A few gentle games, whenever you feel like playing one.",
+			"all": "All games",
+			"allHint": "See every game there is, including the ones you have not played yet."
 		},
 		"summary": {
 			"found": "Answers found",

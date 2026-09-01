@@ -1,9 +1,15 @@
 import { useUser } from "@clerk/expo";
 import { router } from "expo-router";
+import type { TFunction } from "i18next";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { GameCard } from "@/components/games";
+import {
+	GameCatalogue,
+	GameGrid,
+	type GameGridTile,
+	HomeGameCount,
+} from "@/components/games";
 import {
 	AddReminderDialog,
 	NextReminderCard,
@@ -77,14 +83,16 @@ export default function TodayScreen() {
 
 			{/* The way into the games, and the only one — five tabs is the ceiling
           (D-06), so the games live on top of the tabs and are reached from the
-          screen the reader starts on. */}
-			<Section title={t("games.home.section")}>
-				<GameCard
-					icon="games"
-					title={t("games.home.title")}
-					description={t("games.home.description")}
-					onPress={() => router.push("/games")}
-				/>
+          screen the reader starts on.
+
+          Three boards are offered by name and the fourth tile opens the rest,
+          so the common case is one tap from the screen the reader starts on
+          and the full list is still one tap away. */}
+			<Section
+				title={t("games.home.section")}
+				description={t("games.home.description")}
+			>
+				<GameGrid tiles={homeTiles(t)} />
 			</Section>
 
 			<AddReminderDialog
@@ -94,6 +102,37 @@ export default function TodayScreen() {
 			/>
 		</Screen>
 	);
+}
+
+/**
+ * The four tiles: the first three games in the catalogue by name, and the way
+ * to all of them. Fewer than three games ships fewer than three tiles rather
+ * than a placeholder — the grid is a short row and no reader is told about a
+ * game that is not there.
+ */
+function homeTiles(t: TFunction): GameGridTile[] {
+	const games: GameGridTile[] = GameCatalogue.slice(0, HomeGameCount).map(
+		(game) => ({
+			id: game.id,
+			icon: game.icon,
+			title: t(game.nameKey),
+			description: t(game.descriptionKey),
+			kind: "game",
+			onPress: () => router.push(game.route),
+		}),
+	);
+
+	return [
+		...games,
+		{
+			id: "all",
+			icon: "games",
+			title: t("games.home.all"),
+			description: t("games.home.allHint"),
+			kind: "more",
+			onPress: () => router.push("/games"),
+		},
+	];
 }
 
 /**

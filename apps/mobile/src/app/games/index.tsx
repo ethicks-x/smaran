@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { GameCard } from "@/components/games";
+import { GameCard, GameCatalogue } from "@/components/games";
 import { EmptyState, Screen, Section } from "@/components/ui";
 
 /**
@@ -10,7 +10,8 @@ import { EmptyState, Screen, Section } from "@/components/ui";
  *
  * A game arrives underneath the ones already here rather than rearranging the
  * page a reader has learnt, which is why the list looked like a list back when
- * there was only one thing on it.
+ * there was only one thing on it. The order is the catalogue's, so the list
+ * and the tiles on Today never disagree about which game comes first.
  */
 export default function GamesScreen() {
 	const { t } = useTranslation();
@@ -23,19 +24,15 @@ export default function GamesScreen() {
 			withTabBar={false}
 		>
 			<Section title={t("games.ready")}>
-				<GameCard
-					icon="matching"
-					title={t("games.matching.name")}
-					description={t("games.matching.shortDescription")}
-					onPress={() => router.push("/games/matching")}
-				/>
-
-				<GameCard
-					icon="missing"
-					title={t("games.missing.name")}
-					description={t("games.missing.shortDescription")}
-					onPress={() => router.push("/games/missing")}
-				/>
+				{GameCatalogue.map((game) => (
+					<GameCard
+						key={game.id}
+						icon={game.icon}
+						title={t(game.nameKey)}
+						description={t(game.descriptionKey)}
+						onPress={() => router.push(game.route)}
+					/>
+				))}
 			</Section>
 
 			<Section title={t("games.more")}>
