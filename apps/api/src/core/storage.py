@@ -1,26 +1,28 @@
 """
-Presigned access to the S3 memory bucket.
+Access to the S3 memory bucket.
 
-The bytes of a memory never pass through this API. A caregiver's browser is handed a
-short-lived URL and talks to the bucket directly, so a photo on a slow NER connection
-occupies their browser for the length of the upload rather than an API worker
-(`decisions.md` D-32).
+D-32 had the browser PUT straight to the bucket with a presigned URL, so a photo never
+passed through this API. The provider hosting the memory bucket does not accept a presigned
+PUT — only presigned GET and HEAD — so a write cannot be handed to the browser to perform on
+its own; it has to go through code that holds real credentials. `upload_object` is that
+write: the browser posts the file to this API, and this module relays it to the bucket with
+a live, SDK-signed request rather than a URL signed in advance. Reads keep the old shape —
+`view_url` still hands out a presigned GET, which the provider does accept — so only the
+write path changed (D-42).
 
-Signing is local — it is an HMAC over the request, not a call to S3 — so the presign
-helpers here are safe to call straight from an async route. `head_object` is not: it is a
-real network round trip and runs on a worker thread.
+`view_url`'s signing is local — an HMAC over the request, not a call to S3 — so it is safe
+to call straight from an async route. `upload_object` is not: it is a real network round
+trip and runs on a worker thread.
 """
 
 from __future__ import annotations
 
-import contextlib
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
 import anyio.to_thread
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError
 from fastapi import HTTPException, status
 
 from core.config import settings
@@ -97,19 +99,23 @@ def build_object_key(patient_id: UUID, asset_id: UUID, extension: str) -> str:
     return f"{leader}{patient_id}/{asset_id}{extension}"
 
 
-def presign_put(object_key: str, content_type: str) -> str:
-    """A short-lived URL the browser may PUT one object to."""
-    return _client().generate_presigned_url(
-        "put_object",
-        Params={
-            "Bucket": memories_bucket(),
-            "Key": object_key,
-            # Signed in, so the browser must send exactly this header back. That is the
-            # point: it stops a URL minted for a photo being reused to store something else.
-            "ContentType": content_type,
-        },
-        ExpiresIn=settings.s3_presign_expiry_seconds,
-    )
+async def upload_object(object_key: str, content_type: str, body: bytes) -> str:
+    """
+    Write an object to the bucket and return its ETag.
+
+    A live request, signed with the real credentials this process holds — not a presigned
+    URL, which is exactly the request shape the provider refuses for a write. `put_object` is
+    atomic: there is no partial-write state to clean up if this raises, so a caller that
+    catches an exception here needs no compensating delete.
+    """
+
+    def _put() -> str:
+        response = _client().put_object(
+            Bucket=memories_bucket(), Key=object_key, Body=body, ContentType=content_type
+        )
+        return response.get("ETag", "").strip('"')
+
+    return await anyio.to_thread.run_sync(_put)
 
 
 def view_url(object_key: str) -> str:
@@ -131,44 +137,11 @@ def view_url(object_key: str) -> str:
     )
 
 
-async def head_object(object_key: str) -> tuple[str | None, int | None] | None:
-    """
-    The object's ETag and size, or `None` when it is not there.
-
-    A real round trip to the bucket, so it runs on a worker thread rather than holding the
-    event loop for the length of someone else's network.
-    """
-
-    def _head() -> tuple[str | None, int | None] | None:
-        try:
-            response = _client().head_object(Bucket=memories_bucket(), Key=object_key)
-        except ClientError:
-            # 404 and 403 both mean "we cannot confirm this landed", and the caller treats
-            # them the same way. Nothing here distinguishes them for the caregiver.
-            return None
-        return response.get("ETag", "").strip('"') or None, response.get("ContentLength")
-
-    return await anyio.to_thread.run_sync(_head)
-
-
-async def delete_object(object_key: str) -> None:
-    """Remove an object. Used to clean up an upload that turned out to be unacceptable."""
-
-    def _delete() -> None:
-        # Best effort. A leftover object is litter, not a failure worth showing anyone.
-        with contextlib.suppress(ClientError):
-            _client().delete_object(Bucket=memories_bucket(), Key=object_key)
-
-    await anyio.to_thread.run_sync(_delete)
-
-
 __all__ = [
     "ALLOWED_CONTENT_TYPES",
     "build_object_key",
     "check_content_type",
-    "delete_object",
-    "head_object",
     "memories_bucket",
-    "presign_put",
+    "upload_object",
     "view_url",
 ]

@@ -16,10 +16,8 @@ from core.config import settings
 from core.storage import (
     build_object_key,
     check_content_type,
-    delete_object,
-    head_object,
     memories_bucket,
-    presign_put,
+    upload_object,
     view_url,
 )
 from features.care.schemas import LINK_ACTIVE
@@ -30,13 +28,10 @@ from features.dashboard.schemas import (
     CasualPlayCreateIn,
     CasualPlayOut,
     DashboardSummaryOut,
-    MemoryAssetConfirmIn,
     MemoryAssetOut,
     MemorySubjectCreateIn,
     MemorySubjectOut,
     MemorySubjectUpdateIn,
-    MemoryUploadCreateIn,
-    MemoryUploadOut,
     NotificationOut,
     PatientCardOut,
     PatientCreateIn,
@@ -66,6 +61,7 @@ from features.database.models import (
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from fastapi import UploadFile
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -547,34 +543,38 @@ async def delete_memory_subject(
 # --- Memory Media ---
 
 
-async def create_memory_upload(
+async def upload_memory_asset(
     session: AsyncSession,
     caregiver_id: str,
     patient_id: UUID,
-    data: MemoryUploadCreateIn,
-) -> MemoryUploadOut:
-    """Reserve a place in the bucket and hand back a URL the browser can PUT to.
+    *,
+    file: UploadFile,
+    kind: str,
+    description: str | None,
+    subject_id: UUID | None,
+) -> MemoryAssetOut:
+    """Upload a picture straight to the bucket and record it, in one request.
 
-    The row is written before the object exists, because minting the URL is what creates it.
-    It stays `pending` until `confirm_memory_upload` has seen the bytes land.
+    D-32 had the browser PUT directly to the bucket with a presigned URL — the row existed
+    before the object did, because minting the URL was what created it, and a separate
+    confirm step asked the bucket whether the bytes had actually landed. The provider behind
+    this bucket does not accept a presigned PUT, only a presigned GET or HEAD, so that shape
+    is not available: nothing can hand the browser a URL to write with. The file comes to
+    this API instead, which holds real credentials and can write directly (D-42).
+
+    Because this function performs the write itself rather than learning about one it did
+    not perform, there is nothing left to confirm — the outcome of `upload_object` below is
+    the only truth there is, known synchronously, in this same request.
     """
     await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
 
-    extension = check_content_type(data.content_type)
+    content_type = (file.content_type or "").lower().strip()
+    extension = check_content_type(content_type)
 
-    # Checked here against what the browser claims, and again on confirm against what the
-    # bucket actually holds. A presigned PUT cannot enforce a size by itself, so the second
-    # check is the one that really binds.
-    if data.size_bytes > settings.s3_max_upload_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail="That picture is too large. Try a smaller one.",
-        )
-
-    if data.subject_id is not None:
+    if subject_id is not None:
         subject = await session.scalar(
             select(MemorySubject).where(
-                MemorySubject.id == data.subject_id,
+                MemorySubject.id == subject_id,
                 MemorySubject.patient_id == patient_id,
             )
         )
@@ -584,16 +584,31 @@ async def create_memory_upload(
                 detail="Memory subject not found.",
             )
 
+    # Enforced while reading, not after: a Content-Length header is the caregiver's browser
+    # talking, and reading an unbounded body fully into memory before checking its size would
+    # defeat the point of having a limit.
+    chunks: list[bytes] = []
+    total_bytes = 0
+    while chunk := await file.read(1 << 20):
+        total_bytes += len(chunk)
+        if total_bytes > settings.s3_max_upload_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail="That picture is too large. Try a smaller one.",
+            )
+        chunks.append(chunk)
+    body = b"".join(chunks)
+
     asset = MemoryAsset(
         patient_id=patient_id,
-        subject_id=data.subject_id,
-        kind=data.kind.lower(),
+        subject_id=subject_id,
+        kind=kind.lower(),
         bucket=memories_bucket(),
         object_key="",  # replaced below; the key is built from the row's own id
-        file_name=data.file_name,
-        content_type=data.content_type.lower().strip(),
-        size_bytes=data.size_bytes,
-        description=data.description,
+        file_name=file.filename,
+        content_type=content_type,
+        size_bytes=total_bytes,
+        description=description,
         status="pending",
         uploaded_by=caregiver_id,
     )
@@ -601,70 +616,22 @@ async def create_memory_upload(
     await session.flush()
 
     asset.object_key = build_object_key(patient_id, asset.id, extension)
-    await session.commit()
-    await session.refresh(asset)
 
-    return MemoryUploadOut(
-        asset_id=asset.id,
-        upload_url=presign_put(asset.object_key, asset.content_type or data.content_type),
-        object_key=asset.object_key,
-        content_type=asset.content_type or data.content_type,
-        expires_in=settings.s3_presign_expiry_seconds,
-    )
-
-
-async def confirm_memory_upload(
-    session: AsyncSession,
-    caregiver_id: str,
-    patient_id: UUID,
-    asset_id: UUID,
-    data: MemoryAssetConfirmIn,
-) -> MemoryAssetOut:
-    """Mark an upload `ready`, having checked the bucket really holds it.
-
-    The client is never trusted for this. A row flipped to `ready` without the bytes behind
-    it is one the phone will sync down and cache as a broken picture.
-    """
-    await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
-
-    asset = await session.scalar(
-        select(MemoryAsset).where(
-            MemoryAsset.id == asset_id,
-            MemoryAsset.patient_id == patient_id,
-        )
-    )
-    if asset is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="That upload was not found.",
-        )
-
-    found = await head_object(asset.object_key)
-    if found is None:
+    try:
+        etag = await upload_object(asset.object_key, content_type, body)
+    except Exception as exc:
+        # The true edge of the system: any bucket failure — network, credentials, the
+        # provider itself — becomes one plain message, the way `db.py`'s own S3 read
+        # already treats a bucket as something that can just not work today.
         asset.status = "failed"
         await session.commit()
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="The picture did not finish uploading. Please try again.",
-        )
-
-    etag, size_bytes = found
-
-    # The real size, not the declared one. A presigned PUT will accept whatever the browser
-    # sends, so this is where an oversized upload is actually caught — and the object goes
-    # with it, rather than sitting in the bucket unreferenced.
-    if size_bytes is not None and size_bytes > settings.s3_max_upload_bytes:
-        await delete_object(asset.object_key)
-        asset.status = "failed"
-        await session.commit()
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail="That picture is too large. Try a smaller one.",
-        )
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Couldn't save that picture. Please try again.",
+        ) from exc
 
     asset.status = "ready"
-    asset.etag = etag or data.etag
-    asset.size_bytes = size_bytes or data.size_bytes or asset.size_bytes
+    asset.etag = etag or None
     asset.uploaded_at = _utcnow()
     await session.commit()
     await session.refresh(asset)

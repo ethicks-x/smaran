@@ -4,7 +4,7 @@ from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Annotated
 from uuid import UUID  # noqa: TC003
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, File, Form, Query, UploadFile
 
 from features.auth.decorators import caregiver_required
 from features.dashboard.schemas import (  # noqa: TC001
@@ -13,13 +13,10 @@ from features.dashboard.schemas import (  # noqa: TC001
     CasualPlayCreateIn,
     CasualPlayOut,
     DashboardSummaryOut,
-    MemoryAssetConfirmIn,
     MemoryAssetOut,
     MemorySubjectCreateIn,
     MemorySubjectOut,
     MemorySubjectUpdateIn,
-    MemoryUploadCreateIn,
-    MemoryUploadOut,
     NotificationOut,
     PatientCardOut,
     PatientCreateIn,
@@ -32,10 +29,8 @@ from features.dashboard.schemas import (  # noqa: TC001
     TrendPointOut,
 )
 from features.dashboard.service import (
-    confirm_memory_upload,
     create_casual_play,
     create_memory_subject,
-    create_memory_upload,
     create_patient,
     create_reminder,
     delete_memory_asset,
@@ -58,6 +53,7 @@ from features.dashboard.service import (
     update_memory_subject,
     update_patient,
     update_reminder,
+    upload_memory_asset,
 )
 
 # Runtime import, not TYPE_CHECKING: FastAPI resolves annotations against module globals.
@@ -269,29 +265,32 @@ async def remove_reminder(
 # --- Memory Media ---
 
 
-@router.post("/patients/{patient_id}/memories/uploads", status_code=201)
+@router.post("/patients/{patient_id}/memories/assets", status_code=201)
 @caregiver_required
-async def start_memory_upload(
+async def upload_memory_photo(
     patient_id: UUID,
     db: DbSession,
     auth: AuthContext,
-    payload: MemoryUploadCreateIn,
-) -> MemoryUploadOut:
-    """Reserve a place in the memory bucket and return a URL to PUT the picture to."""
-    return await create_memory_upload(db, auth.user_id, patient_id, payload)
-
-
-@router.post("/patients/{patient_id}/memories/uploads/{asset_id}/confirm")
-@caregiver_required
-async def finish_memory_upload(
-    patient_id: UUID,
-    asset_id: UUID,
-    db: DbSession,
-    auth: AuthContext,
-    payload: MemoryAssetConfirmIn,
+    file: Annotated[UploadFile, File(description="The picture, as multipart form data")],
+    kind: Annotated[str, Form()] = "photo",
+    description: Annotated[str | None, Form()] = None,
+    subject_id: Annotated[UUID | None, Form()] = None,
 ) -> MemoryAssetOut:
-    """Mark an upload ready, once the bucket confirms it holds the object."""
-    return await confirm_memory_upload(db, auth.user_id, patient_id, asset_id, payload)
+    """Upload a picture to the memory bucket and record it, in one request.
+
+    The bucket only accepts a presigned GET or HEAD, not a presigned PUT, so the browser
+    cannot write to it directly — the file comes here instead, and the API relays it with
+    its own credentials (D-42).
+    """
+    return await upload_memory_asset(
+        db,
+        auth.user_id,
+        patient_id,
+        file=file,
+        kind=kind,
+        description=description,
+        subject_id=subject_id,
+    )
 
 
 @router.get("/patients/{patient_id}/memories/assets")

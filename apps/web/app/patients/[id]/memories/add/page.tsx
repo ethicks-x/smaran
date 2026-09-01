@@ -19,12 +19,8 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useApi } from "@/hooks/use-api";
-import type {
-	MemoryAssetApi,
-	MemoryKind,
-	MemorySubjectApi,
-	MemoryUploadTicketApi,
-} from "@/lib/types";
+import { ApiError } from "@/lib/api";
+import type { MemoryAssetApi, MemoryKind, MemorySubjectApi } from "@/lib/types";
 
 const kinds: { key: MemoryKind; label: string; icon: LucideIcon }[] = [
 	{ key: "person", label: "Person", icon: User },
@@ -34,9 +30,9 @@ const kinds: { key: MemoryKind; label: string; icon: LucideIcon }[] = [
 
 /**
  * Mirrors `ALLOWED_CONTENT_TYPES` and `S3_MAX_UPLOAD_BYTES` in `apps/api`. Checking here is
- * a courtesy so the caregiver hears about it before waiting on an upload — not the
- * enforcement. The API refuses the same things, and re-reads the real size from the bucket
- * afterwards, because a presigned PUT accepts whatever the browser sends it.
+ * a courtesy so the caregiver hears about it before the upload even starts — not the
+ * enforcement. The API refuses the same things, reading the size as the bytes arrive rather
+ * than trusting whatever this check or a spoofed header claims.
  */
 const ACCEPTED = [
 	"image/jpeg",
@@ -130,64 +126,32 @@ export default function AddMemorySubjectPage() {
 			);
 
 			if (photo) {
-				// Three steps, and the middle one does not touch our API at all. The API signs a
-				// URL and later confirms what landed; the bytes go straight from this browser to
-				// the bucket, so a photo on a slow connection never occupies an API worker, and
-				// the picture never sits in a database column as base64 (`decisions.md` D-33).
-				const ticket = await api<MemoryUploadTicketApi>(
-					`/dashboard/patients/${params.id}/memories/uploads`,
-					{
-						method: "POST",
-						body: {
-							file_name: photo.name,
-							content_type: photo.type,
-							size_bytes: photo.size,
-							kind: "photo",
-							description: formData.description.trim() || null,
-							subject_id: subject.id,
-						},
-					},
-				);
-
-				let put: Response;
-				try {
-					put = await fetch(ticket.upload_url, {
-						method: "PUT",
-						body: photo,
-						// Signed into the URL, so it has to match exactly or the bucket refuses it.
-						headers: { "Content-Type": ticket.content_type },
-					});
-				} catch {
-					// fetch() rejects here — rather than resolving with a non-ok response — only
-					// when the request never reached the bucket at all: almost always the bucket's
-					// CORS policy not yet allowing this app's origin, method and Content-Type
-					// header. The raw browser exception ("Failed to fetch" / "NetworkError when
-					// attempting to fetch resource") is jargon a caregiver cannot act on (AGENTS.md
-					// §2.3), so it is never shown — and unlike an ordinary failed request, retrying
-					// will not help until that policy changes.
-					throw new Error(
-						"Couldn't reach photo storage. Ask whoever set up the app to check the storage connection, then try again.",
-					);
+				// One request. The bucket behind this API accepts a presigned GET or HEAD but
+				// never a presigned PUT, so there is no URL to hand the browser to write with
+				// the way D-32 first had it — the picture goes to the API instead, which holds
+				// real credentials and relays it to the bucket itself (`decisions.md` D-42).
+				const form = new FormData();
+				form.append("file", photo);
+				form.append("kind", "photo");
+				if (formData.description.trim()) {
+					form.append("description", formData.description.trim());
 				}
-				if (!put.ok) {
-					throw new Error(
-						"The picture did not finish uploading. Please try again.",
-					);
-				}
+				form.append("subject_id", subject.id);
 
-				// Nothing treats the picture as real until the API has seen it in the bucket.
 				await api<MemoryAssetApi>(
-					`/dashboard/patients/${params.id}/memories/uploads/${ticket.asset_id}/confirm`,
-					{ method: "POST", body: {} },
+					`/dashboard/patients/${params.id}/memories/assets`,
+					{ method: "POST", body: form },
 				);
 			}
 
 			router.push(`/patients/${params.id}?tab=memories`);
 		} catch (err) {
 			setError(
-				err instanceof Error
-					? err.message
-					: "Failed to save memory subject. Please try again.",
+				err instanceof ApiError
+					? err.detail || "That did not save. Please try again."
+					: err instanceof Error
+						? err.message
+						: "Failed to save memory subject. Please try again.",
 			);
 		} finally {
 			setLoading(false);
