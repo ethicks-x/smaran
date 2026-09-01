@@ -132,7 +132,8 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 | Clerk user profile resolution | ✅ `src/core/clerk.py` resolves names, email, avatars from Clerk Backend API |
 | `GET /users/me` | ✅ `@auth_required`; returns Clerk id, granted roles, `is_caregiver`, and linked `patient` row |
 | Dashboard API for Caregiver Web PWA | ✅ Full suite under `/dashboard`: summary stats, patient CRUD, memory subjects CRUD, progress/session summaries, trend rollups, casual play logs, activity feed, notifications & baseline attention flags |
-| SQLAlchemy models | ✅ `src/features/database/models.py` |
+| SQLAlchemy models | ✅ `src/features/database/models.py` — `Role`, `Patient`, `PatientCaregiver`, `MemorySubject`, `MemoryAsset`, `GameSession`, `QuestionEvent`, `CasualPlayLog` |
+| Memory media store | 🟡 `memory_assets` models one object in the S3 memory bucket — key, picture name, description, upload status (`data-model.md` §2, D-32). Settings and `.env.example` carry the bucket, endpoint and credentials. **The presign/confirm endpoints and the phone's down-sync are not built**, so nothing writes a row yet |
 | Migrations | ⬜ Alembic is a dependency but there is no `alembic/`; `init_db()` calls `create_all` on startup |
 | TimescaleDB hypertable + continuous aggregates | ⬜ |
 | Sync ingest endpoint (`/sync/sessions`) | ⬜ |
@@ -207,4 +208,7 @@ Note for whoever wires the browser to the API: `apps/api` now sets `CORSMiddlewa
   once and hand it over. That flow is undesigned. See `decisions.md` D-01.
 - **Who reviews the Hindi, Bengali and Assamese translations**, and which language is
   fifth? (Answered for the first four — `decisions.md` D-12.)
-- **Do People/Memories sync down**, and from where does the family upload them?
+- **Do People/Memories sync down?** Half answered: the family uploads from the dashboard
+  straight into an S3 bucket and `memory_assets` records each object (D-32). What is still
+  open is the down path — whether the phone pulls `GET /users/{id}/memories` on a watermark
+  or gets media in the same `/sync/pull` batch as people and reminders.
