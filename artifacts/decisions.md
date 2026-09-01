@@ -1955,3 +1955,63 @@ sending. The caregiver now sees the real one.
 **Would change it if:** the provider starts signing PUT, or the bucket moves somewhere that
 does. `upload_object` and `presign_put` differ only in where the signature comes from — the
 row shape, the routes' URLs, and everything downstream of the write are unaffected either way.
+
+---
+
+## D-43 · 2026-09-02 · Editing and removing a memory subject: client-side, and a photo replace is a new asset
+
+**Decision.** `MemorySubjectCard`'s Edit and Remove buttons were decorative — no handler,
+no state, nothing behind them. They now call `PATCH`/`DELETE
+/dashboard/patients/{id}/memories/{subject_id}`, through a new `EditMemorySubjectModal` and
+`PatientMemoriesTab` (`components/`) backed by `usePatientMemories`
+(`lib/api/usePatientMemories.ts`). The Memories tab moves client-side to make this possible
+— it was a block inside the server-rendered `page.tsx`, reading a `memories` array fetched
+once at request time, which has nowhere to put a click handler or local edit/delete state.
+
+**Two patterns already existed for exactly this on the same page; this follows both, for
+different halves of the problem.** The Reminders tab is the precedent for *shape*:
+`PatientRemindersTab` + `usePatientReminders`, a client component driven by its own hook
+that fetches on mount and exposes mutators the tab calls directly. `EditPatientModal` and
+`AddReminderModal` are the precedent for *where the API call lives*: a modal owns its own
+`useApi()` and does the request itself, notifying its caller with a bare `onSuccess()`
+rather than receiving mutator functions as props. `usePatientMemories` deliberately stays
+narrow — fetch and delete only, the two things the tab performs directly — while add and
+edit each go through their own modal, matching that second precedent.
+
+**One deviation from `usePatientReminders`'s specific import, and it is deliberate.** That
+hook uses `lib/api/client.ts`'s `useApi`, which stamps `Content-Type: application/json`
+unconditionally and has no `.detail` on its `ApiError`. Editing a memory subject can mean
+replacing its photo — a `FormData` body — which that client would corrupt by forcing a JSON
+content type onto it, and its errors would surface as raw status text instead of the plain
+message the API actually sent. `usePatientMemories` and `EditMemorySubjectModal` use
+`hooks/use-api.ts` instead, the one already proven correct for multipart in the Add flow.
+
+**A photo "replace" is a new `MemoryAsset`, never an edit of the old one.** The Edit modal's
+photo picker re-uses the exact upload endpoint the Add flow uses, with the existing
+`subject_id` attached. Per D-42, a subject's `photo_url` resolves on every read to its
+*newest ready* asset — so uploading a new one is what replacing the picture means, and
+nothing here deletes or overwrites the asset it displaces. That old object stays in the
+bucket, unreferenced by anything a caregiver can currently see; nothing sweeps it, same gap
+D-39 already named for abandoned `pending` rows.
+
+**Remove is unchanged, and still a hard delete.** `delete_memory_subject` was already
+`session.delete(subject)`, not a soft delete — this work wires a confirmation dialog and a
+button to it, and does not touch that behavior. Worth a name here because it means Remove is
+irreversible in a way the rest of `memory_assets` (soft-deleted, D-32) is not, and a future
+agent reading only the button's label should not assume otherwise.
+
+**Verified against a real backend, not the browser click-through.** The patient detail page
+sits behind real Clerk middleware (`proxy.ts`'s `auth.protect()`), and this environment has
+no Clerk test credentials — so unlike the Add flow's upload path, this could not be driven
+through an actual authenticated page load. What was verified: every request shape this code
+sends — the `PATCH` body for a person (`name` + `relation`) and for a place/object (`name`
+only, `relation` omitted rather than nulled), the replace-photo `FormData` fields, and the
+`DELETE` call — against a real API, real Postgres, and a real bucket, confirming the name
+and relation actually update, the photo actually changes to the new bytes, and the subject
+actually disappears from a subsequent list. The React state around it (modal open/close,
+the reset-on-a-different-subject effect, the `confirm()` dialog) was reviewed but not
+click-tested.
+
+**Would change it if:** Clerk test credentials become available in an agent's environment —
+worth a real click-through then, since the request-shape verification here is strong but not
+the same thing as watching the modal actually open, submit, and close in a browser.

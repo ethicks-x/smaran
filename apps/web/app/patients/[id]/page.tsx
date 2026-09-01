@@ -1,16 +1,12 @@
-import { Plus } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { MemorySubjectCard } from "@/components/memories/MemorySubjectCard";
+import { PatientMemoriesTab } from "@/components/patients/PatientMemoriesTab";
 import { PatientProfileHeader } from "@/components/patients/PatientProfileHeader";
 import { PatientRemindersTab } from "@/components/patients/PatientRemindersTab";
 import { PatientTabs } from "@/components/patients/PatientTabs";
 import { ActivityBreakdown } from "@/components/progress/ActivityBreakdown";
 import { SessionAccuracyChart } from "@/components/progress/SessionAccuracyChart";
-import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api-server";
-import type { MemoryKind } from "@/lib/types";
 
 interface PatientDetailOut {
 	id: string;
@@ -93,15 +89,21 @@ export default async function PatientProfilePage({
 	try {
 		// Fetch patient details
 		patient = await api<PatientDetailOut>(`/dashboard/patients/${id}`);
-		
+
 		// Fetch memories
-		memories = await api<MemorySubjectOut[]>(`/dashboard/patients/${id}/memories`);
-		
+		memories = await api<MemorySubjectOut[]>(
+			`/dashboard/patients/${id}/memories`,
+		);
+
 		// Fetch progress data
-		progress = await api<PatientProgressOut>(`/dashboard/patients/${id}/progress`);
-		
+		progress = await api<PatientProgressOut>(
+			`/dashboard/patients/${id}/progress`,
+		);
+
 		// Fetch casual play logs
-		casualPlay = await api<CasualPlayOut[]>(`/dashboard/patients/${id}/casual-play`);
+		casualPlay = await api<CasualPlayOut[]>(
+			`/dashboard/patients/${id}/casual-play`,
+		);
 	} catch (err) {
 		console.error("Failed to fetch patient data:", err);
 		error = "Failed to load patient data. Please try again.";
@@ -112,7 +114,6 @@ export default async function PatientProfilePage({
 	}
 
 	const tab = tabParam ?? "overview";
-	const kinds: MemoryKind[] = ["person", "place", "object"];
 	const sessionSummaries = progress?.sessions ?? [];
 	const activityBreakdown = progress?.activity_breakdown ?? [];
 	const accuracy = progress?.overall_accuracy ?? 0;
@@ -165,48 +166,10 @@ export default async function PatientProfilePage({
 						)}
 
 						{tab === "memories" && (
-							<div className="space-y-8">
-								<div className="flex items-center justify-between">
-									<p className="text-sm text-ink-500">
-										Photos and people {patient.full_name.split(" ")[0]} will be
-										asked to recognize in cognitive games.
-									</p>
-									<Link href={`/patients/${patient.id}/memories/add`}>
-										<Button size="sm" className="gap-1.5 shrink-0">
-											<Plus size={14} /> Add Memory Subject
-										</Button>
-									</Link>
-								</div>
-
-								{kinds.map((kind) => {
-									const items = memories.filter((m) => m.kind === kind);
-									if (items.length === 0) return null;
-									return (
-										<div key={kind}>
-											<h4 className="mb-3 font-display text-sm font-semibold capitalize text-ink-700">
-												{kind}s ({items.length})
-											</h4>
-											<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-												{items.map((m) => (
-													<MemorySubjectCard key={m.id} subject={m} />
-												))}
-											</div>
-										</div>
-									);
-								})}
-
-								{memories.length === 0 && (
-									<div className="rounded-2xl border border-dashed border-black/15 dark:border-white/15 py-16 text-center">
-										<p className="font-display text-lg font-semibold text-ink-900">
-											No memory subjects yet
-										</p>
-										<p className="mt-1.5 text-sm text-ink-500">
-											Add people, places, and objects to personalize cognitive
-											games.
-										</p>
-									</div>
-								)}
-							</div>
+							<PatientMemoriesTab
+								patientId={patient.id}
+								patientFirstName={patient.full_name.split(" ")[0]}
+							/>
 						)}
 
 						{tab === "reminders" && (
@@ -244,8 +207,9 @@ export default async function PatientProfilePage({
 														{s.date}
 													</p>
 													<p className="text-xs text-ink-500">
-														{s.questions_answered ?? "—"}/{s.questions_planned ?? "—"} answered
-														· avg {Math.round(s.avg_time_ms / 1000)}s per question
+														{s.questions_answered ?? "—"}/
+														{s.questions_planned ?? "—"} answered · avg{" "}
+														{Math.round(s.avg_time_ms / 1000)}s per question
 													</p>
 												</div>
 												<span className="rounded-full bg-mint-50 px-2.5 py-1 text-xs font-semibold text-mint-600">
