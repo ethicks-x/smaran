@@ -78,6 +78,44 @@ tasks:
     cmds:
       - tmux kill-session -t {{.TMUX_SESSION}}
 
+  db:migrate:
+    desc: Apply every pending migration to the database in apps/api/.env
+    dir: apps/api
+    cmds:
+      - uv run alembic upgrade head
+
+  db:current:
+    desc: Show which migration the database is currently at
+    dir: apps/api
+    cmds:
+      - uv run alembic current --verbose
+
+  db:history:
+    desc: List every migration, newest first
+    dir: apps/api
+    cmds:
+      - uv run alembic history --indicate-current
+
+  db:revision:
+    desc: 'Autogenerate a migration from model changes. Usage: task db:revision -- "add x"'
+    dir: apps/api
+    cmds:
+      # Autogenerate compares the models to the live database, so it needs a database that
+      # is already at head — otherwise it writes the drift it finds into your new revision.
+      - uv run alembic revision --autogenerate -m "{{.CLI_ARGS}}"
+
+  db:downgrade:
+    desc: Step the database back one migration
+    dir: apps/api
+    cmds:
+      - uv run alembic downgrade -1
+
+  db:stamp:
+    desc: 'Record a revision as applied WITHOUT running it. Usage: task db:stamp -- head'
+    dir: apps/api
+    cmds:
+      - uv run alembic stamp {{.CLI_ARGS}}
+
   dev:api:
     desc: Start the API server
     dir: apps/api

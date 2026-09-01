@@ -1504,3 +1504,50 @@ deployed database as well as the ingest tables.
 **Would change it if:** the family wants to add reminders from the phone as a first-class
 flow, at which point definitions need an up-stream and a real conflict rule — last-write-wins
 on `updated_at` would be the cheap answer and it would quietly lose a caregiver's edit.
+
+---
+
+## D-35 · 2026-09-01 · Alembic owns the schema; `create_all` was building half a database
+
+**Decision.** `apps/api/alembic/` exists, `alembic upgrade head` is how the schema changes,
+and `init_db()` no longer calls `create_all`. It checks the database is reachable, checks
+something has migrated it, and prints one line naming the command if nothing has. Task
+targets: `db:migrate`, `db:current`, `db:history`, `db:revision`, `db:downgrade`, `db:stamp`.
+
+**`create_all` was not merely "not running on an existing database" — it was doing something
+worse, and `progress.md` had it wrong.** `Base.metadata.create_all` defaults to
+`checkfirst=True`, so on a database that already exists it *does* create every missing
+table. What it never does is add a column to a table that is already there. So D-32's new
+tables did appear on the deployed database, and `patients.enrolled_at` / `enrolled_by` did
+not — leaving a schema that looks complete and fails every sync call with
+`column patients.enrolled_by does not exist`. A migration that silently half-applies is
+worse than one that does not run, because nothing reports it and the failure surfaces
+somewhere unrelated, hours later.
+
+**`0001_baseline` is idempotent, and it is the only revision that ever should be.** It asks
+the database what it already has and reconciles three real states: empty; built before the
+synced tables were modelled; and built by `create_all` at a commit in between. Tables,
+indexes and the two late columns are checked **separately** — a table that already exists
+can still be missing an index added to the model after it was created, which the first
+version of this migration got wrong and an autogenerate drift check caught. From 0001
+onward, migrations are ordinary and assume they know their starting point.
+
+**`db_auto_create` (default `false`) puts the old behaviour back** for a throwaway database
+where a migration is more ceremony than the data is worth. It should stay off anywhere the
+data matters, for the reason above.
+
+**The URL is not in `alembic.ini`.** It is a credential (§2.5) and `env.py` reads it from
+`core.config.settings`, so there is one place a database is configured for both the app and
+its migrations and no way for them to drift. `env.py` uses the same async psycopg driver as
+the app, so a dialect quirk cannot appear in one and not the other.
+
+**Verified** against a throwaway Postgres in all three starting states: each converges on
+the same 14 tables at revision 0001, an existing `patients` row survives with `enrolled_at`
+backfilled to the migration's own clock, re-running applies nothing, and
+`alembic revision --autogenerate` afterwards finds **no drift** in any of the three — which
+is the real proof that the migration and the models agree. Both sync suites then pass on a
+schema built by Alembic rather than by `create_all`.
+
+**Would change it if:** the Timescale hypertable lands, which is a `SELECT
+create_hypertable(...)` in a migration and must run before `session_events` has meaningful
+data — it rewrites the table.

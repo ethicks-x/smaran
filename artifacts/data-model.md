@@ -6,8 +6,9 @@ created by `src/db/migrations.ts`. See `decisions.md` D-24.
 every table that crosses the sync boundary (D-32), and `POST /sync/sessions` /
 `POST /sync/reminder-events` write `devices`, `session_events` and `reminder_events` (D-33).
 `GET /sync/pull` syncs `reminders` back down and restores `session_events` to a reinstalled
-phone (D-34). Still missing: migrations, the hypertable itself, the continuous aggregates, and
-the other two down-sync tables (`people`, `memory_items`).
+phone (D-34), and **Alembic owns the schema** — `task db:migrate` (D-35). Still missing: the
+hypertable itself, the continuous aggregates, and the other two down-sync tables (`people`,
+`memory_items`).
 
 Update this file as tables land, and mark them ✅.
 
@@ -147,7 +148,9 @@ response that accounts for it, and deleting it never touches the `game_session` 
 
 ## 2. Server — PostgreSQL + TimescaleDB
 
-All of §2's tables exist as SQLAlchemy models; none of the Timescale machinery does.
+All of §2's tables exist as SQLAlchemy models and are created by `alembic/versions/0001_baseline.py`
+(D-35). None of the Timescale machinery does — `create_hypertable` needs to run in a migration
+**before** `session_events` holds meaningful data, because it rewrites the table.
 
 ### Relational
 - `patients` ✅ — id, `user_id` (Clerk), dob, address, contact number, preferred language,

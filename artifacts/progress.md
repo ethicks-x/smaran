@@ -34,7 +34,8 @@ in one transaction, and the next time the app opens the outbox drains to `/sync/
 rows land on the server (D-33). **And the loop runs both ways** (D-34): a caregiver adds,
 edits or retires a reminder on the dashboard's API and the phone takes it; a phone that has
 been reinstalled pulls this reader's game history back down so the adaptive engine still
-knows who it is talking to. Still no migrations.
+knows who it is talking to. **Alembic now owns the schema** (D-35) — `task db:migrate` —
+which unblocks all of the above on a database that already exists.
 
 The rubric's centrepiece — adaptive cognitive games — has two games, and both adapt. The
 loop from "open a game" to "finish a board" is real, every board closes a `SessionStats`
@@ -141,7 +142,7 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 | `GET /users/me` | ✅ `@auth_required`; returns Clerk id, granted roles, `is_caregiver`, and linked `patient` row |
 | Dashboard API for Caregiver Web PWA | ✅ Full suite under `/dashboard`: summary stats, patient CRUD, memory subjects CRUD, progress/session summaries, trend rollups, casual play logs, activity feed, notifications & baseline attention flags |
 | SQLAlchemy models | ✅ `src/features/database/models.py` — the dashboard's own tables, **plus a server table for every device table that crosses the sync boundary**: `devices`, `session_events`, `reminders`, `reminder_events`, `people`, `memory_items`, and `enrolled_at`/`enrolled_by` on `patients`. Nothing writes them yet; this is the schema `/sync/*` is owed. **`session_events` is the server's copy of the device's `game_session` — one row per round — not of its per-attempt `session_event`, and not the older `game_sessions` the dashboard reads.** D-32 |
-| Migrations | ⬜ Alembic is a dependency but there is no `alembic/`; `init_db()` calls `create_all` on startup. The synced tables therefore appear on a fresh database and **not** on one that already exists — **which now blocks sync on any deployed database**, not just a future one |
+| Migrations | ✅ `apps/api/alembic/`, one revision (`0001_baseline`), `task db:migrate`. `init_db()` no longer calls `create_all` — it checks the database is reachable and migrated, and prints the command if it is not. **The earlier note here was wrong**: `create_all` *does* create missing tables on an existing database (`checkfirst=True`); what it never does is add a column to a table that already exists, which is why deployed databases had the synced tables but not `patients.enrolled_at`/`enrolled_by`, and failed every sync call. `0001` is idempotent and reconciles all three states that exist in the wild. D-35 |
 | TimescaleDB hypertable + continuous aggregates | ⬜ |
 | Sync ingest (`POST /sync/sessions`, `POST /sync/reminder-events`) | ✅ `src/features/sync/` — authenticated, idempotent on `(device_id, seq)`, one insert per row inside its own savepoint so a bad row is named in `rejected` and the rest of the batch still lands. Registers the device on its first call; 409 if nobody has enrolled it against a patient yet, 403 if it belongs to another one. Verified against a throwaway Postgres: duplicate batches, partial retries, seq collisions, one bad row among good ones, and a device reused by a second account. D-33 |
 | Down-sync (`GET /sync/pull?since=&restore=`) | 🟡 **built for reminders and history** — changed reminder definitions since a server-issued watermark, retirements included as `deleted: true` rather than by absence, plus this patient's last 200 rounds across every device they have used when `restore=true`. Verified against a throwaway Postgres: first pull, quiet pull, an edit and a retirement, the caregiver's own list hiding the retired row, a two-device history restore in order, and an unlinked caregiver refused. **Missing:** `people` and `memory_items` (nothing draws them yet). D-34 |
@@ -183,7 +184,7 @@ Note for whoever wires the browser to the API: `apps/api` now sets `CORSMiddlewa
 | `Taskfile.yml` with tmux dev dashboard | ✅ |
 | Husky + lint-staged pre-commit | ✅ |
 | `packages/` for shared TS | 🟡 directory exists but is empty — **and the root workspace glob says `apps/packages/*`, which does not match it.** Fix before adding a package |
-| Tests | ⬜ none, anywhere |
+| Tests | ⬜ none, anywhere. The sync and migration work was verified with throwaway scripts against a Docker Postgres; none of it is committed as a suite, and that is the gap |
 | CI | ⬜ none |
 | Root `README.md` | 🟡 "Overview: To be updated..." |
 
@@ -204,9 +205,8 @@ Note for whoever wires the browser to the API: `apps/api` now sets `CORSMiddlewa
    `expo-notifications` for local scheduling with no server dependency, and a way to edit
    or remove a reminder that has been added.
 5. ~~**API ingest**~~ — done 2026-09-01, D-33. `POST /sync/sessions` and
-   `POST /sync/reminder-events` upsert on `(device_id, seq, ended_at)`. **Alembic is still
-   not done and is now the blocker**: on a database that already exists, `create_all` will
-   not add the synced tables and every ingest call fails.
+   `POST /sync/reminder-events` upsert on `(device_id, seq, ended_at)`. ~~Alembic~~ done
+   too, D-35 — run `task db:migrate` against any existing database before the first sync.
 6. ~~**Sync client**~~ — done 2026-09-01, D-33 (up) and D-34 (down: caregiver reminders and
    post-reinstall history). What is left: a connectivity trigger (needs `netinfo` or
    `expo-network`); `people`/`memory_items` coming down, which wants photo caching and a
