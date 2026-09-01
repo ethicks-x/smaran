@@ -1,6 +1,7 @@
 import { Icon } from "@expo/ui";
 import type { ReactNode } from "react";
 import { Modal, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { type AppIconName, AppIcons } from "@/components/ui/icons";
 import { NativeHost } from "@/components/ui/native-host";
@@ -53,6 +54,7 @@ export function Dialog({
 	children,
 }: DialogProps) {
 	const colors = useThemeColors();
+	const insets = useSafeAreaInsets();
 
 	return (
 		<Modal
@@ -62,7 +64,19 @@ export function Dialog({
 			statusBarTranslucent
 			onRequestClose={onRequestClose}
 		>
-			<View style={[styles.scrim, { backgroundColor: colors.overlay }]}>
+			{/* The modal is drawn under the status and gesture bars, so the scrim
+					keeps the card clear of both — at the largest text size it grows
+					until it meets this padding and then scrolls inside itself. */}
+			<View
+				style={[
+					styles.scrim,
+					{
+						backgroundColor: colors.overlay,
+						paddingTop: Spacing.xl + insets.top,
+						paddingBottom: Spacing.xl + insets.bottom,
+					},
+				]}
+			>
 				{/* The width lives on the wrapper: `Surface` hands its own style to the
             card inside the shadow, and a card sized as a share of a wrapper it
             is itself sizing would have nothing to measure against. */}
@@ -123,7 +137,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 		alignItems: "center",
 		justifyContent: "center",
-		padding: Spacing.xl,
+		paddingHorizontal: Spacing.xl,
 	},
 	sizer: {
 		width: "100%",

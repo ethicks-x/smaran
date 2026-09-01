@@ -1227,3 +1227,69 @@ shape. Both games read the same key, and a third will too.
 **Would change it if:** the study phase turns out to need a "show me again" control. It does
 not have one today, on the same reasoning as D-19's preview: during the look there is
 nothing to decide, so there is no button to decide about.
+
+---
+
+## D-31 · 2026-09-01 · The app bar travels with the page; only the status bar strip is painted, and only once it has to be
+
+**Decision.** `Screen`'s bar carries the back arrow, the title and subtitle, and the header
+action **on one row** — leading, middle, trailing. The row itself has no background: it is
+the first thing in the scroll content and it scrolls away with the rest of the page. What
+keeps the clock readable is a separate strip pinned over `insets.top`, painted
+`colors.surface` with a hairline under it, whose **opacity is driven by the scroll offset** —
+nothing at the top of the page, fully opaque a little over one spacing step down
+(`useScrollBackdrop`). `GameFrame` does exactly the same. The new `stickyHeader` prop extends
+that strip down over the whole bar and holds the bar in place; it is off by default and the
+account detail screens are the only ones that turn it on.
+
+**The bug it fixes.** The bar and its `paddingTop: insets.top` used to live *inside* the
+scroll view. A scroll container's top padding reserves the space once and then lets content
+pass straight through it, so the clock and the battery ended up on top of moving body copy —
+unreadable for a few hundred milliseconds on every drag, and worse in dark mode where the ink
+is nearly the same value. Reserving the inset on a scroller only ever positions the first
+frame correctly.
+
+**Why the strip is not simply always on.** At the top of a page there is nothing under the
+clock but the app's own canvas, so a bar drawn over it is a line across a screen that has no
+seam in it — chrome charged for nothing, on the one screenful this reader is most likely to
+be looking at. The moment anything scrolls up under the status bar that stops being true. So
+the strip appears exactly when it is load-bearing and is gone the rest of the time, and
+neither state is ever wrong for what is behind it.
+
+**It animates opacity, not colour.** A colour interpolated to `transparent` travels through
+black on the way, which shows as a grey bloom in light mode. A solid fill fading in does not.
+
+**Why the bar itself scrolls away by default.** A pinned bar costs its own height on every
+screen, and most screens here are short. The title is also not the thing being held onto: the
+tab bar is the "where am I" answer inside the tabs, and it never moves. Where the page really
+is a long list and the way out should not be several flicks above the reader — the account
+detail screens — `stickyHeader` pins it, and the same fade then paints the whole bar rather
+than just the strip.
+
+**The back control is the arrow alone.** It was an arrow with the word "Back" beside it. On
+one row with a title and an action the label pushed the title into wrapping on a small phone
+in Assamese, and the arrow in a circle at the leading edge is the single most learnt shape in
+mobile navigation — this is the same exception `GameFrame` already takes for its cross and
+gear (D-19). The full label survives where it matters: `accessibilityLabel` is still
+`common.goBack`, so a screen reader hears "Go back, button" exactly as before, and the target
+is a full `TouchTarget.min` circle rather than a bare glyph.
+
+**The title dropped from `title` to `heading`,** because it now shares a row rather than
+owning one. It still wraps rather than truncating — no `numberOfLines`, no ellipsis anywhere
+in the bar — so a long greeting grows the row instead of losing its second half. The subtitle
+went to `body`, which keeps it clearly secondary without falling to `caption`, a variant the
+type scale reserves for detail that is never essential.
+
+**The bottom inset is painted flat, and only where nothing else paints it.** Inside the tabs
+the tab bar sits in the layout flow and owns the inset (`withTabBar`, unchanged), so `Screen`
+paints nothing. Outside it — account, games, not-found — a solid strip of `insets.bottom`
+sits under the scroller, so a list ends at the gesture bar instead of running behind it. It
+does not fade: unlike the top, there is always something under it.
+
+**Landing is deliberately exempt.** Its art is meant to run edge to edge under a translucent
+status bar, and it is the one screen that fixes its own ink (`OnArt`) instead of reading the
+theme. It keeps its floating chrome and its own `StatusBar style="light"`.
+
+**Would change it if:** the fade turns out to read as a flicker on a page that is only just
+taller than the screen. The threshold is one constant in `useScrollBackdrop`, and the honest
+fix would be to raise it rather than to pin every bar.

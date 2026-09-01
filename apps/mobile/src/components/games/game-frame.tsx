@@ -1,9 +1,11 @@
 import { Icon } from "@expo/ui";
 import type { ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { type AppIconName, AppIcons, NativeHost, Text } from "@/components/ui";
+import { useScrollBackdrop } from "@/hooks/use-scroll-backdrop";
 import { useThemeColors } from "@/hooks/use-theme";
 import {
 	HitSlop,
@@ -32,6 +34,11 @@ const CONTROL_ICON = scale(28);
  * about as recognised as a picture gets, they are the same two corners on every
  * game, and both are announced in full to a screen reader. Anything else on
  * this row would be competing with the board for the reader's attention.
+ *
+ * The bar is the top of the board's page and travels with it, so a game that
+ * fits on one screen — which is most of them — spends none of that screen on
+ * chrome. Only the strip behind the status bar is painted, and only once the
+ * board has scrolled up under it.
  */
 export type GameFrameProps = {
 	/** Which board this is. The one piece of text on the bar. */
@@ -55,48 +62,67 @@ export function GameFrame({
 }: GameFrameProps) {
 	const colors = useThemeColors();
 	const insets = useSafeAreaInsets();
+	const { onScroll, backdropStyle } = useScrollBackdrop();
 
 	return (
-		<ScrollView
-			style={[styles.root, { backgroundColor: colors.background }]}
-			contentContainerStyle={[
-				styles.centerer,
-				{
-					paddingTop: insets.top + Spacing.lg,
-					paddingBottom: Spacing["2xl"] + insets.bottom,
-				},
-			]}
-			showsVerticalScrollIndicator={false}
-		>
-			<View style={styles.content}>
-				<View style={styles.bar}>
-					<ControlButton
-						icon="close"
-						label={closeLabel}
-						onPress={onClose}
-						tone="danger"
-					/>
+		<View style={[styles.root, { backgroundColor: colors.background }]}>
+			<Animated.ScrollView
+				style={styles.scroller}
+				contentContainerStyle={[
+					styles.centerer,
+					{ paddingTop: insets.top + Spacing.lg },
+				]}
+				onScroll={onScroll}
+				scrollEventThrottle={16}
+				showsVerticalScrollIndicator={false}
+			>
+				<View style={styles.content}>
+					<View style={styles.bar}>
+						<ControlButton
+							icon="close"
+							label={closeLabel}
+							onPress={onClose}
+							tone="danger"
+						/>
 
-					<Text
-						variant="heading"
-						center
-						accessibilityRole="header"
-						style={styles.title}
-					>
-						{title}
-					</Text>
+						<Text
+							variant="heading"
+							center
+							accessibilityRole="header"
+							style={styles.title}
+						>
+							{title}
+						</Text>
 
-					<ControlButton
-						icon="settings"
-						label={settingsLabel}
-						onPress={onSettings}
-						tone="muted"
-					/>
+						<ControlButton
+							icon="settings"
+							label={settingsLabel}
+							onPress={onSettings}
+							tone="muted"
+						/>
+					</View>
+
+					{children}
 				</View>
+			</Animated.ScrollView>
 
-				{children}
-			</View>
-		</ScrollView>
+			<Animated.View
+				style={[
+					styles.backdrop,
+					{
+						height: insets.top,
+						backgroundColor: colors.surface,
+						borderBottomColor: colors.border,
+					},
+					backdropStyle,
+				]}
+				pointerEvents="none"
+			/>
+
+			<View
+				style={{ height: insets.bottom, backgroundColor: colors.surface }}
+			/>
+		</View>
 	);
 }
 
@@ -143,10 +169,14 @@ const styles = StyleSheet.create({
 	root: {
 		flex: 1,
 	},
+	scroller: {
+		flex: 1,
+	},
 	centerer: {
 		flexGrow: 1,
 		alignItems: "center",
 		paddingHorizontal: Spacing.xl,
+		paddingBottom: Spacing["2xl"],
 	},
 	content: {
 		width: "100%",
@@ -156,6 +186,13 @@ const styles = StyleSheet.create({
 	},
 	title: {
 		flex: 1,
+	},
+	backdrop: {
+		position: "absolute",
+		top: 0,
+		left: 0,
+		right: 0,
+		borderBottomWidth: StyleSheet.hairlineWidth,
 	},
 	bar: {
 		flexDirection: "row",

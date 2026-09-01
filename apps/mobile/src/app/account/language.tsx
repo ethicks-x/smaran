@@ -17,53 +17,54 @@ import { type Language, Languages } from "@/i18n/languages";
  * app, which is what lets this work in a house with no signal.
  */
 export default function LanguageScreen() {
-  const { language, setLanguage } = useLanguage();
-  const { t } = useTranslation();
+	const { language, setLanguage } = useLanguage();
+	const { t } = useTranslation();
 
-  const options = useMemo(
-    () =>
-      Languages.map<Choice<Language>>((entry) => ({
-        value: entry.code,
-        label: entry.endonym,
-        description: t(`language.names.${entry.code}`),
-      })),
-    [t],
-  );
+	const options = useMemo(
+		() =>
+			Languages.map<Choice<Language>>((entry) => ({
+				value: entry.code,
+				label: entry.endonym,
+				description: t(`language.names.${entry.code}`),
+			})),
+		[t],
+	);
 
-  return (
-    <Screen
-      title={t("language.title")}
-      subtitle={t("language.subtitle")}
-      onBack={() => router.back()}
-      withTabBar={false}
-    >
-      <Section
-        title={t("language.choose")}
-        description={t("language.chooseDescription")}
-      >
-        <ChoiceGroup
-          label={t("language.groupLabel")}
-          options={options}
-          value={language}
-          onChange={setLanguage}
-        />
-      </Section>
+	return (
+		<Screen
+			title={t("language.title")}
+			subtitle={t("language.subtitle")}
+			onBack={() => router.back()}
+			withTabBar={false}
+			stickyHeader
+		>
+			<Section
+				title={t("language.choose")}
+				description={t("language.chooseDescription")}
+			>
+				<ChoiceGroup
+					label={t("language.groupLabel")}
+					options={options}
+					value={language}
+					onChange={setLanguage}
+				/>
+			</Section>
 
-      <Section title={t("language.offline")}>
-        <Surface tone="muted">
-          <Text variant="body" color="textSecondary">
-            {t("language.offlineBody")}
-          </Text>
-        </Surface>
-      </Section>
+			<Section title={t("language.offline")}>
+				<Surface tone="muted">
+					<Text variant="body" color="textSecondary">
+						{t("language.offlineBody")}
+					</Text>
+				</Surface>
+			</Section>
 
-      <Section title={t("language.more")}>
-        <Surface tone="muted">
-          <Text variant="body" color="textSecondary">
-            {t("language.moreBody")}
-          </Text>
-        </Surface>
-      </Section>
-    </Screen>
-  );
+			<Section title={t("language.more")}>
+				<Surface tone="muted">
+					<Text variant="body" color="textSecondary">
+						{t("language.moreBody")}
+					</Text>
+				</Surface>
+			</Section>
+		</Screen>
+	);
 }

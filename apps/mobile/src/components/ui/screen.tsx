@@ -1,169 +1,235 @@
 import { Icon } from "@expo/ui";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppIcons } from "@/components/ui/icons";
 import { NativeHost } from "@/components/ui/native-host";
 import { Text } from "@/components/ui/text";
+import { useScrollBackdrop } from "@/hooks/use-scroll-backdrop";
 import { useThemeColors } from "@/hooks/use-theme";
 import {
-  HitSlop,
-  MaxContentWidth,
-  Radius,
-  Spacing,
-  scale,
-  TouchTarget,
+	HitSlop,
+	MaxContentWidth,
+	Radius,
+	Spacing,
+	scale,
+	TouchTarget,
 } from "@/theme";
 
 export type ScreenProps = {
-  /** Large heading announced first by screen readers. */
-  title: string;
-  /** One short sentence explaining the screen in plain language. */
-  subtitle?: string;
-  /** Rendered next to the title — keep it to a single icon button. */
-  headerAction?: ReactNode;
-  /** Shows a labelled back control above the title on pushed screens. */
-  onBack?: () => void;
-  /** Set false for screens that manage their own scrolling or fill the frame. */
-  scrollable?: boolean;
-  /** Set false outside the tab navigator, where nothing covers the bottom
-   * inset. Inside it the tab bar sits in the layout flow and owns that inset. */
-  withTabBar?: boolean;
-  children?: ReactNode;
+	/** Large heading announced first by screen readers. */
+	title: string;
+	/** One short sentence explaining the screen in plain language. */
+	subtitle?: string;
+	/** Rendered at the trailing end of the app bar — keep it to icon buttons. */
+	headerAction?: ReactNode;
+	/** Shows a back arrow at the leading end of the app bar. */
+	onBack?: () => void;
+	/**
+	 * Pins the app bar so the title, the back arrow and the actions stay put as
+	 * the page scrolls under them, and gives it the same background the status
+	 * bar strip gets: nothing at the top of the page, `surface` once anything has
+	 * moved under it.
+	 *
+	 * Off by default. The bar is normally part of the page and scrolls away with
+	 * it, which keeps the first screenful whole — a bar held back from a page
+	 * that fits without one is a band of chrome charged for nothing. Turn it on
+	 * where the page is a long list and the way out of it should not be several
+	 * flicks above the reader.
+	 */
+	stickyHeader?: boolean;
+	/** Set false for screens that manage their own scrolling or fill the frame. */
+	scrollable?: boolean;
+	/** Set false outside the tab navigator, where nothing covers the bottom
+	 * inset. Inside it the tab bar sits in the layout flow and owns that inset. */
+	withTabBar?: boolean;
+	children?: ReactNode;
 };
 
 /**
- * The standard page frame: safe areas, a single large title, comfortable
- * gutters, and a capped line length. Screens supply content only.
+ * The standard page frame: an app bar, safe areas, comfortable gutters, and a
+ * capped line length. Screens supply content only.
+ *
+ * Back, title and actions sit on one row, in the places every other app on the
+ * phone puts them. The row itself is transparent — it is the top of the page,
+ * not a lid on it — and what keeps the clock readable is the strip behind the
+ * status bar, which fades in only once there is something under it
+ * (`useScrollBackdrop`). `stickyHeader` extends that strip down over the whole
+ * bar and holds the bar in place.
  */
 export function Screen({
-  title,
-  subtitle,
-  headerAction,
-  onBack,
-  scrollable = true,
-  withTabBar = true,
-  children,
+	title,
+	subtitle,
+	headerAction,
+	onBack,
+	stickyHeader = false,
+	scrollable = true,
+	withTabBar = true,
+	children,
 }: ScreenProps) {
-  const colors = useThemeColors();
-  const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
+	const colors = useThemeColors();
+	const insets = useSafeAreaInsets();
+	const { t } = useTranslation();
+	const { onScroll, backdropStyle } = useScrollBackdrop();
 
-  const header = (
-    <View style={styles.headerBlock}>
-      {onBack ? (
-        <Pressable
-          onPress={onBack}
-          hitSlop={HitSlop}
-          accessibilityRole="button"
-          accessibilityLabel={t("common.goBack")}
-          style={({ pressed }) => [
-            styles.back,
-            { backgroundColor: colors.surfaceMuted },
-            pressed && styles.pressed,
-          ]}
-        >
-          <NativeHost>
-            <Icon name={AppIcons.back} size={scale(26)} color={colors.text} />
-          </NativeHost>
-          <Text variant="label">{t("common.back")}</Text>
-        </Pressable>
-      ) : null}
+	const backdrop = [
+		styles.backdrop,
+		{ backgroundColor: colors.surface, borderBottomColor: colors.border },
+		backdropStyle,
+	];
 
-      <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text variant="title" accessibilityRole="header">
-            {title}
-          </Text>
-          {subtitle ? (
-            <Text variant="bodyLarge" color="textSecondary">
-              {subtitle}
-            </Text>
-          ) : null}
-        </View>
-        {headerAction}
-      </View>
-    </View>
-  );
+	const bar = (
+		<View style={styles.bar}>
+			{onBack ? (
+				<Pressable
+					onPress={onBack}
+					hitSlop={HitSlop}
+					accessibilityRole="button"
+					accessibilityLabel={t("common.goBack")}
+					style={({ pressed }) => [
+						styles.back,
+						{ backgroundColor: colors.surfaceMuted },
+						pressed && styles.pressed,
+					]}
+				>
+					<NativeHost>
+						<Icon name={AppIcons.back} size={scale(28)} color={colors.text} />
+					</NativeHost>
+				</Pressable>
+			) : null}
 
-  const content = (
-    <View style={styles.content}>
-      {header}
-      {children}
-    </View>
-  );
+			<View style={styles.barText}>
+				<Text variant="heading" accessibilityRole="header">
+					{title}
+				</Text>
+				{subtitle ? (
+					<Text variant="body" color="textSecondary">
+						{subtitle}
+					</Text>
+				) : null}
+			</View>
 
-  const padding = {
-    paddingTop: insets.top + Spacing.lg,
-    paddingBottom: Spacing["2xl"] + (withTabBar ? 0 : insets.bottom),
-  };
+			{headerAction}
+		</View>
+	);
 
-  if (!scrollable) {
-    return (
-      <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.centerer, padding]}>{content}</View>
-      </View>
-    );
-  }
+	const padding = {
+		paddingTop: (stickyHeader ? 0 : insets.top) + Spacing.lg,
+		paddingBottom: Spacing["2xl"],
+	};
 
-  return (
-    <ScrollView
-      style={[styles.root, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.centerer, padding]}
-      // Older readers often enlarge system text; never trap content off-screen.
-      showsVerticalScrollIndicator={false}
-      // Screens with fields in them: the keyboard shrinks the scrollable area
-      // rather than covering the line being typed, and a tap outside a field
-      // still lands on whatever was tapped.
-      automaticallyAdjustKeyboardInsets
-      keyboardShouldPersistTaps="handled"
-    >
-      {content}
-    </ScrollView>
-  );
+	const body = (
+		<View style={styles.content}>
+			{stickyHeader ? null : bar}
+			{children}
+		</View>
+	);
+
+	return (
+		<View style={[styles.root, { backgroundColor: colors.background }]}>
+			{stickyHeader ? (
+				<View style={[styles.stickyBar, { paddingTop: insets.top }]}>
+					<Animated.View style={[backdrop, styles.fill]} pointerEvents="none" />
+					{bar}
+				</View>
+			) : null}
+
+			{scrollable ? (
+				<Animated.ScrollView
+					style={styles.scroller}
+					contentContainerStyle={[styles.centerer, padding]}
+					onScroll={onScroll}
+					scrollEventThrottle={16}
+					// Older readers often enlarge system text; never trap content off-screen.
+					showsVerticalScrollIndicator={false}
+					// Screens with fields in them: the keyboard shrinks the scrollable area
+					// rather than covering the line being typed, and a tap outside a field
+					// still lands on whatever was tapped.
+					automaticallyAdjustKeyboardInsets
+					keyboardShouldPersistTaps="handled"
+				>
+					{body}
+				</Animated.ScrollView>
+			) : (
+				<View style={[styles.scroller, styles.centerer, padding]}>{body}</View>
+			)}
+
+			{/* Only where the bar is not already covering the inset itself. */}
+			{stickyHeader ? null : (
+				<Animated.View
+					style={[backdrop, { height: insets.top }]}
+					pointerEvents="none"
+				/>
+			)}
+
+			{/* Outside the tabs there is no bar to paint the gesture area, so the
+          page paints it — content stops at the inset instead of sliding into
+          the strip the system reserves for itself. */}
+			{withTabBar ? null : (
+				<View
+					style={{ height: insets.bottom, backgroundColor: colors.surface }}
+				/>
+			)}
+		</View>
+	);
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  centerer: {
-    flexGrow: 1,
-    alignItems: "center",
-    paddingHorizontal: Spacing.xl,
-  },
-  content: {
-    width: "100%",
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-    gap: Spacing.xl,
-  },
-  headerBlock: {
-    gap: Spacing.lg,
-  },
-  back: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.xs,
-    minHeight: TouchTarget.min,
-    paddingLeft: Spacing.md,
-    paddingRight: Spacing.lg,
-    borderRadius: Radius.pill,
-  },
-  pressed: {
-    opacity: 0.6,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: Spacing.lg,
-  },
-  headerText: {
-    flex: 1,
-    gap: Spacing.xs,
-  },
+	root: {
+		flex: 1,
+	},
+	backdrop: {
+		position: "absolute",
+		top: 0,
+		left: 0,
+		right: 0,
+		borderBottomWidth: StyleSheet.hairlineWidth,
+	},
+	stickyBar: {
+		paddingHorizontal: Spacing.xl,
+		paddingBottom: Spacing.md,
+	},
+	bar: {
+		width: "100%",
+		maxWidth: MaxContentWidth,
+		alignSelf: "center",
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Spacing.md,
+		minHeight: TouchTarget.min,
+	},
+	barText: {
+		flex: 1,
+		gap: Spacing.xs,
+	},
+	fill: {
+		bottom: 0,
+	},
+	scroller: {
+		flex: 1,
+	},
+	centerer: {
+		flexGrow: 1,
+		alignItems: "center",
+		paddingHorizontal: Spacing.xl,
+	},
+	content: {
+		width: "100%",
+		maxWidth: MaxContentWidth,
+		flexGrow: 1,
+		gap: Spacing.xl,
+	},
+	back: {
+		width: TouchTarget.min,
+		height: TouchTarget.min,
+		borderRadius: Radius.pill,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	pressed: {
+		opacity: 0.6,
+	},
 });
