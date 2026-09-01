@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnrollCaregiver } from "@/lib/api/useEnrollCaregiver";
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	BarChart3,
@@ -25,6 +26,7 @@ const navItems = [
 ];
 
 export function DashboardShell({ children }: { children: ReactNode }) {
+	useEnrollCaregiver();
 	const [open, setOpen] = useState(false);
 	const pathname = usePathname();
 

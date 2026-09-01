@@ -4,9 +4,11 @@ import { useUser } from "@clerk/nextjs";
 import { Bell, Menu, Search } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useUnreadCount } from "@/lib/useUnreadCount";
 
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 	const { user } = useUser();
+	const unreadCount = useUnreadCount();
 
 	// `user` is null for the first paint while Clerk loads. The row keeps its
 	// shape and fills in rather than popping into existence, so the header does
@@ -43,9 +45,11 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 					className="relative rounded-xl border border-black/[0.06] bg-surface p-2.5 text-ink-700 hover:bg-black/[0.03]"
 				>
 					<Bell size={18} />
-					<span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-coral-500 text-[10px] font-semibold text-white">
-						3
-					</span>
+					{unreadCount > 0 && (
+						<span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-coral-500 text-[10px] font-semibold text-white">
+							{unreadCount}
+						</span>
+					)}
 				</Link>
 				<Link
 					href="/settings"

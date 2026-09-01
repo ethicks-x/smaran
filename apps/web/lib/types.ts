@@ -84,3 +84,99 @@ export interface UserProfileApi {
 	is_caregiver: boolean;
 	patient: PatientProfileApi | null;
 }
+
+export interface PatientCardApi {
+	id: string;
+	user_id: string | null;
+	full_name: string;
+	avatar_url: string | null;
+	dob: string | null;
+	address: string | null;
+	contact_number: string | null;
+	preferred_language: string | null;
+	relationship: string | null;
+	sessions_count: number;
+	overall_accuracy: number;
+	last_active_at: string | null;
+}
+
+export interface PatientDetailApi extends PatientCardApi {
+	memory_subjects_count: number;
+}
+
+export interface DashboardSummaryApi {
+	total_patients: number;
+	activities_today: number;
+	total_memory_subjects: number;
+	needs_attention: number;
+	patients: PatientCardApi[];
+}
+
+export interface MemorySubjectApi {
+	id: string;
+	patient_id: string;
+	kind: string;
+	name: string | null;
+	relation: string | null;
+	photo_url: string | null;
+	is_active: boolean;
+	created_by: string | null;
+	created_at: string;
+}
+
+export interface SessionSummaryApi {
+	id: string;
+	date: string;
+	questions_planned: number | null;
+	questions_answered: number | null;
+	accuracy: number;
+	avg_time_ms: number;
+	started_at: string;
+	ended_at: string | null;
+}
+
+export interface ActivityBreakdownApi {
+	activity: string;
+	label: string;
+	accuracy: number;
+	count: number;
+}
+
+export interface PatientProgressApi {
+	patient_id: string;
+	total_sessions: number;
+	overall_accuracy: number;
+	sessions: SessionSummaryApi[];
+	activity_breakdown: ActivityBreakdownApi[];
+}
+
+export interface CasualPlayApi {
+	id: string;
+	patient_id: string;
+	game_key: string;
+	played_at: string;
+	duration_sec: number | null;
+}
+
+export interface QuestionEventApi {
+	id: string;
+	session_id: string;
+	patient_id: string;
+	patient_name: string | null;
+	patient_avatar_url: string | null;
+	subject_id: string | null;
+	subject_name: string | null;
+	activity: string;
+	activity_label: string;
+	n_options: number | null;
+	is_correct: boolean | null;
+	time_taken_ms: number | null;
+	hints_used: number;
+	reason: string | null;
+	asked_at: string;
+}
+
+export interface ActivityFeedApi {
+	events: QuestionEventApi[];
+	total: number;
+}

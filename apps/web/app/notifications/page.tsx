@@ -1,7 +1,7 @@
 "use client";
 
-import { AlertTriangle, Brain, CheckCheck, Heart } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Brain, Heart, AlertTriangle, CheckCheck } from "lucide-react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Button } from "@/components/ui/Button";
 import { notifications as initial } from "@/lib/mock-data";
@@ -13,28 +13,47 @@ const iconMap = {
   alert: { icon: AlertTriangle, tone: "bg-coral-50 text-coral-500" },
 };
 
+const STORAGE_KEY = "smaran:read-notifications";
+
 export default function NotificationsPage() {
   const [items, setItems] = useState(initial);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    const readIds: string[] = JSON.parse(saved);
+    setItems((prev) => prev.map((n) => (readIds.includes(n.id) ? { ...n, read: true } : n)));
+  }, []);
+
+  function persistRead(updated: typeof items) {
+    const readIds = updated.filter((n) => n.read).map((n) => n.id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(readIds));
+  }
+
+  function markAllRead() {
+    setItems((prev) => {
+      const updated = prev.map((n) => ({ ...n, read: true }));
+      persistRead(updated);
+      return updated;
+    });
+  }
+
+  function markOneRead(id: string) {
+    setItems((prev) => {
+      const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
+      persistRead(updated);
+      return updated;
+    });
+  }
 
   return (
     <DashboardShell>
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink-900 sm:text-3xl">
-            Notifications
-          </h1>
-          <p className="mt-1.5 text-sm text-ink-500">
-            Activity, memories, and things needing attention.
-          </p>
+          <h1 className="font-display text-2xl font-bold text-ink-900 sm:text-3xl">Notifications</h1>
+          <p className="mt-1.5 text-sm text-ink-500">Activity, memories, and things needing attention.</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() =>
-            setItems((it) => it.map((n) => ({ ...n, read: true })))
-          }
-        >
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={markAllRead}>
           <CheckCheck size={14} /> Mark all read
         </Button>
       </div>
@@ -47,17 +66,10 @@ export default function NotificationsPage() {
               key={n.id}
               className={cn(
                 "flex items-start gap-3.5 rounded-2xl border p-4 shadow-[0_2px_8px_rgba(44,31,88,0.06)]",
-                n.read
-                  ? "border-black/6 bg-surface"
-                  : "border-indigo-200 bg-indigo-50/40",
+                n.read ? "border-black/[0.06] bg-surface" : "border-indigo-200 bg-indigo-50/40"
               )}
             >
-              <span
-                className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                  meta.tone,
-                )}
-              >
+              <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", meta.tone)}>
                 <meta.icon size={17} />
               </span>
               <div className="min-w-0 flex-1">
@@ -68,11 +80,7 @@ export default function NotificationsPage() {
               {!n.read && (
                 <button
                   type="button"
-                  onClick={() =>
-                    setItems((it) =>
-                      it.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
-                    )
-                  }
+                  onClick={() => markOneRead(n.id)}
                   className="shrink-0 rounded-full bg-indigo-600 px-2.5 py-1 text-[11px] font-medium text-white"
                 >
                   Mark read
