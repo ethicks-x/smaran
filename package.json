@@ -26,5 +26,8 @@
       "uv run --project apps/api ruff check --fix --force-exclude",
       "uv run --project apps/api ruff format --force-exclude"
     ]
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^7.8.3"
   }
 }

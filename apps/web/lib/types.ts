@@ -69,3 +69,18 @@ export interface CasualPlayLog {
     played_at: string;
     duration_sec: number;
 }
+
+export interface PatientProfileApi {
+    id: string;
+    dob: string | null;
+    address: string | null;
+    contact_number: string | null;
+    preferred_language: string | null;
+}
+
+export interface UserProfileApi {
+    user_id: string;
+    roles: string[];
+    is_caregiver: boolean;
+    patient: PatientProfileApi | null;
+}

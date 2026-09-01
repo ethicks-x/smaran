@@ -5,9 +5,11 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Camera, Check } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 export default function AddPatientPage() {
   const router = useRouter();
+  const { showToast } = useToast();
 
   return (
     <DashboardShell>
@@ -22,9 +24,11 @@ export default function AddPatientPage() {
             className="space-y-5"
             onSubmit={(e) => {
               e.preventDefault();
+              showToast("Patient added successfully");
               router.push("/patients");
             }}
           >
+
             <div className="flex justify-center">
               <button
                 type="button"
