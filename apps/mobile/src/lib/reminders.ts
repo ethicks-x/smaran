@@ -175,7 +175,20 @@ export type NewReminder = {
 	schedule: ReminderSchedule;
 };
 
-/** Keep a new reminder. Live from the next time Today is drawn. */
+/**
+ * Keep a new reminder. Live from the next time Today is drawn, and on its way to the
+ * family the next time this phone reaches the network.
+ *
+ * The row and its `sync_queue` entry go in **one transaction**, for the same reason a
+ * session's do: a reminder that exists without a queue entry is one the caregiver will
+ * never see, and nothing later would notice it was missing. That was exactly the gap this
+ * closed — reminders synced down and never up, so the one kind of reminder the dashboard
+ * could not show was the kind the reader made themselves (D-36).
+ *
+ * Creating is all the device may do. Editing, switching off and retiring belong to the
+ * caregiver, so there is no second queue entry anywhere in this file — one write, once, at
+ * the moment it is made.
+ */
 export function addReminder(input: NewReminder): ReminderRow {
 	const row = {
 		id: newId(),
@@ -188,7 +201,23 @@ export function addReminder(input: NewReminder): ReminderRow {
 		notificationIds: "[]",
 	};
 
-	db().insert(reminder).values(row).run();
+	db().transaction((tx) => {
+		tx.insert(reminder).values(row).run();
+
+		// A snapshot rather than a pointer, so a retry sends what the first attempt
+		// sent even if the caregiver has since changed the reminder underneath it.
+		// `notificationIds` is not in it: what this phone has booked with the OS is
+		// nobody else's business.
+		tx.insert(syncQueue)
+			.values({
+				entity: "reminder",
+				entityId: row.id,
+				seq: takeSeq(tx),
+				payload: JSON.stringify(row),
+				createdAt: Date.now(),
+			})
+			.run();
+	});
 
 	return row;
 }

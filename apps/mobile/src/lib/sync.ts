@@ -68,10 +68,25 @@ const BATCH_SIZE = 100;
  */
 const MAX_ATTEMPTS = 5;
 
-/** Where each stream goes. The two share a `seq` counter, not a route. */
+/**
+ * Where each stream goes. They share a `seq` counter, not a route.
+ *
+ * Order matters a little: definitions go first, so a caregiver watching the dashboard sees
+ * a reminder appear before the acknowledgements that refer to it. Nothing depends on it —
+ * `reminder_events.reminder_id` is deliberately not a foreign key (D-32), so an event lands
+ * whether or not its definition has — it is only that the other order reads like a glitch.
+ */
 const ENDPOINTS: Record<SyncEntity, string> = {
+	reminder: "/sync/reminders",
 	game_session: "/sync/sessions",
 	reminder_event: "/sync/reminder-events",
+};
+
+/** What each endpoint calls its batch. */
+const COLLECTION: Record<SyncEntity, string> = {
+	reminder: "reminders",
+	game_session: "sessions",
+	reminder_event: "events",
 };
 
 /** What the server does with a batch. `api-contract.md` §2. */
@@ -313,7 +328,7 @@ async function send(
 	const body = {
 		device_id: deviceId,
 		app_version: Constants.expoConfig?.version ?? null,
-		...(entity === "game_session" ? { sessions: items } : { events: items }),
+		[COLLECTION[entity]]: items,
 	};
 
 	try {
@@ -384,9 +399,16 @@ function toWire(entity: SyncEntity, row: SyncQueueRow): unknown {
 		throw new Error("A queued payload is not an object.");
 	}
 
-	return entity === "game_session"
-		? sessionWire(payload as SessionPayload)
-		: reminderEventWire(payload as ReminderEventPayload);
+	switch (entity) {
+		case "game_session":
+			return sessionWire(payload as SessionPayload);
+		case "reminder_event":
+			return reminderEventWire(payload as ReminderEventPayload);
+		case "reminder":
+			// The only stream whose `seq` is not in its own payload: a `reminder` row has
+			// no sequence column, so the number comes off the queue entry that carries it.
+			return reminderWire(payload as ReminderPayload, row.seq);
+	}
 }
 
 /** The `game_session` row as `lib/game-history.ts` queued it. */
@@ -433,6 +455,35 @@ function sessionWire(payload: SessionPayload) {
 		median_response_ms: payload.medianResponseMs,
 		consistency: payload.consistency,
 		longest_streak: payload.longestStreak,
+	};
+}
+
+/** The `reminder` row as `addReminder` queued it. */
+type ReminderPayload = {
+	id: string;
+	kind: string;
+	title: string;
+	detail: string | null;
+	schedule: string;
+	active: boolean;
+};
+
+/**
+ * A reminder the reader made, in the shape the API takes.
+ *
+ * `notificationIds` is in the stored row and deliberately not here: which OS notifications
+ * this phone has booked is local scheduling state, and the server neither knows nor should
+ * know it (D-34).
+ */
+function reminderWire(payload: ReminderPayload, seq: number) {
+	return {
+		id: payload.id,
+		seq,
+		kind: payload.kind,
+		title: payload.title,
+		detail: payload.detail,
+		schedule: payload.schedule,
+		active: payload.active,
 	};
 }
 

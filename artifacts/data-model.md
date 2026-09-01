@@ -130,7 +130,7 @@ Synced down. Backs the Memories tab.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | integer PK autoincr | drain order |
-| `entity` | text | `game_session` · `reminder_event` |
+| `entity` | text | `game_session` · `reminder_event` · `reminder` (creations only, D-36) |
 | `entity_id` | text | |
 | `seq` | integer | copied from the row, so a retry sends the same key |
 | `payload` | text | JSON snapshot, so the queue is self-contained |
@@ -163,7 +163,9 @@ All of §2's tables exist as SQLAlchemy models and are created by `alembic/versi
   (the watermark every ingest response reports), last_seen_at, enrolled_at
 - `people` ✅ / `memory_items` ✅ — the down-sync content, owned by caregivers
 - `reminders` ✅ — the server-authoritative definitions devices pull, with caregiver CRUD
-  behind `/dashboard/patients/{id}/reminders` and a **soft** delete (D-34)
+  behind `/dashboard/patients/{id}/reminders` and a **soft** delete (D-34). A phone may also
+  *create* one through `POST /sync/reminders`, and only create it — no `device_id`/`seq`
+  here, because a client-generated uuid already makes that insert idempotent (D-36)
 
 The three down-sync tables carry `updated_at` **and `deleted_at`**: `GET /sync/pull?since=`
 has to tell a device that has been off for a week about a row that was removed as well as

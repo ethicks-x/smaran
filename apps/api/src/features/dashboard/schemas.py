@@ -152,10 +152,15 @@ REMINDER_KINDS = ("medicine", "hydration", "activity", "appointment")
 SCHEDULE_PATTERN = r"^([01]\d|2[0-3]):([0-5]\d)\|[01]{7}$"
 
 
+# The one place the four kinds are written down. `features/sync` imports it, so the phone's
+# door into this table and the caregiver's cannot come to disagree about what a reminder is.
+ReminderKind = Literal["medicine", "hydration", "activity", "appointment"]
+
+
 class ReminderCreateIn(BaseModel):
     """Payload to add a reminder for a patient."""
 
-    kind: Literal["medicine", "hydration", "activity", "appointment"]
+    kind: ReminderKind
     title: str = Field(..., min_length=1, max_length=200)
     detail: str | None = Field(None, max_length=500)
     schedule: str = Field(..., pattern=SCHEDULE_PATTERN, examples=["09:00|1111111"])
@@ -165,7 +170,7 @@ class ReminderCreateIn(BaseModel):
 class ReminderUpdateIn(BaseModel):
     """Payload to modify a reminder. Every field is optional; omitted ones are left alone."""
 
-    kind: Literal["medicine", "hydration", "activity", "appointment"] | None = None
+    kind: ReminderKind | None = None
     title: str | None = Field(None, min_length=1, max_length=200)
     detail: str | None = Field(None, max_length=500)
     schedule: str | None = Field(None, pattern=SCHEDULE_PATTERN)
@@ -306,6 +311,7 @@ __all__ = [
     "PatientUpdateIn",
     "QuestionEventOut",
     "ReminderCreateIn",
+    "ReminderKind",
     "ReminderOut",
     "ReminderUpdateIn",
     "SessionSummaryOut",

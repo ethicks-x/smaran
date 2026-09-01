@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from features.sync.schemas import ReminderEventIn, SessionIn
+    from features.sync.schemas import ReminderEventIn, ReminderIn, SessionIn
 
 
 # Plain language, and about the row rather than the person. Nothing patient-identifying
@@ -157,10 +157,53 @@ async def ingest_reminder_events(
     return await _write(session, device, ReminderEvent, rows)
 
 
+async def ingest_reminders(
+    session: AsyncSession,
+    user_id: str,
+    device_id: UUID,
+    app_version: str | None,
+    items: Sequence[ReminderIn],
+) -> SyncAckOut:
+    """Store reminders the reader created on the phone.
+
+    **The only definition the device authors, and it authors it once.** On conflict this
+    does nothing, and that is the whole design rather than an optimisation: the row's id is
+    the device's own uuid, so a retried batch finds its own earlier row — but so does a
+    batch that arrives after a caregiver has edited the reminder. Upserting the payload
+    would quietly revert their change, and a device retry is not a reason to overturn a
+    person's decision. Creation comes from the phone; everything after it comes from the
+    dashboard (`data-model.md` §3 rule 2).
+
+    So there is no `(device_id, seq)` key here and no need for one. The id is generated on
+    the device and is already unique, which makes the insert idempotent on its own — `seq`
+    rides along to order the outbox and nothing more.
+    """
+    patient = await resolve_patient(session, user_id)
+    device = await ensure_device(session, patient, device_id, app_version)
+
+    rows = [
+        {
+            "id": item.id,
+            "patient_id": patient.id,
+            "kind": item.kind,
+            "title": item.title,
+            "detail": item.detail,
+            "schedule": item.schedule,
+            "active": item.active,
+            # Factually who created it: the reader, on their own phone. A person-shaped
+            # column holds a Clerk id and nothing else (D-20).
+            "created_by": user_id,
+        }
+        for item in items
+    ]
+
+    return await _write(session, device, Reminder, rows)
+
+
 async def _write(
     session: AsyncSession,
     device: Device,
-    model: type[SessionEvent] | type[ReminderEvent],
+    model: type[SessionEvent] | type[ReminderEvent] | type[Reminder],
     rows: list[dict[str, Any]],
 ) -> SyncAckOut:
     """Insert the rows one at a time, counting what happened to each.
@@ -237,6 +280,7 @@ async def _watermark(session: AsyncSession, device_id: UUID) -> int:
 __all__ = [
     "ensure_device",
     "ingest_reminder_events",
+    "ingest_reminders",
     "ingest_sessions",
     "pull",
     "resolve_patient",

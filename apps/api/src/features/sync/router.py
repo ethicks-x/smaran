@@ -23,11 +23,17 @@ from features.auth.decorators import auth_required
 from features.database.db import DbSession  # noqa: TC001
 from features.sync.schemas import (  # noqa: TC001
     PullOut,
+    ReminderBatchIn,
     ReminderEventBatchIn,
     SessionBatchIn,
     SyncAckOut,
 )
-from features.sync.service import ingest_reminder_events, ingest_sessions, pull
+from features.sync.service import (
+    ingest_reminder_events,
+    ingest_reminders,
+    ingest_sessions,
+    pull,
+)
 
 
 if TYPE_CHECKING:
@@ -70,6 +76,24 @@ async def sync_reminder_events(
     """
     return await ingest_reminder_events(
         db, auth.user_id, batch.device_id, batch.app_version, batch.events
+    )
+
+
+@router.post("/reminders", response_model=SyncAckOut)
+@auth_required
+async def sync_reminders(batch: ReminderBatchIn, db: DbSession, auth: AuthContext) -> SyncAckOut:
+    """Ingest reminders the reader created on the phone.
+
+    The phone can **add** a reminder; it cannot change or retire one. A row that is already
+    here is left exactly as it is, so a device retry can never revert an edit the caregiver
+    made in between — creation comes from the phone, everything after it from the dashboard
+    (`data-model.md` §3 rule 2).
+
+    This is what makes a reminder added on the phone visible to the family. Without it the
+    reader's own reminders were the one thing the dashboard could not see.
+    """
+    return await ingest_reminders(
+        db, auth.user_id, batch.device_id, batch.app_version, batch.reminders
     )
 
 

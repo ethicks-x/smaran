@@ -35,6 +35,7 @@ contract**; this file is the design intent and the queue of what to build.
 | GET | `/sync/health` | `{"feature": "sync", "status": "ok"}` |
 | POST | `/sync/sessions` | `SyncAckOut` — ingest a batch of game rounds. **Authenticated** |
 | POST | `/sync/reminder-events` | `SyncAckOut` — ingest a batch of reminder outcomes. **Authenticated** |
+| POST | `/sync/reminders` | `SyncAckOut` — ingest reminders the reader created on the phone. **Authenticated** |
 | GET | `/sync/pull` | `PullOut` — changed reminders, and history for a reinstalled phone. **Authenticated** |
 | GET | `/dashboard/patients/{id}/reminders` | `list[ReminderOut]` — reminders in force for a patient |
 | POST | `/dashboard/patients/{id}/reminders` | `ReminderOut` — set up a reminder |
@@ -102,6 +103,7 @@ Identity has to line up with Clerk on mobile (`decisions.md` D-01); how is open 
 |---|---|---|---|
 | POST | `/sync/sessions` | Ingest a batch of game sessions | ✅ D-33 |
 | POST | `/sync/reminder-events` | Ingest a batch of reminder outcomes | ✅ D-33 |
+| POST | `/sync/reminders` | Ingest reminders created on the phone — **creations only** | ✅ D-36 |
 | GET | `/sync/pull?since=&restore=` | Down-sync: reminders changed since a watermark, plus history on request | 🟡 D-34 — reminders and sessions built; people and memories not |
 
 **Ingest contract.** Both POSTs take a batch and are idempotent — upsert on
@@ -179,7 +181,9 @@ Rules:
 
 - **Reminders are server-authoritative** — the device replaces what it holds, no merge
   (`data-model.md` §3 rule 2). Only ids named in the response are written or removed, so a
-  reminder the reader added on the phone is never collateral.
+  reminder the reader added on the phone is never collateral. The phone may **create** a
+  reminder (`POST /sync/reminders`, D-36) and never change one: ingest is
+  `ON CONFLICT DO NOTHING`, so a stale queued batch cannot revert a caregiver's edit.
 - **A retirement arrives as `deleted: true`, never as an absence.** A hard delete is invisible
   to a watermark and a phone that was switched off would show the reminder forever.
 - **`since` is the server's own `synced_at`, echoed back** — never the device's clock, which

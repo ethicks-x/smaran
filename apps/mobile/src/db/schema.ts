@@ -282,8 +282,16 @@ export const memoryItem = sqliteTable(
 	(table) => [index("memory_item_created_idx").on(table.createdAt)],
 );
 
-/** The entities that sync **up**. Both append-only, both keyed by `seq`. */
-export type SyncEntity = "game_session" | "reminder_event";
+/**
+ * The entities that sync **up**.
+ *
+ * The first two are append-only facts keyed by `(device_id, seq)`. The third is not: a
+ * `reminder` is a definition, and the device is only ever allowed to *create* one — the
+ * caregiver owns it from then on (`data-model.md` §3 rule 2). It rides the same queue
+ * because the queue is how anything leaves this phone, and its id is already unique, so
+ * the server dedupes it on that rather than on the sequence number.
+ */
+export type SyncEntity = "game_session" | "reminder_event" | "reminder";
 
 /**
  * What is owed to the server, in the order it happened.

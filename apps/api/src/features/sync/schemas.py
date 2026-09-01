@@ -25,6 +25,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# What a reminder kind and a schedule are is one fact about the product, not two. It is
+# defined next to the caregiver endpoint that first needed it and imported here so the two
+# doors into the same table cannot drift apart — a device and a dashboard disagreeing about
+# what a valid schedule looks like is a reminder that renders on one and not the other.
+from features.dashboard.schemas import SCHEDULE_PATTERN, ReminderKind
+
 
 # One batch is one HTTP request on a phone that may be on a village 2G connection. Large
 # enough that a month of backlog drains in a handful of round trips, small enough that a
@@ -108,6 +114,35 @@ class SessionBatchIn(_BatchIn):
 
 class ReminderEventBatchIn(_BatchIn):
     events: list[ReminderEventIn] = Field(max_length=MAX_BATCH)
+
+
+class ReminderIn(_Inbound):
+    """A reminder the reader set up **on the phone**, on its way up.
+
+    The one definition the device is allowed to author. Everything after the creation —
+    edits, switching off, retiring — belongs to the caregiver (`data-model.md` §3 rule 2),
+    so this stream carries new reminders and never changes to existing ones. That is what
+    keeps "server-authoritative" true with a device that can still add one: there is exactly
+    one moment the phone writes, and it is the first.
+
+    `kind` and `schedule` are validated against the same values the caregiver endpoint takes
+    — a row that reached the caregiver's screen with a schedule nothing can parse would be a
+    reminder nobody can see is broken. There is no length cap on the copy: the column is
+    `Text`, and truncating what somebody wrote for a person with dementia to fit a validator
+    is not a trade worth making.
+    """
+
+    id: UUID
+    seq: int = Field(ge=0)
+    kind: ReminderKind
+    title: str = Field(min_length=1)
+    detail: str | None = None
+    schedule: str = Field(pattern=SCHEDULE_PATTERN)
+    active: bool = True
+
+
+class ReminderBatchIn(_BatchIn):
+    reminders: list[ReminderIn] = Field(max_length=MAX_BATCH)
 
 
 class ReminderPull(_Inbound):
@@ -213,10 +248,14 @@ class SyncAckOut(BaseModel):
     accepted: int
     duplicates: int
     rejected: list[RejectedItem] = Field(default_factory=list)
-    # The highest sequence number this server holds for the device, across both streams.
-    # Diagnostic: the client decides what is still owed from its own queue, never from
-    # this number, because the two streams share one counter and a batch of one of them
-    # says nothing about the other.
+    # The highest sequence number this server holds for the device, across the two
+    # append-only streams. Reminder definitions are not counted — the table has no `seq`,
+    # because a device-generated uuid already makes that insert idempotent — so a batch of
+    # nothing but reminders reports the watermark unchanged.
+    #
+    # Diagnostic either way: the client decides what is still owed from its own queue and
+    # never from this number, because the streams share one counter and a batch of one says
+    # nothing about the others.
     last_seq: int
 
 
@@ -226,8 +265,10 @@ __all__ = [
     "PullOut",
     "ReminderPull",
     "SessionPull",
+    "ReminderBatchIn",
     "ReminderEventBatchIn",
     "ReminderEventIn",
+    "ReminderIn",
     "RejectedItem",
     "SessionBatchIn",
     "SessionIn",

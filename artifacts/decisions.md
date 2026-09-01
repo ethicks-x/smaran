@@ -1551,3 +1551,61 @@ schema built by Alembic rather than by `create_all`.
 **Would change it if:** the Timescale hypertable lands, which is a `SELECT
 create_hypertable(...)` in a migration and must run before `session_events` has meaningful
 data — it rewrites the table.
+
+---
+
+## D-36 · 2026-09-01 · A reminder made on the phone syncs up; the device may create one, and only create it
+
+**Decision.** `addReminder()` now writes its `sync_queue` entry in the same transaction as
+the row, `POST /sync/reminders` ingests the stream, and `reminder` joins `game_session` and
+`reminder_event` in `SyncEntity`. A reminder the reader adds on their own phone now appears
+on the caregiver's dashboard.
+
+**This closes a gap D-34 shipped with and named.** Reminders synced down and never up, so
+the one kind of reminder the family could not see was the kind the reader made themselves —
+which is the kind they would most want to know about.
+
+**The device may create a reminder. It may not change or retire one.** That single sentence
+is what keeps `data-model.md` §3 rule 2 true while both ends can write: there is exactly one
+moment the phone authors a definition, and it is the first. Everything after — edits,
+switching off, retiring — is the caregiver's, and the phone takes what it is given (D-34).
+So this stream carries creations only, and there is no second queue entry anywhere in
+`lib/reminders.ts`.
+
+**Ingest is `ON CONFLICT DO NOTHING`, and that is the design rather than an optimisation.**
+The row's id is the device's own uuid, so a retried batch finds its own earlier row — but so
+does a batch that has been sitting in the outbox since before the caregiver edited the
+reminder. Upserting the payload would silently revert their change. A device retry is not a
+reason to overturn a person's decision, so the first write wins and every later one is
+counted as a duplicate. **Verified**: a stale batch replayed after a caregiver moved a
+reminder from 21:00 to 20:00 left it at 20:00.
+
+**No `(device_id, seq)` on this stream, and none needed.** `reminders` has no such columns:
+a client-generated uuid is already unique, which makes the insert idempotent on its own.
+`seq` still rides along, because it is what orders the outbox — it just is not the dedupe
+key, and it is not counted in the ack's `last_seq` watermark either.
+
+**Validation is `kind` and `schedule` only.** Both are checked against exactly what the
+device can draw and `parseSchedule` can read, because a row that reached the caregiver's
+screen with an unparseable schedule would be a reminder nobody can see is broken. There is
+deliberately **no length cap on the copy**: the column is `Text`, and truncating what
+somebody wrote for a person with dementia to satisfy a validator is not a trade worth
+making.
+
+**`created_by` holds the patient's own Clerk id**, which is factually who created it, and
+is how the dashboard can tell a reminder the reader set from one the family set. A
+person-shaped column holds a Clerk id and nothing else (D-20).
+
+**`notification_ids` never leaves the phone.** What this device has booked with the OS is
+local scheduling state; the server neither knows nor should know it (D-34).
+
+**Still not done:** the phone cannot edit, switch off or delete a reminder — not a sync gap
+but a missing screen, and the sync model above is what that screen would have to respect. A
+reminder retired by the caregiver still cascades its local `reminder_event` rows on the
+device; the queued snapshots survive it, so unsynced adherence still syncs (verified), and
+that remains true only while `sync_queue.payload` is a snapshot rather than a pointer.
+
+**Would change it if:** the phone gains real editing, at which point definitions become
+genuinely two-way and need a conflict rule — `updated_at` last-write-wins is the cheap
+answer and it would quietly lose a caregiver's edit, which is the outcome this decision
+exists to prevent.
