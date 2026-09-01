@@ -1,7 +1,11 @@
+export type { GameEntry } from "./catalogue";
+export { GameCatalogue, HomeGameCount } from "./catalogue";
 export type { GameCardProps } from "./game-card";
 export { GameCard } from "./game-card";
 export type { GameFrameProps } from "./game-frame";
 export { GameFrame } from "./game-frame";
+export type { GameGridProps, GameGridTile } from "./game-grid";
+export { GameGrid } from "./game-grid";
 export type { GameSummaryProps } from "./game-summary";
 export { GameStatsDetail, GameSummary } from "./game-summary";
 export type { GridItem, ItemGridProps } from "./item-grid";
