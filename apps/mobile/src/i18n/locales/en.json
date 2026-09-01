@@ -88,7 +88,8 @@
 		"failure": {
 			"unknown-number": "We could not find that number. Please check it with the person who gave it to you.",
 			"offline": "The phone is not connected right now. Please try again in a little while.",
-			"failed": "That did not work just now. Please try again."
+			"failed": "That did not work just now. Please try again.",
+			"deregistered": "This caregiver has deregistered your account. You cannot link with this code again."
 		}
 	},
 	"today": {

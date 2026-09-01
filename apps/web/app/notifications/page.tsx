@@ -8,7 +8,7 @@ import { useApi } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 const iconMap = {
-  activity: { icon: Brain, tone: "bg-indigo-50 text-indigo-600" },
+  activity: { icon: Brain, tone: "bg-indigo-50 text-indigo-700" },
   memory: { icon: Heart, tone: "bg-mint-50 text-mint-600" },
   alert: { icon: AlertTriangle, tone: "bg-coral-50 text-coral-500" },
 };
@@ -105,13 +105,13 @@ export default function NotificationsPage() {
       )}
 
       {error && (
-        <div className="rounded-2xl border border-coral-200 bg-coral-50/40 p-4">
+        <div className="rounded-2xl border border-coral-200 bg-coral-50/40 p-3 text-sm text-coral-600 dark:border-coral-400/30">
           <p className="text-sm font-semibold text-coral-600">{error}</p>
         </div>
       )}
 
       {!loading && !error && items.length === 0 && (
-        <div className="rounded-2xl border border-black/[0.06] bg-surface p-8 text-center">
+        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-surface p-8 text-center">
           <p className="text-sm text-ink-500">No notifications yet.</p>
         </div>
       )}
@@ -123,8 +123,8 @@ export default function NotificationsPage() {
             <div
               key={n.id}
               className={cn(
-                "flex items-start gap-3.5 rounded-2xl border p-4 shadow-[0_2px_8px_rgba(44,31,88,0.06)]",
-                n.read ? "border-black/[0.06] bg-surface" : "border-indigo-200 bg-indigo-50/40"
+                "flex items-start gap-3.5 rounded-2xl border p-4 shadow-[0_2px_8px_rgba(44,31,88,0.06)] dark:shadow-none",
+                n.read ? "border-black/[0.06] dark:border-white/[0.08] bg-surface" : "border-indigo-200 dark:border-indigo-400/30 bg-indigo-50/40"
               )}
             >
               <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", meta.tone)}>
@@ -133,7 +133,7 @@ export default function NotificationsPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-ink-900">{n.title}</p>
                 <p className="mt-0.5 text-sm text-ink-500">{n.description}</p>
-                <p className="mt-1.5 text-xs text-ink-300">{n.time}</p>
+                <p className="mt-1.5 text-xs text-ink-500">{n.time}</p>
               </div>
               {!n.read && (
                 <button

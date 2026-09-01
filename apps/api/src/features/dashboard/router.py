@@ -35,6 +35,7 @@ from features.dashboard.service import (
     delete_memory_subject,
     delete_patient,
     delete_reminder,
+    deregister_patient,
     get_activity_feed,
     get_attention_flags,
     get_dashboard_summary,
@@ -119,6 +120,18 @@ async def update_patient_profile(
 ) -> PatientDetailOut:
     """Update patient information or relationship metadata."""
     return await update_patient(db, auth.user_id, patient_id, payload)
+
+
+@router.post("/patients/{patient_id}/deregister")
+@caregiver_required
+async def deregister_patient_link(
+    patient_id: UUID,
+    db: DbSession,
+    auth: AuthContext,
+) -> dict[str, str]:
+    """Deregister a patient: revokes the caregiver link permanently so they cannot log in with this code."""
+    await deregister_patient(db, auth.user_id, patient_id)
+    return {"status": "deregistered"}
 
 
 @router.delete("/patients/{patient_id}")

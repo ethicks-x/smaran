@@ -167,7 +167,7 @@ Tailwind v4, Recharts and framer-motion are in.
 |---|---|
 | Auth (Clerk) | ✅ `ClerkProvider` in the root layout, `proxy.ts` protecting every non-public route, `<SignIn>`/`<SignUp>` at `/login` and `/signup`, working sign-out in Settings. A new sign-up is forced through `/welcome`, which claims the caregiver role from the API before the dashboard is asked for — D-28 |
 | API client | ✅ `lib/api.ts` (transport) + `lib/api-server.ts` `api()` + `hooks/use-api.ts` `useApi()` — D-27 |
-| Screens fed by the API | 🟡 Dashboard, Patients, Patient Detail, Reminders, and Activity are wired to live API endpoints (`/dashboard/summary`, `/dashboard/patients/*`, `/dashboard/activity`). |
+| Screens fed by the API | ✅ Dashboard, Patients, Patient Detail (Overview, Memory Subjects, Reminders tab, Progress, Casual Play), Patient Edit Modal, Add Memory flow, Add Reminder Modal / Reminders Manager, and Activity are fully wired to live API endpoints (`/dashboard/summary`, `/dashboard/patients/*`, `/dashboard/activity`). |
 | Identity on screen | 🟡 the header shows the real Clerk user; Settings still renders the mock caregiver |
 | Data fetching/caching | ⬜ TanStack Query not installed |
 

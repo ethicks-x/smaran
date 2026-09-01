@@ -143,7 +143,7 @@ export default function AddMemorySubjectPage() {
                   type="button"
                   key={k.key}
                   onClick={() => setSelected(k.key)}
-                  className="flex flex-col items-center gap-3 rounded-2xl border border-black/6 bg-surface p-6 text-center shadow-[0_2px_8px_rgba(44,31,88,0.06)] hover:border-indigo-300"
+                  className="flex flex-col items-center gap-3 rounded-2xl border border-black/6 dark:border-white/[0.08] bg-surface p-6 text-center shadow-[0_2px_8px_rgba(44,31,88,0.06)] dark:shadow-none hover:border-indigo-400"
                 >
                   <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
                     <k.icon size={20} />
@@ -195,7 +195,7 @@ export default function AddMemorySubjectPage() {
                   />
                   <label
                     htmlFor="photo"
-                    className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/15 py-10 text-ink-400 hover:border-indigo-300 hover:text-indigo-500"
+                    className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/15 dark:border-white/15 py-10 text-ink-300 hover:border-indigo-400 hover:text-indigo-400"
                   >
                     {photoPreview ? (
                       <>
@@ -238,7 +238,7 @@ export default function AddMemorySubjectPage() {
                           ? "e.g. College Street"
                           : "e.g. His old radio"
                     }
-                    className="w-full rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm focus:border-indigo-400 focus:outline-none disabled:bg-black/5"
+                    className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-surface px-4 py-2.5 text-sm text-ink-900 placeholder:text-ink-300 focus:border-indigo-400 focus:outline-none disabled:bg-black/5 dark:disabled:bg-white/5"
                     disabled={loading}
                   />
                 </div>
@@ -257,13 +257,13 @@ export default function AddMemorySubjectPage() {
                       value={formData.relation}
                       onChange={handleInputChange}
                       placeholder="e.g. daughter, grandson"
-                      className="w-full rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm focus:border-indigo-400 focus:outline-none disabled:bg-black/5"
+                      className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-surface px-4 py-2.5 text-sm text-ink-900 placeholder:text-ink-300 focus:border-indigo-400 focus:outline-none disabled:bg-black/5 dark:disabled:bg-white/5"
                       disabled={loading}
                     />
                   </div>
                 )}
 
-                <div className="flex justify-end gap-3 border-t border-black/6 pt-5">
+                <div className="flex justify-end gap-3 border-t border-black/6 dark:border-white/[0.08] pt-5">
                   <Button
                     type="button"
                     variant="ghost"

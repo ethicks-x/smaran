@@ -172,7 +172,10 @@ async def request_link(session: AsyncSession, user_id: str, smaran_id: int) -> C
         )
         session.add(link)
     elif link.status == LINK_REVOKED:
-        link.status = LINK_PENDING
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This caregiver has deregistered your account. You cannot link with this code.",
+        )
 
     await session.commit()
     await session.refresh(link)

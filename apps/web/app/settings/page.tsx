@@ -40,7 +40,7 @@ export default function SettingsPage() {
 									className="h-16 w-16 rounded-2xl object-cover"
 								/>
 							) : (
-								<div className="h-16 w-16 animate-pulse rounded-2xl bg-black/[0.06]" />
+								<div className="h-16 w-16 animate-pulse rounded-2xl bg-black/[0.06] dark:bg-white/[0.06]" />
 							)}
 							<div>
 								<p className="font-display text-base font-semibold text-ink-900">
@@ -71,7 +71,7 @@ export default function SettingsPage() {
 					</CardHeader>
 					<CardContent className="space-y-4">
 						<div className="flex items-center gap-3">
-							<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/[0.05] text-ink-500">
+							<span className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/[0.05] dark:bg-white/[0.08] text-ink-500">
 								<KeyRound size={17} />
 							</span>
 							<div>

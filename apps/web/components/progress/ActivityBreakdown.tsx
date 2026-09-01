@@ -9,11 +9,11 @@ export function ActivityBreakdown({
         <div key={a.activity}>
           <div className="mb-1.5 flex items-center justify-between text-sm">
             <span className="font-medium text-ink-700">
-              {a.label} <span className="text-ink-300">({a.count} asked)</span>
+              {a.label} <span className="text-ink-500">({a.count} asked)</span>
             </span>
             <span className="font-semibold text-ink-900">{a.accuracy}%</span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-black/[0.06]">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/[0.08]">
             <div
               className="h-full rounded-full bg-indigo-500 transition-all duration-700"
               style={{ width: `${a.accuracy}%` }}

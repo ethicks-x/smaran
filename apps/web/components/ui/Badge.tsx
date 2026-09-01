@@ -8,7 +8,7 @@ const toneClasses: Record<Tone, string> = {
   mint: "bg-mint-50 text-mint-600",
   amber: "bg-amber-50 text-amber-500",
   coral: "bg-coral-50 text-coral-500",
-  neutral: "bg-black/[0.05] text-ink-700",
+  neutral: "bg-black/[0.05] dark:bg-white/[0.08] text-ink-700",
 };
 
 export function Badge({

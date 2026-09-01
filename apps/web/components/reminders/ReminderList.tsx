@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Badge } from "@/components/ui/Badge";
 import type { ReminderApi, ReminderKind } from "@/lib/types";
 
 interface ReminderListProps {
@@ -18,11 +19,11 @@ const KIND_LABELS: Record<ReminderKind, string> = {
 	appointment: "Appointment",
 };
 
-const KIND_COLORS: Record<ReminderKind, string> = {
-	medicine: "bg-red-100 text-red-800",
-	hydration: "bg-blue-100 text-blue-800",
-	activity: "bg-green-100 text-green-800",
-	appointment: "bg-purple-100 text-purple-800",
+const KIND_TONES: Record<ReminderKind, "coral" | "indigo" | "mint" | "amber"> = {
+	medicine: "coral",
+	hydration: "indigo",
+	activity: "mint",
+	appointment: "amber",
 };
 
 function parseSchedule(schedule: string): { time: string; days: string } {
@@ -46,8 +47,8 @@ export function ReminderList({
 }: ReminderListProps) {
 	if (reminders.length === 0) {
 		return (
-			<div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
-				<p className="text-gray-600">No reminders yet. Create one to get started.</p>
+			<div className="rounded-2xl border border-dashed border-black/15 dark:border-white/15 bg-surface p-8 text-center">
+				<p className="text-sm text-ink-500">No reminders yet. Create one to get started.</p>
 			</div>
 		);
 	}
@@ -61,35 +62,31 @@ export function ReminderList({
 				return (
 					<div
 						key={reminder.id}
-						className={`rounded-lg border p-4 transition-opacity ${
+						className={`rounded-2xl border p-4 transition-opacity ${
 							isActive
-								? "border-gray-200 bg-white"
-								: "border-gray-200 bg-gray-50 opacity-60"
+								? "border-black/[0.06] dark:border-white/[0.08] bg-surface shadow-[0_2px_8px_rgba(44,31,88,0.06)] dark:shadow-none"
+								: "border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] opacity-60"
 						}`}
 					>
-						<div className="flex items-start justify-between">
+						<div className="flex items-start justify-between gap-3">
 							<div className="flex-1">
 								<div className="flex items-center gap-2">
-									<span
-										className={`inline-block rounded px-2 py-1 text-xs font-semibold ${
-											KIND_COLORS[reminder.kind]
-										}`}
-									>
+									<Badge tone={KIND_TONES[reminder.kind]}>
 										{KIND_LABELS[reminder.kind]}
-									</span>
+									</Badge>
 									{!isActive && (
-										<span className="text-xs font-medium text-gray-500">
+										<span className="text-xs font-medium text-ink-500">
 											(Inactive)
 										</span>
 									)}
 								</div>
-								<h3 className="mt-2 text-base font-semibold text-gray-900">
+								<h3 className="mt-2 text-base font-semibold text-ink-900">
 									{reminder.title}
 								</h3>
 								{reminder.detail && (
-									<p className="mt-1 text-sm text-gray-600">{reminder.detail}</p>
+									<p className="mt-1 text-sm text-ink-500">{reminder.detail}</p>
 								)}
-								<div className="mt-2 flex gap-4 text-xs text-gray-500">
+								<div className="mt-2 flex gap-4 text-xs text-ink-500">
 									<span>⏰ {time}</span>
 									<span>📅 {days}</span>
 								</div>
@@ -97,9 +94,10 @@ export function ReminderList({
 							<div className="ml-4 flex gap-2">
 								{onEdit && (
 									<button
+										type="button"
 										onClick={() => onEdit(reminder)}
 										disabled={disabled}
-										className="rounded px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-50"
+										className="rounded-lg px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-50 disabled:opacity-50"
 										aria-label="Edit reminder"
 									>
 										Edit
@@ -107,9 +105,10 @@ export function ReminderList({
 								)}
 								{onDelete && (
 									<button
+										type="button"
 										onClick={() => onDelete(reminder.id)}
 										disabled={isDeleting || disabled}
-										className="rounded px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+										className="rounded-lg px-3 py-1.5 text-xs font-medium text-coral-500 hover:bg-coral-50 dark:hover:bg-coral-50 disabled:opacity-50"
 										aria-label="Delete reminder"
 									>
 										Delete

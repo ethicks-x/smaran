@@ -16,12 +16,12 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 	const name = user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "";
 
 	return (
-		<header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-black/[0.06] bg-background/80 px-5 py-4 backdrop-blur-xl lg:px-8">
+		<header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-black/[0.06] dark:border-white/[0.08] bg-background/80 px-5 py-4 backdrop-blur-xl lg:px-8">
 			<div className="flex items-center gap-3">
 				<button
 					type="button"
 					onClick={onMenuClick}
-					className="rounded-lg p-2 text-ink-700 hover:bg-black/[0.05] lg:hidden"
+					className="rounded-lg p-2 text-ink-700 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] lg:hidden"
 					aria-label="Open menu"
 				>
 					<Menu size={20} />
@@ -33,7 +33,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 					/>
 					<input
 						placeholder="Search patients, memories..."
-						className="w-64 rounded-xl border border-black/[0.07] bg-surface py-2.5 pl-10 pr-4 text-sm text-ink-700 placeholder:text-ink-300 focus:border-indigo-300 focus:outline-none lg:w-80"
+						className="w-64 rounded-xl border border-black/[0.07] dark:border-white/[0.1] bg-surface py-2.5 pl-10 pr-4 text-sm text-ink-700 placeholder:text-ink-300 focus:border-indigo-400 focus:outline-none lg:w-80"
 					/>
 				</div>
 			</div>
@@ -42,7 +42,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 				<ThemeToggle />
 				<Link
 					href="/notifications"
-					className="relative rounded-xl border border-black/[0.06] bg-surface p-2.5 text-ink-700 hover:bg-black/[0.03]"
+					className="relative rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-surface p-2.5 text-ink-700 hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
 				>
 					<Bell size={18} />
 					{unreadCount > 0 && (
@@ -53,13 +53,13 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 				</Link>
 				<Link
 					href="/settings"
-					className="flex items-center gap-2.5 rounded-xl pl-1 pr-3 py-1"
+					className="flex items-center gap-2.5 rounded-xl pl-1 pr-3 py-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
 				>
 					{/** biome-ignore lint/performance/noImgElement: Image is used for visual purposes only */}
 					<img
 						src={user?.imageUrl}
 						alt=""
-						className="h-9 w-9 rounded-full border-2 border-white object-cover"
+						className="h-9 w-9 rounded-full border-2 border-white/80 dark:border-white/20 object-cover"
 					/>
 					<div className="hidden text-left sm:block">
 						<p className="text-sm font-semibold leading-none text-ink-900">

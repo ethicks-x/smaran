@@ -50,7 +50,7 @@ export function CareRequestsCard({ onDecision }: CareRequestsCardProps) {
 						<Loader2 className="animate-spin" size={16} /> Checking requests
 					</div>
 				) : requests.length === 0 ? (
-					<div className="rounded-xl border border-dashed border-black/15 p-4 text-sm text-ink-500">
+					<div className="rounded-xl border border-dashed border-black/15 dark:border-white/15 p-4 text-sm text-ink-500">
 						No patient requests are waiting right now.
 					</div>
 				) : (
@@ -58,7 +58,7 @@ export function CareRequestsCard({ onDecision }: CareRequestsCardProps) {
 						{requests.map((request) => (
 							<div
 								key={request.id}
-								className="flex flex-col justify-between gap-4 rounded-xl border border-black/[0.06] bg-black/[0.02] p-4 sm:flex-row sm:items-center"
+								className="flex flex-col justify-between gap-4 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] p-4 sm:flex-row sm:items-center"
 							>
 								<div className="flex items-center gap-3.5">
 									{request.patient_avatar_url ? (

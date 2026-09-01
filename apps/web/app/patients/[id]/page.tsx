@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { MemorySubjectCard } from "@/components/memories/MemorySubjectCard";
 import { PatientProfileHeader } from "@/components/patients/PatientProfileHeader";
+import { PatientRemindersTab } from "@/components/patients/PatientRemindersTab";
 import { PatientTabs } from "@/components/patients/PatientTabs";
 import { ActivityBreakdown } from "@/components/progress/ActivityBreakdown";
 import { SessionAccuracyChart } from "@/components/progress/SessionAccuracyChart";
@@ -130,7 +131,7 @@ export default async function PatientProfilePage({
 					relationship={patient.relationship ?? "caregiver"}
 				/>
 
-				<div className="rounded-2xl border border-black/6 bg-surface shadow-[0_2px_8px_rgba(44,31,88,0.06)]">
+				<div className="rounded-2xl border border-black/6 dark:border-white/[0.08] bg-surface shadow-[0_2px_8px_rgba(44,31,88,0.06)] dark:shadow-none">
 					<PatientTabs patientId={patient.id} />
 
 					<div className="p-6">
@@ -195,7 +196,7 @@ export default async function PatientProfilePage({
 								})}
 
 								{memories.length === 0 && (
-									<div className="rounded-2xl border border-dashed border-black/15 py-16 text-center">
+									<div className="rounded-2xl border border-dashed border-black/15 dark:border-white/15 py-16 text-center">
 										<p className="font-display text-lg font-semibold text-ink-900">
 											No memory subjects yet
 										</p>
@@ -206,6 +207,10 @@ export default async function PatientProfilePage({
 									</div>
 								)}
 							</div>
+						)}
+
+						{tab === "reminders" && (
+							<PatientRemindersTab patientId={patient.id} />
 						)}
 
 						{tab === "progress" && (
@@ -232,7 +237,7 @@ export default async function PatientProfilePage({
 										{sessionSummaries.map((s) => (
 											<div
 												key={s.id}
-												className="flex items-center justify-between rounded-xl border border-black/6 px-4 py-3"
+												className="flex items-center justify-between rounded-xl border border-black/6 dark:border-white/[0.08] px-4 py-3"
 											>
 												<div>
 													<p className="text-sm font-medium text-ink-900">
@@ -262,7 +267,7 @@ export default async function PatientProfilePage({
 								{casualPlay.map((c) => (
 									<div
 										key={c.id}
-										className="flex items-center justify-between rounded-xl border border-black/6 px-4 py-3"
+										className="flex items-center justify-between rounded-xl border border-black/6 dark:border-white/[0.08] px-4 py-3"
 									>
 										<div>
 											<p className="text-sm font-medium capitalize text-ink-900">

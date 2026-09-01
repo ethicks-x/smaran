@@ -9,6 +9,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { AppState } from "react-native";
 
 import {
 	type CareLink,
@@ -66,28 +67,20 @@ const CareLinkContext = createContext<CareLinkValue | null>(null);
  * needs a signal, happens once, and everything downstream of it is local.
  */
 export function CareLinkProvider({ children }: { children: ReactNode }) {
-	const { isLoaded: isAuthLoaded, isSignedIn, userId, getToken } = useAuth();
+	const { isLoaded: isAuthLoaded, isSignedIn, userId, getToken, signOut } = useAuth();
 	const [link, setLink] = useState<CareLink>(UnknownLink);
 	const [isLoaded, setIsLoaded] = useState(false);
 	const [isBusy, setIsBusy] = useState(false);
 	const [failure, setFailure] = useState<CareLinkFailure | null>(null);
 
-	// Who we are asking about, and what we ask with.
-	//
-	// **Both are refs, and `getToken` has to be.** Clerk hands back a new
-	// `getToken` on every render, so an effect or a callback that lists it as a
-	// dependency is rebuilt every render — and an effect that both depends on it
-	// and calls `setLink` re-renders itself into a loop, which is exactly what
-	// this file did: `/care/link` two or three times a second for as long as the
-	// app was open. Everything below depends on `userId` and the two Clerk flags,
-	// which are a string and two booleans and change only when they mean
-	// something.
 	const account = useRef<string | null>(null);
 	const token = useRef(getToken);
+	const authSignOut = useRef(signOut);
 
 	useEffect(() => {
 		account.current = userId ?? null;
 		token.current = getToken;
+		authSignOut.current = signOut;
 	});
 
 	// The cached answer, then — separately, and never awaited by the gate — the
@@ -124,6 +117,10 @@ export function CareLinkProvider({ children }: { children: ReactNode }) {
 				if (!cancelled) {
 					setLink((current) => merge(current, fresh));
 					await writeCachedLink(userId, fresh);
+
+					if (fresh.status === "revoked") {
+						await authSignOut.current?.();
+					}
 				}
 			} catch {
 				// Offline, or an API that could not answer. The cached status stands and
@@ -134,8 +131,6 @@ export function CareLinkProvider({ children }: { children: ReactNode }) {
 		return () => {
 			cancelled = true;
 		};
-		// `getToken` is deliberately not a dependency — it is read through a ref
-		// for the reason at the top of this component.
 	}, [isAuthLoaded, isSignedIn, userId]);
 
 	const refresh = useCallback(() => {
@@ -153,6 +148,10 @@ export function CareLinkProvider({ children }: { children: ReactNode }) {
 				setLink((current) => merge(current, fresh));
 				await writeCachedLink(forUser, fresh);
 				setFailure(null);
+
+				if (fresh.status === "revoked") {
+					await authSignOut.current?.();
+				}
 			} catch (error) {
 				setFailure(failureOf(error));
 			} finally {
@@ -185,6 +184,17 @@ export function CareLinkProvider({ children }: { children: ReactNode }) {
 			}
 		})();
 	}, []);
+
+	// Check link status when app returns to foreground to catch caregiver changes
+	useEffect(() => {
+		const subscription = AppState.addEventListener("change", (state) => {
+			if (state === "active") {
+				refresh();
+			}
+		});
+
+		return () => subscription.remove();
+	}, [refresh]);
 
 	// While somebody is watching the spinner, keep asking. Nothing else in the app
 	// polls, and this stops the moment the request is answered.

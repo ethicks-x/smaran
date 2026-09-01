@@ -12,7 +12,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="h-[42px] w-[42px] rounded-xl border border-black/[0.06] bg-surface" />
+      <div className="h-[42px] w-[42px] rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-surface" />
     );
   }
 
@@ -22,7 +22,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="rounded-xl border border-black/[0.06] bg-surface p-2.5 text-ink-700 hover:bg-black/[0.03]"
+      className="rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-surface p-2.5 text-ink-700 hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
       aria-label="Toggle theme"
     >
       {isDark ? <Sun size={18} /> : <Moon size={18} />}

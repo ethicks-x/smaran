@@ -29,7 +29,7 @@ export default function PatientsPage() {
 			</div>
 
 			{error && (
-				<div className="mb-6 rounded-md bg-red-50 p-3 text-sm text-red-800">
+				<div className="mb-6 rounded-xl border border-coral-200 bg-coral-50/40 p-3 text-sm text-coral-600 dark:border-coral-400/30">
 					{error}
 				</div>
 			)}
@@ -39,12 +39,12 @@ export default function PatientsPage() {
 					{[1, 2, 3].map((i) => (
 						<div
 							key={i}
-							className="h-64 animate-pulse rounded-2xl bg-gray-100"
+							className="h-64 animate-pulse rounded-2xl bg-black/[0.04] dark:bg-white/[0.04]"
 						/>
 					))}
 				</div>
 			) : myPatients.length === 0 ? (
-				<div className="rounded-2xl border border-dashed border-black/15 bg-surface py-16 text-center">
+				<div className="rounded-2xl border border-dashed border-black/15 dark:border-white/15 bg-surface py-16 text-center">
 					<p className="font-display text-lg font-semibold text-ink-900">
 						No Patients Yet
 					</p>

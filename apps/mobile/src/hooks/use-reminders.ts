@@ -1,10 +1,11 @@
 import { useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
 	acknowledge,
 	addReminder,
 	type NewReminder,
+	onRemindersChange,
 	type ReminderOccurrence,
 	remindersFor,
 } from "@/lib/reminders";
@@ -48,6 +49,10 @@ export function useReminders(): Reminders {
 	}, []);
 
 	useFocusEffect(refresh);
+
+	useEffect(() => {
+		return onRemindersChange(refresh);
+	}, [refresh]);
 
 	const add = useCallback(
 		(reminder: NewReminder) => {

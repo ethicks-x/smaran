@@ -24,7 +24,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col border-r border-black/[0.06] bg-surface/80 backdrop-blur-xl lg:flex">
+    <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col border-r border-black/[0.06] dark:border-white/[0.08] bg-surface/80 backdrop-blur-xl lg:flex">
       <div className="flex items-center gap-2.5 px-6 py-6">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-lavender-500 text-white">
           <Brain size={20} />
@@ -52,7 +52,7 @@ export function Sidebar() {
                 "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
                 isActive
                   ? "bg-indigo-50 text-indigo-700"
-                  : "text-ink-500 hover:bg-black/[0.04] hover:text-ink-900",
+                  : "text-ink-500 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-ink-900",
               )}
             >
               <item.icon

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ReminderList, ReminderForm } from "@/components/reminders";
 import { usePatientReminders } from "@/lib/api/usePatientReminders";
+import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import type { ReminderApi, ReminderCreateInput, ReminderUpdateInput } from "@/lib/types";
 
@@ -68,17 +69,17 @@ export default function RemindersPage() {
 						</p>
 					</div>
 					{!showForm && !editingReminder && (
-						<button
+						<Button
 							onClick={() => setShowForm(true)}
-							className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
+							className="gap-2"
 						>
 							<Plus size={18} /> Add Reminder
-						</button>
+						</Button>
 					)}
 				</div>
 
 				{error && (
-					<div className="mb-6 rounded-md bg-red-50 p-3 text-sm text-red-800">
+					<div className="mb-6 rounded-xl border border-coral-200 bg-coral-50/40 p-3 text-sm text-coral-600 dark:border-coral-400/30">
 						{error}
 					</div>
 				)}
@@ -109,7 +110,7 @@ export default function RemindersPage() {
 						{[1, 2, 3].map((i) => (
 							<div
 								key={i}
-								className="h-32 animate-pulse rounded-lg bg-gray-100"
+								className="h-32 animate-pulse rounded-2xl bg-black/[0.04] dark:bg-white/[0.04]"
 							/>
 						))}
 					</div>
@@ -125,7 +126,7 @@ export default function RemindersPage() {
 
 				{reminders.filter(r => !r.active).length > 0 && (
 					<div className="mt-8">
-						<h2 className="mb-4 text-lg font-semibold text-gray-900">
+						<h2 className="mb-4 text-lg font-semibold text-ink-900">
 							Inactive Reminders
 						</h2>
 						<ReminderList

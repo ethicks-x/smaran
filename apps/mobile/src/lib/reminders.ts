@@ -281,6 +281,26 @@ export type PulledReminder = {
 	deleted: boolean;
 };
 
+type ReminderChangeListener = () => void;
+const reminderListeners = new Set<ReminderChangeListener>();
+
+export function onRemindersChange(listener: ReminderChangeListener): () => void {
+	reminderListeners.add(listener);
+	return () => {
+		reminderListeners.delete(listener);
+	};
+}
+
+export function notifyRemindersChange(): void {
+	for (const listener of reminderListeners) {
+		try {
+			listener();
+		} catch (error) {
+			console.warn("Error in reminder change listener", error);
+		}
+	}
+}
+
 /**
  * Take what the caregiver decided.
  *
@@ -309,7 +329,7 @@ export function applyReminders(pulled: readonly PulledReminder[]): number {
 		return 0;
 	}
 
-	return db().transaction((tx) => {
+	const count = db().transaction((tx) => {
 		for (const row of pulled) {
 			if (row.deleted) {
 				// The reminder's own events cascade away with it. Their `sync_queue`
@@ -348,6 +368,9 @@ export function applyReminders(pulled: readonly PulledReminder[]): number {
 
 		return pulled.length;
 	});
+
+	notifyRemindersChange();
+	return count;
 }
 
 /** A reminder and the day it fell on. Tomorrow's is a different occurrence. */

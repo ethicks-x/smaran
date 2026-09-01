@@ -12,7 +12,7 @@ import { sync } from "@/lib/sync";
  * nothing new to send between them. The queue is drained on a schedule of
  * "whenever we happen to be here, but not twice in a moment".
  */
-const MIN_INTERVAL_MS = 2 * 60 * 1000;
+const MIN_INTERVAL_MS = 5 * 1000;
 
 /**
  * Drains the outbox when the app opens and whenever the reader comes back to it.

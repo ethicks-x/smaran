@@ -22,7 +22,7 @@ export function StatCard({
   };
 
   return (
-    <div className="rounded-2xl border border-black/[0.06] bg-surface p-5 shadow-[0_2px_8px_rgba(44,31,88,0.06)] transition-shadow hover:shadow-[0_4px_24px_rgba(44,31,88,0.07)]">
+    <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-surface p-5 shadow-[0_2px_8px_rgba(44,31,88,0.06)] dark:shadow-none transition-shadow hover:shadow-[0_4px_24px_rgba(44,31,88,0.07)]">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-ink-500">{label}</p>

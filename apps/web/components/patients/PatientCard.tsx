@@ -20,7 +20,7 @@ export function PatientCard({
   return (
     <Link
       href={`/patients/${patient.id}`}
-      className="group block rounded-2xl border border-black/[0.06] bg-surface p-5 shadow-[0_2px_8px_rgba(44,31,88,0.06)] transition-all hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(44,31,88,0.12)]"
+      className="group block rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-surface p-5 shadow-[0_2px_8px_rgba(44,31,88,0.06)] dark:shadow-none transition-all hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(44,31,88,0.12)]"
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3.5">
@@ -43,7 +43,7 @@ export function PatientCard({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-black/[0.03] px-3 py-2.5">
+        <div className="rounded-xl bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
           <div className="flex items-center gap-1.5 text-ink-500">
             <Gamepad2 size={13} />
             <span className="text-[11px] font-medium uppercase tracking-wide">
@@ -54,7 +54,7 @@ export function PatientCard({
             {sessionsCount} played
           </p>
         </div>
-        <div className="rounded-xl bg-black/[0.03] px-3 py-2.5">
+        <div className="rounded-xl bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
           <div className="flex items-center gap-1.5 text-ink-500">
             <Clock size={13} />
             <span className="text-[11px] font-medium uppercase tracking-wide">
@@ -65,8 +65,8 @@ export function PatientCard({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-end border-t border-black/[0.06] pt-3.5">
-        <span className="flex items-center gap-1 text-sm font-medium text-indigo-600 transition-transform group-hover:translate-x-0.5">
+      <div className="mt-4 flex items-center justify-end border-t border-black/[0.06] dark:border-white/[0.08] pt-3.5">
+        <span className="flex items-center gap-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 transition-transform group-hover:translate-x-0.5">
           View Patient <ChevronRight size={14} />
         </span>
       </div>

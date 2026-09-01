@@ -33,7 +33,11 @@ export type CareLink = {
  * something different about each: a number nobody holds is worth checking, a
  * missing signal is worth waiting out, and anything else is worth trying again.
  */
-export type CareLinkFailure = "unknown-number" | "offline" | "failed";
+export type CareLinkFailure =
+	| "unknown-number"
+	| "offline"
+	| "failed"
+	| "deregistered";
 
 export const UnknownLink: CareLink = {
 	status: "none",
@@ -138,23 +142,24 @@ export async function requestLink(
 }
 
 /**
- * Which of the three things went wrong.
+ * Which of the things went wrong.
  *
  * A 404 is the number, and it is the only one the reader can do anything about.
- * A 422 means the digits were not a Smaran number at all, which the screen
- * should have caught — it is reported as the same "check that number" so the
- * reader is not sent to wait for a signal that would not help.
+ * A 403 means this caregiver has deregistered/revoked this patient.
+ * A 422 means the digits were not a Smaran number at all.
  */
 export function failureOf(error: unknown): CareLinkFailure {
 	if (error instanceof ApiUnreachableError) {
 		return "offline";
 	}
 
-	if (
-		error instanceof ApiError &&
-		(error.status === 404 || error.status === 422)
-	) {
-		return "unknown-number";
+	if (error instanceof ApiError) {
+		if (error.status === 403) {
+			return "deregistered";
+		}
+		if (error.status === 404 || error.status === 422) {
+			return "unknown-number";
+		}
 	}
 
 	return "failed";

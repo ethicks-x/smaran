@@ -28,7 +28,7 @@ export const clerkAppearance: Appearance = {
     // The page already sets the logo, heading and sub-heading; Clerk's own would
     // be a second copy of both.
     header: "hidden",
-    cardBox: "shadow-[0_12px_40px_rgba(44,31,88,0.12)] border border-black/6",
+    cardBox: "shadow-[0_12px_40px_rgba(44,31,88,0.12)] border border-black/6 dark:border-white/[0.08]",
     card: "bg-surface",
     footer: "bg-surface",
   },

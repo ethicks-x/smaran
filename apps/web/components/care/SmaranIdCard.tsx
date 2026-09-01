@@ -32,7 +32,7 @@ export function SmaranIdCard() {
 					app to send you a care request.
 				</p>
 
-				<div className="rounded-xl border border-black/[0.06] bg-black/[0.03] p-4">
+				<div className="rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] p-4">
 					<div className="flex items-center justify-between gap-3">
 						<div>
 							<p className="text-xs font-medium uppercase tracking-wide text-ink-500">

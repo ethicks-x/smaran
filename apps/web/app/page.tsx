@@ -28,7 +28,7 @@ export default function LandingPage() {
 	return (
 		<div className="min-h-screen overflow-hidden bg-background text-ink-900">
 			{/* Nav */}
-			<header className="sticky top-0 z-40 border-b border-black/5 bg-background/80 backdrop-blur-xl">
+			<header className="sticky top-0 z-40 border-b border-black/5 dark:border-white/[0.08] bg-background/80 backdrop-blur-xl">
 				<div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
 					<div className="flex items-center gap-2.5">
 						<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-indigo-500 to-lavender-500 text-white shadow-lg shadow-indigo-500/20">
@@ -63,7 +63,7 @@ export default function LandingPage() {
 						animate="show"
 						custom={0}
 						variants={fadeUp}
-						className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 text-xs font-medium text-indigo-700 shadow-sm"
+						className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-indigo-200 dark:border-indigo-400/30 bg-indigo-50 px-4 py-1.5 text-xs font-medium text-indigo-700 shadow-sm"
 					>
 						<Sparkles size={13} /> Personalized cognitive care for the people
 						you love
@@ -153,7 +153,7 @@ export default function LandingPage() {
 								},
 							}}
 							whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
-							className="rounded-2xl border border-black/6 bg-surface p-5 text-left shadow-xl shadow-indigo-900/5"
+							className="rounded-2xl border border-black/6 dark:border-white/[0.08] bg-surface p-5 text-left shadow-xl shadow-indigo-900/5 dark:shadow-none"
 						>
 							<div
 								className={`flex h-11 w-11 items-center justify-center rounded-xl bg-linear-to-br ${c.tone} text-white`}
@@ -172,7 +172,7 @@ export default function LandingPage() {
 			</section>
 
 			{/* How it works */}
-			<section className="relative border-t border-black/5 bg-surface px-6 py-24 lg:px-8">
+			<section className="relative border-t border-black/5 dark:border-white/[0.08] bg-surface px-6 py-24 lg:px-8">
 				<div className="mx-auto max-w-6xl">
 					<motion.div
 						initial={{ opacity: 0, y: 20 }}
@@ -180,7 +180,7 @@ export default function LandingPage() {
 						viewport={{ once: true }}
 						className="mx-auto max-w-2xl text-center"
 					>
-						<p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
+						<p className="text-sm font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
 							How Smaran Works
 						</p>
 						<h2 className="mt-3 text-balance font-display text-3xl font-bold text-ink-900 sm:text-4xl">
@@ -223,7 +223,7 @@ export default function LandingPage() {
 								viewport={{ once: true }}
 								transition={{ duration: 0.5, delay: i * 0.12 }}
 								whileHover={{ y: -6 }}
-								className="relative rounded-2xl border border-black/6 bg-background p-6 shadow-sm transition-shadow hover:shadow-xl hover:shadow-indigo-900/5"
+								className="relative rounded-2xl border border-black/6 dark:border-white/[0.08] bg-background p-6 shadow-sm transition-shadow hover:shadow-xl hover:shadow-indigo-900/5 dark:hover:shadow-none"
 							>
 								<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-500/30">
 									<s.icon size={20} />
@@ -252,7 +252,7 @@ export default function LandingPage() {
 						viewport={{ once: true }}
 						className="mx-auto max-w-2xl text-center"
 					>
-						<p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
+						<p className="text-sm font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
 							Features
 						</p>
 						<h2 className="mt-3 text-balance font-display text-3xl font-bold text-ink-900 sm:text-4xl">
@@ -294,7 +294,7 @@ export default function LandingPage() {
 								viewport={{ once: true }}
 								transition={{ duration: 0.5, delay: i * 0.08 }}
 								whileHover={{ y: -6, scale: 1.02 }}
-								className="rounded-2xl border border-black/6 bg-surface p-6 shadow-sm transition-shadow hover:shadow-xl hover:shadow-indigo-900/10"
+								className="rounded-2xl border border-black/6 dark:border-white/[0.08] bg-surface p-6 shadow-sm transition-shadow hover:shadow-xl hover:shadow-indigo-900/10 dark:hover:shadow-none"
 							>
 								<div
 									className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br ${f.tone} text-white`}
@@ -342,7 +342,7 @@ export default function LandingPage() {
 				</motion.div>
 			</section>
 
-			<footer className="border-t border-black/5 px-6 py-8 text-center text-sm text-ink-500 lg:px-8">
+			<footer className="border-t border-black/5 dark:border-white/[0.08] px-6 py-8 text-center text-sm text-ink-500 lg:px-8">
 				© {new Date().getFullYear()} Smaran. Because every memory matters.
 			</footer>
 		</div>

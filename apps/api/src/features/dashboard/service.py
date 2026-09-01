@@ -369,11 +369,17 @@ async def update_patient(
     return await get_patient_detail(session, caregiver_id, patient_id)
 
 
+async def deregister_patient(session: AsyncSession, caregiver_id: str, patient_id: UUID) -> None:
+    """Deregister a patient by revoking the caregiver link permanently."""
+    patient, link = await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
+    link.status = "revoked"
+    await session.commit()
+
+
 async def delete_patient(session: AsyncSession, caregiver_id: str, patient_id: UUID) -> None:
     """Remove a patient linkage and their records."""
     patient, link = await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
-    await session.delete(link)
-    await session.delete(patient)
+    link.status = "revoked"
     await session.commit()
 
 
@@ -1121,6 +1127,7 @@ async def create_reminder(
     """Set up a new reminder for a patient."""
     await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
 
+    now = _utcnow()
     reminder = Reminder(
         patient_id=patient_id,
         kind=data.kind,
@@ -1129,6 +1136,8 @@ async def create_reminder(
         schedule=data.schedule,
         active=data.active,
         created_by=caregiver_id,
+        created_at=now,
+        updated_at=now,
     )
     session.add(reminder)
     await session.commit()
@@ -1160,6 +1169,7 @@ async def update_reminder(
     if data.active is not None:
         reminder.active = data.active
 
+    reminder.updated_at = _utcnow()
     await session.commit()
     await session.refresh(reminder)
 
@@ -1178,11 +1188,12 @@ async def delete_reminder(
     """
     reminder = await _owned_reminder(session, caregiver_id, patient_id, reminder_id)
 
-    reminder.deleted_at = _utcnow()
+    now = _utcnow()
+    reminder.deleted_at = now
     # Belt and braces for any reader of this table that predates the soft delete and filters
     # on `active` alone.
     reminder.active = False
-
+    reminder.updated_at = now
     await session.commit()
 
 
