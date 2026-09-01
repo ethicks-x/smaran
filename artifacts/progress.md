@@ -22,20 +22,21 @@ Legend: **✅ done** · **🟡 partial / placeholder** · **⬜ not started**
 The **patient app's shell is real and good**: theming, accessibility, navigation, auth, and
 a design system are all built to a high standard. Underneath it, the device store is now
 real and two features sit on it. The patient app speaks four languages with the network
-off; it has its first game — Matching pairs — which plays end to end and measures itself,
-and those measurements are kept: SQLite + Drizzle is in, with every device table from
+off; it has two games — Matching pairs and Find what is missing — which play end to end and
+measure themselves, and those measurements are kept: SQLite + Drizzle is in, with every device table from
 `data-model.md` §1 (D-24). **Today is now the reader's actual day** — reminders are read
 from that store, marked done into it, and added from a dialog on the screen itself (D-25).
 Sync, notifications and voice are still missing. The dashboard is `create-next-app`. The
 backend has SQLAlchemy models and Clerk token verification with two route guards, but no migrations and no endpoint yet uses either.
 
-The rubric's centrepiece — adaptive cognitive games — has one game, and that game now
-adapts. The loop from "open a game" to "finish a deck" is real, every board closes a
-`SessionStats` (D-22), the row is on disk (D-24), and the engine reads those rows back:
-Matching pairs opens on the rung this reader's own recent rounds point at, and the dialog
-after a finished board offers the next one **and says why**, in their language (D-26). What
-is still missing is more games, and a second ladder to prove the engine is not shaped around
-this one.
+The rubric's centrepiece — adaptive cognitive games — has two games, and both adapt. The
+loop from "open a game" to "finish a board" is real, every board closes a `SessionStats`
+(D-22), the row is on disk (D-24), and the engine reads those rows back: each game opens on
+the rung this reader's own recent rounds point at, and the dialog after a finished board
+offers the next one **and says why**, in their language (D-26). **The second ladder is now
+built and it is shaped nothing like the first** — not square, not a grid width, and its
+hardest dial is words rather than size — and `adjustDifficulty` drove it without a line
+changing (D-30). What is still missing is tests behind the engine, and more games.
 
 ---
 
@@ -68,10 +69,10 @@ this one.
 | Recall | once-per-launch name warm-up; per-letter scoring, reveal after 3 misses, in-memory only |
 | API client | `src/lib/api.ts` (`apiFetch`, `API_BASE_URL`, `ApiError`, `ApiUnreachableError`) + `useApi()` in `src/hooks/use-api.ts`. Clerk session token per call, `Authorization: Bearer`. Base URL from `EXPO_PUBLIC_API_URL`, falling back to the Expo packager host on `:8080`. The only caller is a `__DEV__`-only “Developer” row on Account that GETs `/users/me` — D-21 |
 | Account stack | profile (editable — name, phone, photo), appearance (four dials, all working), language (working), notifications (placeholder copy) |
-| Game session stats | `src/lib/game-stats.ts` (pure — accuracy, precision, completion, response times, consistency, streak) + `useGameSession` (`src/hooks/`) for the clock and per-attempt timing + `src/lib/game-history.ts`, now backed by the `game_session` table. Matching pairs is wired to it. `GameSummary` shows four warm lines in the win dialog and `GameStatsDetail` dumps every field under `__DEV__`. D-22, D-23, D-24 |
+| Game session stats | `src/lib/game-stats.ts` (pure — accuracy, precision, completion, response times, consistency, streak) + `useGameSession` (`src/hooks/`) for the clock and per-attempt timing + `src/lib/game-history.ts`, now backed by the `game_session` table. Both games are wired to it. `GameSummary` shows four warm lines in the win dialog and `GameStatsDetail` dumps every field under `__DEV__`. D-22, D-23, D-24 |
 | Reminders | ✅ `src/lib/reminders.ts` — the `HH:MM\|1111111` schedule format, `remindersFor(day)` computing a day's occurrences, `addReminder()`, and `acknowledge()` writing a `reminder_event` with its `sync_queue` entry in one transaction. `src/hooks/use-reminders.ts` holds the screen state and re-reads on focus; every call is guarded so a store that will not open costs the reminders and not the screen. D-25 |
 | Local database | ✅ `expo-sqlite` + `drizzle-orm` — `src/db/`. All nine device tables from `data-model.md` §1: `patient`, `device`, `game_session`, `session_event`, `reminder`, `reminder_event`, `person`, `memory_item`, `sync_queue`. Opened synchronously but lazily (`db()`, on first use); hand-written DDL versioned by `PRAGMA user_version` in `migrations.ts`; `device` row and its `seq` counter ensured at open. **Native module — the dev build must be rebuilt after pulling this.** D-24 |
-| Games stack | `src/app/games/` pushed over the tabs, entered from a card on Today; `src/components/games/` holds `GameCard`, `GameFrame`, `MemoryCard`, `MemoryBoard` and the `Symbols` table — D-18, D-19 |
+| Games stack | `src/app/games/` pushed over the tabs, entered from a card on Today; `src/components/games/` holds `GameCard`, `GameFrame`, `GameSummary`, `MemoryCard`, `MemoryBoard`, `ItemGrid`, `MissingOptions` and the shared `Symbols` table — D-18, D-19, D-30 |
 
 ### Screens 🟡
 
@@ -82,8 +83,9 @@ this one.
 | **Memories** | 🟡 `EmptyState` only. `TODO: load shared memories` |
 | **Help** | 🟡 layout + call button real; contact is hardcoded. `TODO: real primary contact + notify dashboard` |
 | **Settings** | ✅ platform-shaped list: account row on top, grouped setting rows, sign-out on its own card |
-| **Games** | ✅ list of games at `games/index.tsx`, reached from a card on Today — `decisions.md` D-18 |
+| **Games** | ✅ list of games at `games/index.tsx`, reached from a card on Today; two cards on it — `decisions.md` D-18 |
 | **Matching pairs** | 🟡 plays end to end: four square boards (4×4, 6×6, 8×8, 12×12), face-up preview under a draining bar and no buttons, flip (a third card settles the pair already up rather than waiting), matches held on the board, a win dialog with confetti onto the next board. Every board is measured (D-22) — turns, pairs found, time per turn, finished or put down — and the win dialog shows pairs found, turns taken, the share of turns that were right, and roughly how long it took, with a full metric dump under `__DEV__` (D-23). Framed by `GameFrame` — cross, board name, settings — not `Screen` (D-19). 8×8 and 12×12 scroll sideways on a phone — cards are clamped at the touch floor. Every session — finished or put down — is written to `game_session` with its `sync_queue` entry in one transaction (D-24) |
+| **Find what is missing** | ✅ plays end to end: four boards (6, 9, 12 and 16 things, one missing on the first two and two on the last two), everything shown under a draining bar with no buttons, then the same grid back in a fresh order with a dashed question-mark tile where each missing thing stood. The answer is one of 3–5 large options — **pictures on the two easy rungs, names on the two hard ones** (D-30). **The options are things the board never showed**, so none of them is visible to check against and the answer has to be remembered rather than searched for. A wrong option is tinted and stays put, tries are unlimited, and the line under the bar says the thing tapped was not one of them rather than that the reader was wrong. A named thing drops back into its own gap in green and stays. Framed by `GameFrame`, measured and stored like any other board. Known cost: the 16-tile board and its five word options do not both fit on a small phone — `GameFrame` scrolls |
 | **Notifications** | 🟡 describes behaviour that does not exist yet |
 | **Profile** | ✅ first name, last name, phone number and photo are editable and saved to Clerk — `decisions.md` D-13 |
 
@@ -94,7 +96,7 @@ this one.
 | `i18next` + `react-i18next` + `expo-localization` | `src/i18n/index.ts`; init is synchronous, all catalogues in the bundle |
 | English, Hindi, Bengali, Assamese | `src/i18n/locales/*.json`, key-identical, `en.json` is the typed contract |
 | Language choice, stored and offline | `use-language.tsx` (`smaran.language` in secure store), `account/language.tsx` |
-| Every screen and component translated | no English string literals left outside the catalogues |
+| Every screen and component translated | no English string literals left outside the catalogues. The 86 symbol names live at `games.symbols.*`, shared by both games (D-30) |
 | Dates and numbers | `useLocale()`, Latin digits pinned — `decisions.md` D-12 |
 
 **Not done:** no native speaker has reviewed the Hindi, Bengali or Assamese copy. They are
@@ -107,8 +109,8 @@ script the platform does not ship (Meitei Mayek) also needs a bundled font.
 | Item | Blocking |
 |---|---|
 | Local SQLite + Drizzle | ✅ done — see Foundation above. Sessions persist; the sync queue exists and nothing drains it yet |
-| Cognitive games | 🟡 one game (Matching pairs), four difficulty levels, no longer fixed — the opening board and the one offered next both come from the engine (D-26). Every board is measured (D-22) and the row is stored (D-24). The rest of the deliverable is more games, not more plumbing |
-| Adaptive difficulty engine | 🟡 `lib/adaptive.ts` — pure, rule-based, reads this reader's own recent rounds and returns a rung plus a reason code (D-26). Wired into Matching pairs at both ends: the opening board and the offer after a finished one, with the reason said in four languages. **Missing:** it is the one game's ladder only, and there are no tests |
+| Cognitive games | 🟡 two games (Matching pairs, Find what is missing), four rungs each, no longer fixed — the opening board and the one offered next both come from the engine (D-26). Every board is measured (D-22) and the row is stored (D-24). The rest of the deliverable is more games, not more plumbing |
+| Adaptive difficulty engine | 🟡 `lib/adaptive.ts` — pure, rule-based, reads this reader's own recent rounds and returns a rung plus a reason code (D-26). Wired into **both** games at both ends: the opening board and the offer after a finished one, with the reason said in four languages. Each game's history is read narrowed to its own `gameId`, so the two ladders never see each other (D-30). **Missing:** there are still no tests |
 | Reminders (medicine / hydration / activity / appointments) | 🟡 definitions, a day's occurrences and adherence events all work on-device and are wired to Today (D-25). **Missing:** `expo-notifications`, so nothing fires when the app is closed and `reminder.notification_ids` stays `[]`; no way yet to edit, switch off or delete a reminder once added; every reminder repeats every day, because the dialog asks three questions and the days mask is not one of them |
 | Voice prompts (TTS) | `expo-speech` not installed |
 | Sync queue + upload | needs the local DB and the API |
@@ -184,7 +186,7 @@ Note for whoever wires the browser to the API: `apps/api` now sets `CORSMiddlewa
 2. ~~**Persist the session rows.**~~ — done 2026-09-01. Neither caller needed editing, as
    D-22 intended.
 3. ~~**Adaptive engine v1** as a pure module reading `recentSessions()`~~ — done 2026-09-01,
-   D-26, and wired into Matching pairs at both ends. What is *not* done: no tests behind it,
+   D-26, and wired into both games at both ends (D-30). What is *not* done: no tests behind it,
    and the reason sentence is the only thing the reader ever sees of it, which is by design
    but has not been read aloud yet — that is the `expo-speech` pass.
 4. **Reminders** — the store and the Today UI are done (D-25). What is left is

@@ -4,9 +4,18 @@ export type { GameFrameProps } from "./game-frame";
 export { GameFrame } from "./game-frame";
 export type { GameSummaryProps } from "./game-summary";
 export { GameStatsDetail, GameSummary } from "./game-summary";
+export type { GridItem, ItemGridProps } from "./item-grid";
+export { ItemGrid } from "./item-grid";
 export type { BoardCard, MemoryBoardProps } from "./memory-board";
 export { MemoryBoard } from "./memory-board";
 export type { MemoryCardProps, MemoryCardState } from "./memory-card";
 export { MemoryCard } from "./memory-card";
+export type {
+	MissingOption,
+	MissingOptionState,
+	MissingOptionsProps,
+	OptionMode,
+} from "./missing-options";
+export { MissingOptions } from "./missing-options";
 export type { SymbolId, SymbolPool } from "./symbols";
 export { SymbolPools, Symbols } from "./symbols";

@@ -1131,3 +1131,99 @@ reached — the same "we could not ask" case, and callers already handle that on
 
 **Would change it if:** Clerk ships offline restore as a stable, default behaviour, at which
 point the explicit option comes out.
+
+---
+
+## D-30 · 2026-09-01 · The second game is Find what is missing, and its hard mode swaps pictures for names
+
+**Decision.** `apps/mobile/src/app/games/missing.tsx`, with `ItemGrid` and `MissingOptions`
+in `src/components/games/`. A handful of things are shown under a draining bar; they go
+away; the same things come back in a fresh order with one or two of them gone; and the
+reader taps which one it was from a short list of options. Four rungs — 6, 9, 12 and 16
+things, one missing on the first two and two on the last two — and every board is a
+`game_session` row like any other (D-22, D-24).
+
+**The point of the second game is the second ladder.** `progress.md` said the engine was
+"the one game's ladder only, and there are no tests"; half of that is now answered. This
+ladder is shaped nothing like Matching pairs' — it is not square, not a grid width, and its
+hardest dial is not a size — and `adjustDifficulty` drove it without a line changing. Its
+history is read narrowed to `gameId: "missing"`, so the two ladders never see each other:
+being comfortable with a grid of cards says nothing about being comfortable with a list of
+names, and averaging the two would be exactly the population-shaped mistake §2.4 forbids in
+the small.
+
+**Easy mode shows the things; hard mode shows their names.** That is the dial the game was
+asked for and it is the interesting one. A picture is recognised on sight; a name has to be
+turned back into a picture and then looked for on the board, which is a step further from
+the board. It is also the only place in the app where a *word* is the harder rendering of
+something, which is worth knowing when the fifth language lands.
+
+**A picture option still announces its name to a screen reader** (`MissingOptions`). In
+picture mode the word is not drawn — that is the whole difference between the modes — but
+it is what `accessibilityLabel` carries, so the picture is never the only cue (§2.3).
+Someone listening rather than looking gets the word in both modes, which means the two
+modes differ in difficulty for a reader who can see, and not in whether the game can be
+played at all.
+
+**Decoys are things the board never showed, and getting this backwards made the game
+trivial.** The first cut drew decoys from things still on the board, on the reasoning that
+an unseen option could be dismissed without looking. That is exactly wrong: it meant every
+option but one could be *found* sitting on the board in front of the reader, so the answer
+fell out of a visual search and nothing had to be remembered at all — a spot-the-difference
+wearing a memory game's clothes. Drawn from outside the deck, none of the options is on the
+board: the right one has gone and the rest were never there, so the only way to tell them
+apart is to recognise the one that was studied. Recognition, not recall, which is the right
+demand to make of this reader (§2.3).
+
+The things that went are still never offered as decoys to each other, and no decoy is used
+twice on a board, so exactly one option per question is right and the reader is never right
+in a way the game calls wrong. The invariant this puts on `LEVELS` — `items + missing *
+(options - 1) <= pool` — is written down beside the table; the four boards need 8, 12, 18
+and 24 against pools of 24, 24, 24 and 86.
+
+**A thing that goes leaves a gap, and the gap is drawn with a question mark.** The answer
+board is the same size as the study board with a dashed, accent-tinted tile where each
+missing thing stood, rather than being quietly shorter — so the reader can see *how many*
+went, and can see one come back into the hole it left. `MemoryCard` deliberately puts a
+quiet emblem rather than a question mark on a face-down card, because nothing on that board
+asks a question the reader can get wrong; here the board **is** the question, so the mark is
+right. It is punctuation, identical in all four languages, so it is not a string literal
+escaping the catalogues — the words are in `games.missing.gapItem`, which is what a screen
+reader is given. The gap is the warm accent and not the danger red: something is missing,
+which is the game, not something gone wrong.
+
+**A named thing drops back into its own gap, in the success green, and stays.** The board
+only ever gains, which is the same promise `MemoryCard` makes about a matched pair (D-18):
+nothing vanishes out from under a reader who has started to learn the layout, and the grid
+never changes size between the question and the answer.
+
+**A wrong answer costs nothing and says nothing about the reader.** The option is tinted and
+stays put as a record of what has been tried, tries are unlimited, and the status line says
+what is true about the thing tapped — "Cat is still there" — never that the answer was
+wrong. The option is not `disabled`, because a disabled control is announced as "dimmed",
+which is not what happened; it simply does nothing (the same reasoning as `MemoryCard`).
+
+**`ItemGrid` is a new component and not `MemoryBoard` with a flag.** The two are grids of
+the same shape, but this one is made of pictures and that one is made of buttons: here the
+board is the question and the answer is given elsewhere on the screen. Rendering these as
+`Pressable`s to save a file would tell a screen reader there are sixteen buttons on the
+board when there are none. The measured-width sizing is deliberately copied rather than
+shared — it is fifteen lines, and the two have different clamps (this one has a maximum, so
+three tiles on a tablet are not three enormous pictures).
+
+**The known cost: the largest board and its options do not both fit on a small phone.**
+Sixteen tiles at four columns is about 300pt of grid — and it stays that size all the way
+through, since a gap holds its place — with five word options underneath adding another
+180. `GameFrame` scrolls, so it is reachable, but a reader on the top rung may have
+to scroll between the board and the answers — and comparing the two is the task. This is
+written down rather than designed away, exactly as D-18 wrote down the 12×12 scroll: the
+three lower rungs fit whole on every screen this app runs on, and the engine only ever
+offers the top rung to someone the lower ones have been easy for.
+
+**The symbol names moved from `games.matching.symbols.*` to `games.symbols.*`** in all four
+catalogues. They are shared vocabulary, not one game's — `games.summary.*` was already that
+shape. Both games read the same key, and a third will too.
+
+**Would change it if:** the study phase turns out to need a "show me again" control. It does
+not have one today, on the same reasoning as D-19's preview: during the look there is
+nothing to decide, so there is no button to decide about.

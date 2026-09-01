@@ -141,6 +141,10 @@ export const AppIcons = {
 		ios: "square.grid.2x2.fill",
 		android: require("@expo/material-symbols/grid_view.xml"),
 	}),
+	missing: Icon.select({
+		ios: "questionmark.circle.fill",
+		android: require("@expo/material-symbols/quiz.xml"),
+	}),
 	celebrate: Icon.select({
 		ios: "sparkles",
 		android: require("@expo/material-symbols/celebration.xml"),

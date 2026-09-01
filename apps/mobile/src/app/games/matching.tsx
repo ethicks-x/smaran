@@ -306,7 +306,7 @@ export default function MatchingScreen() {
 	const cards: BoardCard[] = deck.map((card) => ({
 		id: card.id,
 		symbol: Symbols[card.symbol],
-		name: t(`games.matching.symbols.${card.symbol}`),
+		name: t(`games.symbols.${card.symbol}`),
 		state: matched.includes(card.id)
 			? "matched"
 			: phase === "preview" || faceUp.includes(card.id)

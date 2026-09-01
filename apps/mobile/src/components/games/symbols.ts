@@ -4,7 +4,7 @@
  * Emoji rather than drawings we would have to ship and translate: every phone
  * already has them, they carry no words, and they are the same picture in all
  * four languages. Each one is named in the catalogues under
- * `games.matching.symbols.*` — that name is what a screen reader announces, so
+ * `games.symbols.*` — that name is what a screen reader announces, so
  * the picture is never the only cue (§2.3).
  *
  * Nothing here is newer than Unicode 11, which is where an emoji stops being a

@@ -8,9 +8,9 @@ import { EmptyState, Screen, Section } from "@/components/ui";
  * The games list — one card per game, and a plain word about the ones that are
  * not here yet.
  *
- * There is only one game today and the list still looks like a list, because
- * the shape of this screen is what a reader learns: the second game arrives
- * underneath the first rather than rearranging the page they already know.
+ * A game arrives underneath the ones already here rather than rearranging the
+ * page a reader has learnt, which is why the list looked like a list back when
+ * there was only one thing on it.
  */
 export default function GamesScreen() {
 	const { t } = useTranslation();
@@ -28,6 +28,13 @@ export default function GamesScreen() {
 					title={t("games.matching.name")}
 					description={t("games.matching.shortDescription")}
 					onPress={() => router.push("/games/matching")}
+				/>
+
+				<GameCard
+					icon="missing"
+					title={t("games.missing.name")}
+					description={t("games.missing.shortDescription")}
+					onPress={() => router.push("/games/missing")}
 				/>
 			</Section>
 
