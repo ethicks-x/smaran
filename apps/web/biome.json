@@ -1,40 +1,40 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.9/schema.json",
-  "root": true,
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
-  "files": {
-    "ignoreUnknown": true,
-    "includes": ["**", "!**/node_modules", "!**/.next", "!**/dist", "!**/build"]
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2
-  },
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
-    }
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "preset": "recommended"
-    },
-    "domains": {
-      "next": "recommended",
-      "react": "recommended"
-    }
-  },
-  "assist": {
-    "actions": {
-      "source": {
-        "organizeImports": "on"
-      }
-    }
-  }
+	"$schema": "https://biomejs.dev/schemas/2.5.9/schema.json",
+	"root": false,
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": true,
+		"includes": ["**", "!**/node_modules", "!**/.next", "!**/dist", "!**/build"]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "space",
+		"indentWidth": 2
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended"
+		},
+		"domains": {
+			"next": "recommended",
+			"react": "recommended"
+		}
+	},
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	}
 }
