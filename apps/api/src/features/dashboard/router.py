@@ -22,14 +22,19 @@ from features.dashboard.schemas import (  # noqa: TC001
     PatientDetailOut,
     PatientProgressOut,
     PatientUpdateIn,
+    ReminderCreateIn,
+    ReminderOut,
+    ReminderUpdateIn,
     TrendPointOut,
 )
 from features.dashboard.service import (
     create_casual_play,
     create_memory_subject,
     create_patient,
+    create_reminder,
     delete_memory_subject,
     delete_patient,
+    delete_reminder,
     get_activity_feed,
     get_attention_flags,
     get_dashboard_summary,
@@ -40,8 +45,10 @@ from features.dashboard.service import (
     list_casual_play,
     list_memory_subjects,
     list_patients,
+    list_reminders,
     update_memory_subject,
     update_patient,
+    update_reminder,
 )
 
 # Runtime import, not TYPE_CHECKING: FastAPI resolves annotations against module globals.
@@ -176,6 +183,65 @@ async def remove_memory_subject(
 ) -> dict[str, str]:
     """Remove a memory subject."""
     await delete_memory_subject(db, auth.user_id, patient_id, subject_id)
+    return {"status": "deleted"}
+
+
+# --- Reminders ---
+
+
+@router.get("/patients/{patient_id}/reminders")
+@caregiver_required
+async def read_patient_reminders(
+    patient_id: UUID,
+    db: DbSession,
+    auth: AuthContext,
+    include_inactive: Annotated[
+        bool, Query(description="Include reminders that are switched off")
+    ] = True,
+) -> list[ReminderOut]:
+    """List the reminders set up for a patient. Retired ones are never returned."""
+    return await list_reminders(db, auth.user_id, patient_id, include_inactive=include_inactive)
+
+
+@router.post("/patients/{patient_id}/reminders", status_code=201)
+@caregiver_required
+async def add_reminder(
+    patient_id: UUID,
+    db: DbSession,
+    auth: AuthContext,
+    payload: ReminderCreateIn,
+) -> ReminderOut:
+    """Set up a reminder for a patient.
+
+    `title` and `detail` are written **in the reader's own language** — the phone shows them
+    exactly as typed and never translates them.
+    """
+    return await create_reminder(db, auth.user_id, patient_id, payload)
+
+
+@router.patch("/patients/{patient_id}/reminders/{reminder_id}")
+@caregiver_required
+async def modify_reminder(
+    patient_id: UUID,
+    reminder_id: UUID,
+    db: DbSession,
+    auth: AuthContext,
+    payload: ReminderUpdateIn,
+) -> ReminderOut:
+    """Change a reminder, or switch it off with `active: false`."""
+    return await update_reminder(db, auth.user_id, patient_id, reminder_id, payload)
+
+
+@router.delete("/patients/{patient_id}/reminders/{reminder_id}")
+@caregiver_required
+async def remove_reminder(
+    patient_id: UUID,
+    reminder_id: UUID,
+    db: DbSession,
+    auth: AuthContext,
+) -> dict[str, str]:
+    """Retire a reminder. Soft — a phone that has been offline still learns it is gone."""
+    await delete_reminder(db, auth.user_id, patient_id, reminder_id)
     return {"status": "deleted"}
 
 

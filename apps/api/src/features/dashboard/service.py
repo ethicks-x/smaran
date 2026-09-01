@@ -12,6 +12,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 
 from core.clerk import resolve_clerk_user
+from features.care.schemas import LINK_ACTIVE
 from features.dashboard.schemas import (
     ActivityBreakdownItem,
     ActivityFeedOut,
@@ -29,6 +30,9 @@ from features.dashboard.schemas import (
     PatientProgressOut,
     PatientUpdateIn,
     QuestionEventOut,
+    ReminderCreateIn,
+    ReminderOut,
+    ReminderUpdateIn,
     SessionSummaryOut,
     TrendPointOut,
 )
@@ -39,6 +43,7 @@ from features.database.models import (
     Patient,
     PatientCaregiver,
     QuestionEvent,
+    Reminder,
 )
 
 
@@ -80,9 +85,15 @@ def _format_time_ago(dt: datetime) -> str:
 async def ensure_caregiver_patient_access(
     session: AsyncSession, caregiver_id: str, patient_id: UUID
 ) -> tuple[Patient, PatientCaregiver]:
-    """Verify that a patient exists and is linked to the requesting caregiver.
+    """Verify that a patient exists and is **actively** linked to the requesting caregiver.
 
-    Raises a 404/403 if no active link exists.
+    Only an `active` row is access. A patient's phone can create a link by typing a Smaran
+    id into its setup screen, and that row arrives `pending` — so a caregiver whose number
+    somebody quoted sees nothing until they have accepted (`AGENTS.md` §2.5). `revoked` is
+    excluded by the same filter: access that has ended stays ended, and the row survives
+    only as the record of when it did.
+
+    Raises a 404 if there is no such link.
     """
     stmt = (
         select(Patient, PatientCaregiver)
@@ -90,6 +101,7 @@ async def ensure_caregiver_patient_access(
         .where(
             Patient.id == patient_id,
             PatientCaregiver.caregiver_id == caregiver_id,
+            PatientCaregiver.status == LINK_ACTIVE,
         )
     )
     result = (await session.execute(stmt)).first()
@@ -102,18 +114,14 @@ async def ensure_caregiver_patient_access(
     return patient, link
 
 
-async def _resolve_patient_display_name(
-    patient: Patient, fallback_index: int | None = None
-) -> str:
+async def _resolve_patient_display_name(patient: Patient, fallback_index: int | None = None) -> str:
     """Resolve patient name from Clerk or provide an informative label."""
     if patient.user_id:
         clerk_user = await resolve_clerk_user(patient.user_id)
         if clerk_user and clerk_user.full_name:
             return clerk_user.full_name
     return (
-        f"Patient {str(patient.id)[:8]}"
-        if fallback_index is None
-        else f"Patient {fallback_index}"
+        f"Patient {str(patient.id)[:8]}" if fallback_index is None else f"Patient {fallback_index}"
     )
 
 
@@ -179,14 +187,15 @@ async def _compute_patient_card(
     )
 
 
-async def get_dashboard_summary(
-    session: AsyncSession, caregiver_id: str
-) -> DashboardSummaryOut:
+async def get_dashboard_summary(session: AsyncSession, caregiver_id: str) -> DashboardSummaryOut:
     """Aggregate top-level dashboard metrics for all patients under this caregiver."""
     links_stmt = (
         select(Patient, PatientCaregiver)
         .join(PatientCaregiver, PatientCaregiver.patient_id == Patient.id)
-        .where(PatientCaregiver.caregiver_id == caregiver_id)
+        .where(
+            PatientCaregiver.caregiver_id == caregiver_id,
+            PatientCaregiver.status == LINK_ACTIVE,
+        )
     )
     patient_pairs = (await session.execute(links_stmt)).all()
 
@@ -230,14 +239,15 @@ async def get_dashboard_summary(
     )
 
 
-async def list_patients(
-    session: AsyncSession, caregiver_id: str
-) -> list[PatientCardOut]:
+async def list_patients(session: AsyncSession, caregiver_id: str) -> list[PatientCardOut]:
     """List all patients enrolled under the caregiver."""
     stmt = (
         select(Patient, PatientCaregiver)
         .join(PatientCaregiver, PatientCaregiver.patient_id == Patient.id)
-        .where(PatientCaregiver.caregiver_id == caregiver_id)
+        .where(
+            PatientCaregiver.caregiver_id == caregiver_id,
+            PatientCaregiver.status == LINK_ACTIVE,
+        )
     )
     pairs = (await session.execute(stmt)).all()
     cards: list[PatientCardOut] = []
@@ -330,9 +340,7 @@ async def update_patient(
     return await get_patient_detail(session, caregiver_id, patient_id)
 
 
-async def delete_patient(
-    session: AsyncSession, caregiver_id: str, patient_id: UUID
-) -> None:
+async def delete_patient(session: AsyncSession, caregiver_id: str, patient_id: UUID) -> None:
     """Remove a patient linkage and their records."""
     patient, link = await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
     await session.delete(link)
@@ -630,7 +638,8 @@ async def get_activity_feed(
         target_ids = [patient_id]
     else:
         links_stmt = select(PatientCaregiver.patient_id).where(
-            PatientCaregiver.caregiver_id == caregiver_id
+            PatientCaregiver.caregiver_id == caregiver_id,
+            PatientCaregiver.status == LINK_ACTIVE,
         )
         target_ids = list((await session.scalars(links_stmt)).all())
 
@@ -715,7 +724,10 @@ async def get_attention_flags(
         stmt = (
             select(Patient)
             .join(PatientCaregiver, PatientCaregiver.patient_id == Patient.id)
-            .where(PatientCaregiver.caregiver_id == caregiver_id)
+            .where(
+                PatientCaregiver.caregiver_id == caregiver_id,
+                PatientCaregiver.status == LINK_ACTIVE,
+            )
         )
         target_patients = list((await session.scalars(stmt)).all())
 
@@ -787,9 +799,7 @@ async def get_attention_flags(
     return flags
 
 
-async def get_notifications(
-    session: AsyncSession, caregiver_id: str
-) -> list[NotificationOut]:
+async def get_notifications(session: AsyncSession, caregiver_id: str) -> list[NotificationOut]:
     """Generate dynamic feed of activity updates, new memories, and attention alerts."""
     notifications: list[NotificationOut] = []
 
@@ -811,7 +821,8 @@ async def get_notifications(
 
     # 2. Recent session completions
     links_stmt = select(PatientCaregiver.patient_id).where(
-        PatientCaregiver.caregiver_id == caregiver_id
+        PatientCaregiver.caregiver_id == caregiver_id,
+        PatientCaregiver.status == LINK_ACTIVE,
     )
     patient_ids = list((await session.scalars(links_stmt)).all())
 
@@ -902,3 +913,130 @@ __all__ = [
     "update_memory_subject",
     "update_patient",
 ]
+
+
+# --- Reminders -------------------------------------------------------------------------
+#
+# The caregiver owns these; the phone pulls them and takes what it is given
+# (`data-model.md` §3 rule 2). Nothing here reaches the device directly — a change lands on
+# the phone the next time it drains, over `GET /sync/pull` (D-34), and a caregiver has to be
+# able to trust that a reminder they switched off stops appearing without them being sure
+# *when*. That is why a delete is soft: a hard one is invisible to a watermark, and a phone
+# that was off for a week would keep showing a reminder nobody can see any more.
+
+
+async def list_reminders(
+    session: AsyncSession, caregiver_id: str, patient_id: UUID, *, include_inactive: bool = True
+) -> list[ReminderOut]:
+    """Every reminder set up for a patient, newest first.
+
+    Deleted ones are never returned here. The dashboard is a view of what is in force; only
+    the sync path needs to know what used to be.
+    """
+    await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
+
+    query = select(Reminder).where(
+        Reminder.patient_id == patient_id,
+        Reminder.deleted_at.is_(None),
+    )
+
+    if not include_inactive:
+        query = query.where(Reminder.active.is_(True))
+
+    results = (await session.scalars(query.order_by(Reminder.created_at.desc()))).all()
+
+    return [ReminderOut.model_validate(r) for r in results]
+
+
+async def create_reminder(
+    session: AsyncSession, caregiver_id: str, patient_id: UUID, data: ReminderCreateIn
+) -> ReminderOut:
+    """Set up a new reminder for a patient."""
+    await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
+
+    reminder = Reminder(
+        patient_id=patient_id,
+        kind=data.kind,
+        title=data.title.strip(),
+        detail=data.detail.strip() if data.detail else None,
+        schedule=data.schedule,
+        active=data.active,
+        created_by=caregiver_id,
+    )
+    session.add(reminder)
+    await session.commit()
+    await session.refresh(reminder)
+
+    return ReminderOut.model_validate(reminder)
+
+
+async def update_reminder(
+    session: AsyncSession,
+    caregiver_id: str,
+    patient_id: UUID,
+    reminder_id: UUID,
+    data: ReminderUpdateIn,
+) -> ReminderOut:
+    """Change a reminder. Only the fields that were sent are touched."""
+    reminder = await _owned_reminder(session, caregiver_id, patient_id, reminder_id)
+
+    if data.kind is not None:
+        reminder.kind = data.kind
+    if data.title is not None:
+        reminder.title = data.title.strip()
+    if data.detail is not None:
+        # An empty string is how a caregiver clears the second line, and it has to survive
+        # the trip as a null rather than as two spaces the phone would draw an empty row for.
+        reminder.detail = data.detail.strip() or None
+    if data.schedule is not None:
+        reminder.schedule = data.schedule
+    if data.active is not None:
+        reminder.active = data.active
+
+    await session.commit()
+    await session.refresh(reminder)
+
+    return ReminderOut.model_validate(reminder)
+
+
+async def delete_reminder(
+    session: AsyncSession, caregiver_id: str, patient_id: UUID, reminder_id: UUID
+) -> None:
+    """Retire a reminder.
+
+    **Soft, and it has to be.** `deleted_at` is what tells a phone that has been off for a
+    week to stop showing something; a row that simply vanished would be invisible to
+    `GET /sync/pull?since=` and the reminder would go on appearing on the device forever.
+    The reminder events it already produced are untouched — nothing removes a fact.
+    """
+    reminder = await _owned_reminder(session, caregiver_id, patient_id, reminder_id)
+
+    reminder.deleted_at = _utcnow()
+    # Belt and braces for any reader of this table that predates the soft delete and filters
+    # on `active` alone.
+    reminder.active = False
+
+    await session.commit()
+
+
+async def _owned_reminder(
+    session: AsyncSession, caregiver_id: str, patient_id: UUID, reminder_id: UUID
+) -> Reminder:
+    """The reminder, if this caregiver is allowed to touch it."""
+    await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
+
+    reminder = await session.scalar(
+        select(Reminder).where(
+            Reminder.id == reminder_id,
+            Reminder.patient_id == patient_id,
+            Reminder.deleted_at.is_(None),
+        )
+    )
+
+    if reminder is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reminder not found.",
+        )
+
+    return reminder

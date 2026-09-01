@@ -55,6 +55,24 @@ export function takeSeq(tx: Queryable = db()): number {
 }
 
 /**
+ * Record when the last pull succeeded, on the server's clock.
+ *
+ * Stored exactly as the server reported it and handed straight back as `since`,
+ * so the comparison is always between two readings of one clock. Never
+ * `Date.now()`: a phone's date can be wrong by hours, and the cost of that is a
+ * window of the caregiver's changes silently skipped.
+ */
+export function markPulled(syncedAt: number): void {
+	const current = deviceIdentity();
+
+	db()
+		.update(device)
+		.set({ lastPulledAt: syncedAt })
+		.where(eq(device.id, current.id))
+		.run();
+}
+
+/**
  * Record how far the server has acknowledged.
  *
  * A watermark rather than a per-row flag: sessions are append-only and their

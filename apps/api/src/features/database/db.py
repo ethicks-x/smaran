@@ -75,15 +75,42 @@ SessionLocal = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Create tables if they do not already exist."""
-    async with engine.begin() as conn:
-        await conn.execute(text("SELECT 1"))
+    """Check the database is reachable, and that something has migrated it.
 
-    # Import models lazily so the metadata is populated before creation.
+    **Alembic owns the schema, not this function.** It used to call `create_all` on every
+    startup, which was convenient and wrong in a way that took a while to show: `create_all`
+    adds tables that are missing and says nothing about columns that are, so a model gaining
+    a field left every deployed database quietly half-built. `patients.enrolled_by` is the
+    one that bit — the table already existed, so the column never arrived, and every sync
+    call failed on a database that looked fine.
+
+    So this only looks. A schema that is behind is reported here, at startup, in a line that
+    says what to run — rather than in a query somebody's phone made an hour later.
+
+    `db_auto_create` puts the old behaviour back for a throwaway database where running a
+    migration is more ceremony than the data is worth. It is off by default and should stay
+    off anywhere the data matters.
+    """
+    # Import models for their side effect: the metadata is what `create_all` builds from,
+    # and what Alembic's autogenerate compares against.
     from features.database import models  # noqa: F401
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("SELECT 1"))
+
+        if settings.db_auto_create:
+            await conn.run_sync(Base.metadata.create_all)
+            return
+
+        migrated = await conn.scalar(text("SELECT to_regclass('public.alembic_version')"))
+
+    if migrated is None:
+        # Not an exception. A developer who has just cloned the repo should get a running
+        # server and a clear instruction, not a stack trace they have to read backwards.
+        print(  # noqa: T201
+            "[smaran] This database has never been migrated. Run `task db:migrate` "
+            "(or `uv run alembic upgrade head` in apps/api) before using the API."
+        )
 
 
 async def get_db() -> AsyncGenerator[AsyncSession]:

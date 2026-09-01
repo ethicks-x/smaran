@@ -9,6 +9,13 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 class Settings(BaseSettings):
     database_url: str = Field(..., description="Supabase/Postgres connection URL")
     db_echo: bool = False
+    # Alembic owns the schema (`alembic/`). This puts the old startup `create_all` back for
+    # a throwaway database, and is off everywhere the data matters — `create_all` adds
+    # missing tables but never a missing column, so it leaves a schema that looks built and
+    # is not.
+    db_auto_create: bool = Field(
+        False, description="Create tables from the models on startup instead of migrating"
+    )
 
     # S3-compatible storage. One set of credentials serves every bucket below — the CA
     # certificate the database connection verifies against, and the memory media bucket.

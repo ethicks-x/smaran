@@ -32,6 +32,15 @@ contract**; this file is the design intent and the queue of what to build.
 | GET | `/dashboard/activity` | `ActivityFeedOut` — question attempts feed |
 | GET | `/dashboard/notifications` | `list[NotificationOut]` — activity completions and alerts |
 | GET | `/dashboard/patients/{id}/flags` | `list[AttentionFlagOut]` — personal baseline deviation flags |
+| GET | `/sync/health` | `{"feature": "sync", "status": "ok"}` |
+| POST | `/sync/sessions` | `SyncAckOut` — ingest a batch of game rounds. **Authenticated** |
+| POST | `/sync/reminder-events` | `SyncAckOut` — ingest a batch of reminder outcomes. **Authenticated** |
+| POST | `/sync/reminders` | `SyncAckOut` — ingest reminders the reader created on the phone. **Authenticated** |
+| GET | `/sync/pull` | `PullOut` — changed reminders, and history for a reinstalled phone. **Authenticated** |
+| GET | `/dashboard/patients/{id}/reminders` | `list[ReminderOut]` — reminders in force for a patient |
+| POST | `/dashboard/patients/{id}/reminders` | `ReminderOut` — set up a reminder |
+| PATCH | `/dashboard/patients/{id}/reminders/{rid}` | `ReminderOut` — change one, or switch it off |
+| DELETE | `/dashboard/patients/{id}/reminders/{rid}` | `{"status": "deleted"}` — retire one (soft) |
 
 `GET /users/me` is the only real route; the rest are health probes. It answers for both
 audiences — a patient gets their `patients` row, a caregiver gets `patient: null` and a
@@ -62,9 +71,12 @@ normally (§2.1).
 
 ---
 
-## 2. Proposed — **NOT BUILT**
+## 2. Proposed — mostly **NOT BUILT**
 
-Grouped by the feature folder they belong in.
+Grouped by the feature folder they belong in. Everything here is unbuilt **except the two
+`/sync` ingest routes**, which shipped on 2026-09-01 (D-33) and are kept in this section
+because the contract notes under them are the design intent for the whole feature, down-sync
+included. Their state is in the table.
 
 ### `features/auth`
 
@@ -85,13 +97,14 @@ Identity has to line up with Clerk on mobile (`decisions.md` D-01); how is open 
 | GET | `/users/{patient_id}/memories` | Shared photos and stories — backs Memories |
 | GET | `/users/{patient_id}/reminders` | Server-authoritative reminder definitions |
 
-### `features/sync`  *(new folder)*
+### `features/sync`
 
-| Method | Path | Purpose |
-|---|---|---|
-| POST | `/sync/sessions` | Ingest a batch of game sessions |
-| POST | `/sync/reminder-events` | Ingest a batch of reminder outcomes |
-| GET | `/sync/pull?since=` | Down-sync: people, memories, reminders changed since a watermark |
+| Method | Path | Purpose | State |
+|---|---|---|---|
+| POST | `/sync/sessions` | Ingest a batch of game sessions | ✅ D-33 |
+| POST | `/sync/reminder-events` | Ingest a batch of reminder outcomes | ✅ D-33 |
+| POST | `/sync/reminders` | Ingest reminders created on the phone — **creations only** | ✅ D-36 |
+| GET | `/sync/pull?since=&restore=` | Down-sync: reminders changed since a watermark, plus history on request | 🟡 D-34 — reminders and sessions built; people and memories not |
 
 **Ingest contract.** Both POSTs take a batch and are idempotent — upsert on
 `(device_id, seq)` (`decisions.md` D-09). A retried or duplicated batch is a no-op.
@@ -121,13 +134,63 @@ Identity has to line up with Clerk on mobile (`decisions.md` D-01); how is open 
 ```
 
 ```jsonc
-// 200 — always report the watermark so the client can advance safely
-{ "accepted": 1, "duplicates": 0, "last_seq": 412 }
+// 200 — every row in the batch is accounted for: accepted + duplicates + rejected == n
+{
+  "accepted": 1,
+  "duplicates": 0,
+  "rejected": [],          // [{ "id": "…", "reason": "plain language, about the row" }]
+  "last_seq": 412          // highest seq held for this device, across BOTH streams
+}
 ```
 
-Rules: accept a **partial** batch rather than rejecting the whole thing on one bad row, and
-name the rejects. The client advances its watermark only on this response. Never return an
-error that would make a device drop unsynced data.
+Rules, all of them built (D-33): accept a **partial** batch rather than rejecting the whole
+thing on one bad row, and name the rejects. Never return an error that would make a device
+drop unsynced data. A `duplicates` count is a success, not a warning — it is what a retry is
+supposed to produce.
+
+**As built**, in addition to the sketch above: the batch envelope also carries an optional
+`app_version`; a batch is capped at 200 rows; the device registers itself on its first call,
+so nothing provisions a `devices` row by hand. The failure statuses are load-bearing and the
+client branches on them — **409** nobody has enrolled this device against a patient yet
+(a state enrollment fixes, so the queue waits), **403** the device belongs to a different
+patient, **422** the phone is running a build this server cannot parse. Only 422 is ever
+given up on, and only after five attempts.
+
+`last_seq` is **diagnostic**. The client does not advance on it: the two streams share one
+`seq` counter, so a batch of sessions says nothing about a reminder event numbered between
+them. What is still owed is whatever is left in the device's `sync_queue`, and
+`device.last_synced_seq` is set from that — the lowest still-queued `seq` minus one.
+
+**Pull contract** (built, D-34). One round trip, because a phone gets one unreliable moment
+of connectivity.
+
+```jsonc
+// GET /sync/pull?since=2026-08-29T09:00:00Z&restore=false
+{
+  "synced_at": "2026-09-01T11:02:41Z",   // the server's clock; send it back as `since`
+  "reminders": [
+    { "id": "…", "kind": "medicine", "title": "…", "detail": null,
+      "schedule": "21:00|1111111", "active": true, "deleted": false }
+  ],
+  "sessions": [],            // only when `restore=true`
+  "sessions_truncated": false
+}
+```
+
+Rules:
+
+- **Reminders are server-authoritative** — the device replaces what it holds, no merge
+  (`data-model.md` §3 rule 2). Only ids named in the response are written or removed, so a
+  reminder the reader added on the phone is never collateral. The phone may **create** a
+  reminder (`POST /sync/reminders`, D-36) and never change one: ingest is
+  `ON CONFLICT DO NOTHING`, so a stale queued batch cannot revert a caregiver's edit.
+- **A retirement arrives as `deleted: true`, never as an absence.** A hard delete is invisible
+  to a watermark and a phone that was switched off would show the reminder forever.
+- **`since` is the server's own `synced_at`, echoed back** — never the device's clock, which
+  can be wrong by hours.
+- **`restore=true` is the reinstall case**, asked once (when the device has no `last_pulled_at`).
+  It returns up to 200 rounds across every device the patient has used, newest first, **without
+  `seq`** — they are not this device's facts and are never sent back up.
 
 ### `features/dashboard`
 

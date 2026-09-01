@@ -1,6 +1,6 @@
 import { useAuth } from "@clerk/expo";
 import * as SecureStore from "expo-secure-store";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { apiFetch } from "@/lib/api";
 
@@ -35,6 +35,17 @@ const ROLE_PATH = "/auth/patient-role";
 export function useRoleEnrolment(): void {
 	const { isLoaded, isSignedIn, userId, getToken } = useAuth();
 
+	// Read through a ref rather than listed as a dependency. Clerk returns a new
+	// `getToken` on every render, so an effect that depends on it runs again on
+	// every render — and until the marker below is written, every one of those
+	// runs is another POST. The three values this effect does depend on are a
+	// string and two booleans.
+	const token = useRef(getToken);
+
+	useEffect(() => {
+		token.current = getToken;
+	});
+
 	useEffect(() => {
 		if (!isLoaded || !isSignedIn || !userId) {
 			return;
@@ -55,7 +66,7 @@ export function useRoleEnrolment(): void {
 			}
 
 			try {
-				await apiFetch(ROLE_PATH, getToken, { method: "POST" });
+				await apiFetch(ROLE_PATH, token.current, { method: "POST" });
 			} catch {
 				// Offline, or an API that said no. Either way the reader is not told
 				// and nothing is written, so the next launch tries again.
@@ -75,5 +86,5 @@ export function useRoleEnrolment(): void {
 		return () => {
 			cancelled = true;
 		};
-	}, [isLoaded, isSignedIn, userId, getToken]);
+	}, [isLoaded, isSignedIn, userId]);
 }

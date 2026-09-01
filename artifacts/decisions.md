@@ -1346,3 +1346,449 @@ litter; a sweep for old `pending` rows is owed, and does not exist yet.
 **Would change it if:** the deployment ends up somewhere with no S3-compatible storage at
 all. The seam is `bucket` + `object_key` — a different backing store keeps the columns and
 changes only what mints the URLs.
+## D-32 · 2026-09-01 · The server's synced tables mirror the device's, and the hypertable's keys carry `ended_at`
+
+**Decision.** `apps/api/src/features/database/models.py` now holds a server-side table for
+every device table that crosses the sync boundary: `devices`, `session_events`,
+`reminders`, `reminder_events`, `people`, `memory_items`. The columns come from
+`apps/mobile/src/db/schema.ts` — for `session_events`, from `SessionStats` field for field
+— plus the two things a device does not store about itself, `patient_id` and `device_id`.
+`patients` gained `enrolled_at` and `enrolled_by`. The device's `sync_queue` has no server
+twin; it is bookkeeping about what is owed, and the server is who it is owed to.
+
+**`session_events` is the server's copy of the device's `game_session`, not of its
+`session_event`.** The name is `data-model.md` §2's and it is the sharpest trap in the
+schema: on the phone, `session_event` is per-attempt detail that never leaves the device
+unless a session is flagged for review (`AGENTS.md` §2.5). One row here is a whole round.
+The docstring says so, because a reader who assumes otherwise will build the wrong ingest.
+It is also not `game_sessions`, the older caregiver-authored activity record the dashboard
+reads today — that table and `question_events` are untouched.
+
+**The primary key is `(id, ended_at)` and the idempotency key is `(device_id, seq,
+ended_at)`.** Timescale requires every unique index on a hypertable to include the
+partitioning column, and `create_hypertable` refuses a table whose keys do not. Widening
+them now costs a fatter index; widening them after the table has rows costs a rewrite of
+the ingest path as well as the data. The upsert stays exact because a retry sends the
+queued JSON snapshot byte for byte (D-24), so `ended_at` is as deterministic as the other
+two columns.
+
+**`reminder_events.reminder_id` is a plain uuid with no foreign key.** Every reminder today
+is created on the phone (D-25) and nothing syncs a definition up, so a real event would
+reference a row that does not exist here and the insert would be refused. An event is
+evidence and must land regardless; the column is still a real id, so a join finds the
+definition the day one arrives. **Do not "fix" this by adding the constraint** — it drops
+adherence data on the floor.
+
+**The down-sync tables carry `updated_at` and `deleted_at`.** `GET /sync/pull?since=` has
+to tell a device that has been off for a week about a person who was removed as well as one
+who was added, and a hard delete is silent to a watermark. `reminders`, `people` and
+`memory_items` are therefore soft-deleted; the append-only streams are not, because nothing
+ever removes a fact.
+
+**No display name on `patients`, still.** `data-model.md` §2 lists one; D-20 says the server
+mirrors nothing about a person and it wins. The device holds the name it greets the reader
+with, and Clerk holds it for anyone with an account. `people.name` is not an exception — a
+row there is a family member the caregiver typed in, not an account.
+
+**Not built by this change:** no migrations (`create_all` still), no hypertable, no
+continuous aggregate, and no endpoint writes any of these tables. This is the schema the
+`/sync/*` routes in `api-contract.md` §2 are owed, and nothing more.
+
+**Would change it if:** Timescale is dropped for plain Postgres, in which case the two
+composite keys go back to `id` and `(device_id, seq)` and the ingest simplifies with them.
+
+---
+
+## D-33 · 2026-09-01 · Sync is an outbox the device drains, and a queue row leaves only on a server's answer
+
+**Decision.** The two append-only streams now cross the boundary. `apps/api` gained
+`src/features/sync/` — `POST /sync/sessions` and `POST /sync/reminder-events`, both
+authenticated, both idempotent on `(device_id, seq)` (D-09) — and the phone gained
+`src/db/queue.ts` (the outbox, as storage sees it), `src/lib/sync.ts` (the drain, the only
+place in the app that sends anything anywhere) and `src/hooks/use-sync.ts`, mounted at the
+root beside `useRoleEnrolment`. The device registers itself on its first successful call;
+nobody provisions a `devices` row by hand.
+
+**A queue row is deleted only on a response that accounts for it.** Not on a timeout, not
+on a 5xx, not on a guess. The phone is holding the only copy of a round somebody actually
+played, so every ambiguous outcome — no radio, an expired session, a server that is down,
+a device nobody has enrolled yet — leaves the queue exactly as it was and stops the run.
+This is the one rule the ingest contract in `api-contract.md` §2 states outright, and it is
+why `apiFetch`'s split between `ApiUnreachableError` and `ApiError` (D-21) was worth having.
+
+**The server accounts for every row in a batch, one row at a time.** A row it already has
+is a **duplicate**, which is a success — that is what a retry is supposed to produce, and a
+batch that is entirely duplicates means the last attempt landed and only the acknowledgement
+was lost. A row it can never store comes back **named in `rejected`**, and the rest of the
+batch still lands. That requires one insert per row inside its own savepoint: a multi-row
+insert cannot say which row it choked on, and in Postgres one failed statement poisons the
+surrounding transaction and takes down every row that had already succeeded — the
+all-or-nothing outcome the contract exists to prevent. A batch is capped at 200 rows of a
+few dozen bytes on a stream that arrives a few times a day, so the round trips are affordable
+and the accounting is exact.
+
+**A rejected row is dropped from the queue, and its `game_session` row is not touched.**
+The queue is an outbox, not the record. Dropping an entry means "stop carrying this", never
+"this did not happen" — which is what makes it safe, and why the drop is safe for a rejected
+row and an accepted one alike. A row nobody will ever take, left at the head of the queue,
+blocks every row behind it forever.
+
+**422 is the only status the client ever gives up on**, and only after five attempts. It
+means this build sent something the server cannot parse — a phone newer than the API it is
+talking to — and no amount of waiting fixes it. Everything else is retried indefinitely,
+because everything else is somebody else's problem and not the row's. The inbound schemas
+are `extra="ignore"` for the same reason from the other side: a newer phone's unknown column
+must not cost the server a batch of true rows.
+
+**`device.last_synced_seq` is the lowest still-queued `seq` minus one**, computed on the
+phone, and it decides nothing. The two streams share one counter, so a batch of sessions
+says nothing about a reminder event numbered between them, and a watermark taken from a
+response would over-report. The queue is what says what is owed; the watermark is what a
+"last synced" line would read, and it must not be able to claim more than it knows. The
+server returns `last_seq` too — the highest sequence it holds across both streams — and it
+is diagnostic only.
+
+**Triggered on app open and on return to the foreground, awaited by nothing** (§2.1, §2.2).
+`useSync` sits next to a splash screen that lifts on Clerk and stored preferences and on
+nothing else, throttled to one run per two minutes so a reader switching between the app and
+a phone call does not drain the battery finding out there is nothing new. `sync()` never
+rejects — every outcome it has is a returned value — because there is no caller for whom a
+failed sync is exceptional.
+
+**Not built by this change.** No down-sync: `GET /sync/pull?since=` has a schema behind it
+(D-32) and no route, and the phone has nothing to apply one to yet — People and Memories are
+still `EmptyState`, caching a photo to the filesystem needs a dependency the app does not
+have, and who owns a reminder definition is unresolved while every reminder is device-created
+(D-25). No Alembic still, so these tables appear on a fresh database and not on an existing
+one. **And no connectivity trigger**: the natural third moment to drain is the radio coming
+back, which needs `@react-native-community/netinfo` or `expo-network`, and adding a dependency
+was out of scope here. Until one lands, a phone that regains signal while the app is open in
+front of someone waits for the next time they leave and come back.
+
+**Would change it if:** batches grow large enough that one insert per row costs real latency,
+in which case the fast path becomes a multi-row insert with the per-row savepoint loop kept
+as the fallback a failed batch retries through — the accounting the contract requires cannot
+be dropped, only skipped when nothing goes wrong.
+
+---
+
+## D-34 · 2026-09-01 · Sync runs both ways: reminders are server-owned, and a reinstalled phone gets its history back
+
+**Decision.** `GET /sync/pull?since=&restore=` completes the loop D-33 opened. Reminder
+definitions are owned by the caregiver and pulled **down**; a phone that has lost its
+storage pulls this reader's game history down with them. The dashboard gained the CRUD that
+makes the first half meaningful — `GET`/`POST /dashboard/patients/{id}/reminders` and
+`PATCH`/`DELETE .../{reminder_id}`. On the device: `remote_session` and
+`device.last_pulled_at` (migration v2), `applyReminders()` in `lib/reminders.ts`,
+`restoreSessions()` in `lib/game-history.ts`, and a `takeDown()` pass in `lib/sync.ts` that
+runs after the push.
+
+**Up first, then down, and a pull failure never costs a push.** What the device is holding
+is the only copy of it; what the server is holding is backed up. So the push runs first and
+the pull only runs if it got through, and neither can strand the other.
+
+**Reminders are server-authoritative, so there is no merge and no conflict** (`data-model.md`
+§3 rule 2). Whatever comes down replaces what the phone has. One owner is what buys that,
+and it is the whole reason to resist letting both sides edit the same row.
+
+**A retirement travels as a row, not as an absence.** `DELETE` is a soft delete setting
+`deleted_at`, and the reminder comes down with `deleted: true`. A hard delete is invisible
+to "what changed since Tuesday" — a phone that was switched off when the caregiver retired
+something would go on showing it forever. This is the single reason the down-sync tables
+carry `deleted_at` at all (D-32), and it is why the pull query has no `deleted_at IS NULL`
+filter: the retired row is the one a stale device most needs.
+
+**Deleting a reminder on the device cascades its `reminder_event` rows, and that is safe
+only because the outbox holds snapshots.** `sync_queue.payload` is a JSON copy rather than a
+pointer (D-33), so an acknowledgement that has not synced yet still syncs after its
+definition is gone. If the queue ever becomes a pointer, this cascade starts destroying
+adherence data.
+
+**`notification_ids` is never overwritten by a pull.** It is this device's own scheduling
+state — which OS notifications this reminder currently has booked — and the server does not
+know it. When `expo-notifications` lands, an edit arriving here is exactly what has to
+cancel and rebook them, reading that column to know what to cancel.
+
+**Restored history lives in `remote_session`, a separate table with no `seq`.** A sequence
+number belongs to the device that issued it, and these rounds were played on a phone that
+no longer exists — or on this one, before it was wiped. They are read like history and
+**never queued and never sent back up**; they are already on the server, which is where
+they came from. A separate table rather than a nullable column or a flag on `game_session`
+because SQLite cannot widen a `NOT NULL` column without rebuilding the table, and because
+two tables cannot be confused by a query that forgets to check a flag. `recentSessions()`
+merges both and dedupes by id, so **the adaptive engine never learns a reinstall happened**
+— which is the point: the comparison is against this reader's own past (`AGENTS.md` §2.4),
+and being handed a new phone is not an answer to that question.
+
+**`restore=true` is asked exactly when `last_pulled_at` is null**, not when the session
+table is empty. A reader who opens a fresh install offline and plays a round before it ever
+syncs would answer "not empty" to the second question and stay without the months of
+history that are sitting on the server.
+
+**The watermark is the server's clock, echoed back.** `PullOut.synced_at` is read *before*
+the queries and stored verbatim as `last_pulled_at`; the device sends it back as `since`. A
+phone's own clock can be wrong by hours, and the cost is either a window of the caregiver's
+changes silently skipped or the same ones re-sent forever. Reading the clock before the
+queries rather than after is the same bug in miniature: a reminder edited mid-request would
+otherwise carry an `updated_at` below the watermark and never arrive. The watermark moves
+only after both collections have been written.
+
+**Restores are capped at 200 rounds** — comfortably deeper than the fifty the engine reads,
+and bounded so a patient with two years of play does not turn one reinstall into a
+multi-megabyte response over 2G. `sessions_truncated` says when there was more; nothing asks
+for the rest yet.
+
+**Schedules and kinds are validated at the API door**, against the same `HH:MM|1111111`
+pattern `parseSchedule` uses and the same four kinds the phone can draw. A string the device
+cannot parse is a reminder it silently skips, and a caregiver would never find out — so it
+is refused where somebody is still looking at a screen.
+
+**Not built by this change.** **Reminder definitions do not sync up**: one added on the phone
+(D-25) stays invisible on the dashboard. That is the honest consequence of rule 2 — the
+device-created reminder is the stopgap, and the fix is for the phone's "add a reminder" to
+POST to the caregiver endpoint rather than for both sides to own the table. People and
+memories still do not come down, because nothing draws them and photo caching needs a
+dependency the app does not have. Still no Alembic, which now blocks `reminders` on a
+deployed database as well as the ingest tables.
+
+**Would change it if:** the family wants to add reminders from the phone as a first-class
+flow, at which point definitions need an up-stream and a real conflict rule — last-write-wins
+on `updated_at` would be the cheap answer and it would quietly lose a caregiver's edit.
+
+---
+
+## D-35 · 2026-09-01 · Alembic owns the schema; `create_all` was building half a database
+
+**Decision.** `apps/api/alembic/` exists, `alembic upgrade head` is how the schema changes,
+and `init_db()` no longer calls `create_all`. It checks the database is reachable, checks
+something has migrated it, and prints one line naming the command if nothing has. Task
+targets: `db:migrate`, `db:current`, `db:history`, `db:revision`, `db:downgrade`, `db:stamp`.
+
+**`create_all` was not merely "not running on an existing database" — it was doing something
+worse, and `progress.md` had it wrong.** `Base.metadata.create_all` defaults to
+`checkfirst=True`, so on a database that already exists it *does* create every missing
+table. What it never does is add a column to a table that is already there. So D-32's new
+tables did appear on the deployed database, and `patients.enrolled_at` / `enrolled_by` did
+not — leaving a schema that looks complete and fails every sync call with
+`column patients.enrolled_by does not exist`. A migration that silently half-applies is
+worse than one that does not run, because nothing reports it and the failure surfaces
+somewhere unrelated, hours later.
+
+**`0001_baseline` is idempotent, and it is the only revision that ever should be.** It asks
+the database what it already has and reconciles three real states: empty; built before the
+synced tables were modelled; and built by `create_all` at a commit in between. Tables,
+indexes and the two late columns are checked **separately** — a table that already exists
+can still be missing an index added to the model after it was created, which the first
+version of this migration got wrong and an autogenerate drift check caught. From 0001
+onward, migrations are ordinary and assume they know their starting point.
+
+**`db_auto_create` (default `false`) puts the old behaviour back** for a throwaway database
+where a migration is more ceremony than the data is worth. It should stay off anywhere the
+data matters, for the reason above.
+
+**The URL is not in `alembic.ini`.** It is a credential (§2.5) and `env.py` reads it from
+`core.config.settings`, so there is one place a database is configured for both the app and
+its migrations and no way for them to drift. `env.py` uses the same async psycopg driver as
+the app, so a dialect quirk cannot appear in one and not the other.
+
+**Clerk's `getToken` is not referentially stable, and in this file that was a bug.** The
+first cut listed it as an effect dependency; Clerk returns a new function every render, so
+the effect re-ran every render, its own `setLink` caused the next render, and the phone
+asked `/care/link` two or three times a second for as long as it was open. `getToken` is
+now read through a ref and the effects depend on `userId` and the two Clerk booleans only —
+the same fix applied to `useRoleEnrolment`, which had the identical shape and would POST
+`/auth/patient-role` on every render until its marker was written. Anything else that takes
+`getToken` from `useAuth` inside an effect wants the same treatment; `useSync` is safe only
+because a two-minute guard swallows the repeats.
+
+**Verified** against a throwaway Postgres in all three starting states: each converges on
+the same 14 tables at revision 0001, an existing `patients` row survives with `enrolled_at`
+backfilled to the migration's own clock, re-running applies nothing, and
+`alembic revision --autogenerate` afterwards finds **no drift** in any of the three — which
+is the real proof that the migration and the models agree. Both sync suites then pass on a
+schema built by Alembic rather than by `create_all`.
+
+**Would change it if:** the Timescale hypertable lands, which is a `SELECT
+create_hypertable(...)` in a migration and must run before `session_events` has meaningful
+data — it rewrites the table.
+
+---
+
+## D-36 · 2026-09-01 · A reminder made on the phone syncs up; the device may create one, and only create it
+
+**Decision.** `addReminder()` now writes its `sync_queue` entry in the same transaction as
+the row, `POST /sync/reminders` ingests the stream, and `reminder` joins `game_session` and
+`reminder_event` in `SyncEntity`. A reminder the reader adds on their own phone now appears
+on the caregiver's dashboard.
+
+**This closes a gap D-34 shipped with and named.** Reminders synced down and never up, so
+the one kind of reminder the family could not see was the kind the reader made themselves —
+which is the kind they would most want to know about.
+
+**The device may create a reminder. It may not change or retire one.** That single sentence
+is what keeps `data-model.md` §3 rule 2 true while both ends can write: there is exactly one
+moment the phone authors a definition, and it is the first. Everything after — edits,
+switching off, retiring — is the caregiver's, and the phone takes what it is given (D-34).
+So this stream carries creations only, and there is no second queue entry anywhere in
+`lib/reminders.ts`.
+
+**Ingest is `ON CONFLICT DO NOTHING`, and that is the design rather than an optimisation.**
+The row's id is the device's own uuid, so a retried batch finds its own earlier row — but so
+does a batch that has been sitting in the outbox since before the caregiver edited the
+reminder. Upserting the payload would silently revert their change. A device retry is not a
+reason to overturn a person's decision, so the first write wins and every later one is
+counted as a duplicate. **Verified**: a stale batch replayed after a caregiver moved a
+reminder from 21:00 to 20:00 left it at 20:00.
+
+**No `(device_id, seq)` on this stream, and none needed.** `reminders` has no such columns:
+a client-generated uuid is already unique, which makes the insert idempotent on its own.
+`seq` still rides along, because it is what orders the outbox — it just is not the dedupe
+key, and it is not counted in the ack's `last_seq` watermark either.
+
+**Validation is `kind` and `schedule` only.** Both are checked against exactly what the
+device can draw and `parseSchedule` can read, because a row that reached the caregiver's
+screen with an unparseable schedule would be a reminder nobody can see is broken. There is
+deliberately **no length cap on the copy**: the column is `Text`, and truncating what
+somebody wrote for a person with dementia to satisfy a validator is not a trade worth
+making.
+
+**`created_by` holds the patient's own Clerk id**, which is factually who created it, and
+is how the dashboard can tell a reminder the reader set from one the family set. A
+person-shaped column holds a Clerk id and nothing else (D-20).
+
+**`notification_ids` never leaves the phone.** What this device has booked with the OS is
+local scheduling state; the server neither knows nor should know it (D-34).
+
+**Still not done:** the phone cannot edit, switch off or delete a reminder — not a sync gap
+but a missing screen, and the sync model above is what that screen would have to respect. A
+reminder retired by the caregiver still cascades its local `reminder_event` rows on the
+device; the queued snapshots survive it, so unsynced adherence still syncs (verified), and
+that remains true only while `sync_queue.payload` is a snapshot rather than a pointer.
+
+**Would change it if:** the phone gains real editing, at which point definitions become
+genuinely two-way and need a conflict rule — `updated_at` last-write-wins is the cheap
+answer and it would quietly lose a caregiver's edit, which is the outcome this decision
+exists to prevent.
+
+---
+
+## D-37 · 2026-09-01 · A nine-digit Smaran id is how a caregiver gets linked, and the link starts `pending`
+
+**Decision.** `roles.smaran_id` is an `INTEGER NOT NULL UNIQUE` filled from a Postgres
+sequence, `smaran_id_seq`, starting at 100,000,000. `patient_caregivers` gains
+`status` — `pending` · `active` · `revoked` — defaulting to `pending`. Both arrive in
+`alembic/versions/0002_smaran_id_and_caregiver_status.py`.
+
+**Why nine digits from a sequence.** The id exists to be read out loud: a patient (or the
+family member holding their phone) says it, a caregiver types it in. That rules out uuids,
+letters and anything case-sensitive. Starting at 100,000,000 means the first id is already
+nine digits wide and none of them ever grows a digit, so every field, every label and every
+validator can assume exactly nine. Postgres owns the counter because a sequence is the only
+version of "next number" that two simultaneous sign-ups cannot both win; computing
+`max + 1` in the service would hand out collisions under exactly the load a launch produces.
+`INTEGER` is enough — the ceiling is 2,147,483,647, twice the largest nine-digit number.
+
+**It lives on `roles`, not on `patients`.** `roles` is the one person-keyed table (D-20) and
+its primary key is the Clerk user id, so one row is one account and the id is unique per
+account without a second table to join. A patient with no Clerk account has no Smaran id,
+which is correct: there is nobody to read one out.
+
+**Why the link starts `pending`.** A number short enough to say over the phone is a number
+that can be guessed or overheard, so it must not be a credential. Quoting somebody's Smaran
+id creates a `pending` row and nothing more — no patient data is readable until an approval
+moves it to `active`. `revoked` is a state rather than a delete, because who had access and
+when it ended is exactly what a family may need to ask about later (§2.5).
+
+**Not built yet.** This is schema only. No route issues, reads or validates a Smaran id, and
+nothing moves a link out of `pending` — the approval step is a screen and an endpoint that
+do not exist. Any code added later must check `status = 'active'` and not merely the row's
+existence, or the pending state buys nothing.
+
+**Would change it if:** ids ever needed to be unguessable, in which case the answer is a
+longer random id *plus* the approval step, never the id alone.
+
+---
+
+## D-38 · 2026-09-01 · Setup asks for a caregiver's Smaran id before the app opens, and the answer is cached
+
+**Decision.** A signed-in reader whose device does not know of an **active** caregiver link
+lands on `src/app/setup.tsx` and nothing else. They type the nine-digit Smaran id of the
+person who helps them, `POST /care/link` writes a `pending` row, and the screen becomes a
+spinner until a caregiver accepts. `CareLinkProvider` (`hooks/use-care-link.tsx`) holds the
+answer, caches it in the secure store under the Clerk user id, and the root gate reads
+**that cache** — never the network. This is D-37's "not built yet" built.
+
+**The cache is the gate; the network only corrects it.** Opening the app waits on a
+key/value read that works with the radio off, so a phone linked in March opens in June in a
+house with no signal exactly as it did the day it was set up (§2.1). The refresh that
+follows is awaited by nobody: if it fails, the cached status stands and the reader is told
+nothing.
+
+**Setting up is the one reader-facing flow that genuinely needs a signal, and that is not a
+§2.1 violation so much as the shape of the problem** — there is no way to learn that a
+caregiver said yes without asking them. It happens once, next to the sign-in that also
+needs a signal, and everything downstream of it is local. The alternative — letting an
+unlinked phone into the app — is a phone with no reminders, no people to call, and a
+`sync_queue` that 409s forever because nothing has a `patients` row to attribute it to.
+
+**Setup is where a self-signed-up reader becomes a `patients` row.** `ensure_patient()` in
+`features/care/service.py` creates it, writing nothing but the Clerk id. Before this, only
+a caregiver creating a patient on the dashboard made that row, so a reader who signed
+themselves in had every sync call refused with the 409 D-33 defined and no way at all to
+resolve it. Creating it at a deliberate act rather than at sign-in keeps the row meaning
+"somebody set this phone up".
+
+**The caregiver's read path now filters on `status = 'active'`, and that was the load-bearing
+half of this change.** Six queries in `features/dashboard/service.py` joined
+`patient_caregivers` on `caregiver_id` alone. That was harmless while nothing created a
+`pending` row; the moment a patient can create one by typing a number, it would have meant
+that quoting somebody's Smaran id handed them a patient's data — the exact thing D-37's
+`pending` state exists to prevent (§2.5). `LINK_ACTIVE` is defined once, in
+`features/care/schemas.py`, so the write path and the read path cannot drift.
+
+**`POST /care/requests/{id}` is the only thing that grants access**, and it is deliberately
+a caregiver route: access is something a patient asked for and a caregiver agreed to, never
+something either half arranged alone. `GET /care/requests` returns a link id, a patient id
+and a status and nothing else — everything that would help a caregiver recognise the
+patient sits *behind* the approval, not in front of it.
+
+**The waiting screen polls every 15 seconds** while it is open in front of somebody, and
+stops the moment the link is accepted. That is not background work and nothing depends on
+it having run (§2.2) — the "Check again" button does the same thing, and closing the app
+and reopening it does too.
+
+**Idempotent by contract.** Asking twice for the same caregiver returns the request that
+already exists rather than stacking up rows for somebody to answer one at a time. A
+`revoked` link asked for again goes back to `pending`: ending access is not the same as
+refusing to consider it a second time, and the caregiver still has to say yes.
+
+**Clerk's `getToken` is not referentially stable, and in this file that was a bug.** The
+first cut listed it as an effect dependency; Clerk returns a new function every render, so
+the effect re-ran every render, its own `setLink` caused the next render, and the phone
+asked `/care/link` two or three times a second for as long as it was open. `getToken` is
+now read through a ref and the effects depend on `userId` and the two Clerk booleans only —
+the same fix applied to `useRoleEnrolment`, which had the identical shape and would POST
+`/auth/patient-role` on every render until its marker was written. Anything else that takes
+`getToken` from `useAuth` inside an effect wants the same treatment; `useSync` is safe only
+because a two-minute guard swallows the repeats.
+
+**Verified** against a throwaway Postgres migrated by Alembic, at the service layer: an
+unset-up phone reads `none`; an unknown number and a *patient's* own number are both 404s;
+the request lands `pending` and creates the `patients` row; asking twice makes one row; a
+pending link grants no dashboard access; the caregiver sees the request and another
+caregiver sees neither it nor any way to approve it; approval flips both the phone's read
+and the dashboard's; revoking ends access and can be asked for again; and a caregiver
+account asking for a carer is a 403.
+
+**Costs and what is not done.** There is no caregiver-side *screen* for any of this — the
+approval is an endpoint, so the loop closes over HTTP but not yet in the dashboard UI. A
+reader who cannot reach the API cannot complete setup, and the screen says so warmly rather
+than pretending otherwise. `patient_caregivers` still has no timestamp, so requests come
+back in no particular order; that is fine for a handful and wants a `requested_at` column
+before it is not.
+
+**Would change it if:** setup ever needed to work fully offline — the answer there is a
+caregiver-provisioned phone, where the family sets the device up on their own account and
+hands it over already linked, and the Smaran id flow stays as the path for a reader who
+signed themselves in.
+

@@ -1,3 +1,10 @@
 export { db, newId, type Queryable } from "./client";
-export { deviceIdentity, markSynced, takeSeq } from "./device";
+export { deviceIdentity, markPulled, markSynced, takeSeq } from "./device";
+export {
+	bumpAttempts,
+	drop,
+	oldestQueuedSeq,
+	queueDepth,
+	queued,
+} from "./queue";
 export * from "./schema";

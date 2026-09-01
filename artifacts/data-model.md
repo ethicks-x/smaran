@@ -5,6 +5,13 @@ created by `src/db/migrations.ts`. See `decisions.md` D-24.
 **Server: 🟡** — `apps/api` has SQLAlchemy models, `memory_assets` among them, but no
 migrations, no hypertable and no continuous aggregates; §2 below is otherwise still the
 design to build against.
+**Server: 🟡** — `apps/api/src/features/database/models.py` now has a SQLAlchemy model for
+every table that crosses the sync boundary (D-32), and `POST /sync/sessions` /
+`POST /sync/reminder-events` write `devices`, `session_events` and `reminder_events` (D-33).
+`GET /sync/pull` syncs `reminders` back down and restores `session_events` to a reinstalled
+phone (D-34), and **Alembic owns the schema** — `task db:migrate` (D-35). Still missing: the
+hypertable itself, the continuous aggregates, and the other two down-sync tables (`people`,
+`memory_items`).
 
 Update this file as tables land, and mark them ✅.
 
@@ -36,8 +43,9 @@ One row. Identity for sync.
 |---|---|---|
 | `id` | text PK | generated once, `expo-crypto`, never regenerated |
 | `next_seq` | integer | monotonic counter; the `seq` half of the dedupe key |
-| `last_synced_seq` | integer | server-acknowledged watermark |
+| `last_synced_seq` | integer | lowest still-queued `seq` minus one (D-33) |
 | `last_synced_at` | integer | epoch ms, nullable |
+| `last_pulled_at` | integer | **the server's** clock at the last pull, echoed back as `since`; null means "never pulled", which is what asks for a restore (D-34) |
 
 ### `game_session` ✅ — the core record
 One row per completed session. **Immutable once written.**
@@ -71,6 +79,13 @@ Store the raw counts, not just the ratios. Definitions of "accuracy" will change
 underlying facts should not need re-collection. The measured numbers that *cannot* be
 recomputed from the counts — time on task, the median turn, the longest streak — are
 columns for the same reason.
+
+### `remote_session` ✅ — history that is not this device's
+`game_session` minus `seq`, pulled down after a reinstall (D-34). Read by the adaptive engine
+alongside `game_session` and **never queued, never sent up** — these rounds are already on the
+server. Safe to drop and re-pull; nothing here is owed to anyone.
+
+Index on `(game_id, ended_at)`, the same query the engine makes.
 
 ### `session_event` ✅ — optional detail
 Per-attempt rows for a session. Useful for replay and for a future model. Prune on a
@@ -118,7 +133,7 @@ Synced down. Backs the Memories tab.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | integer PK autoincr | drain order |
-| `entity` | text | `game_session` · `reminder_event` |
+| `entity` | text | `game_session` · `reminder_event` · `reminder` (creations only, D-36) |
 | `entity_id` | text | |
 | `seq` | integer | copied from the row, so a retry sends the same key |
 | `payload` | text | JSON snapshot, so the queue is self-contained |
@@ -128,17 +143,17 @@ Synced down. Backs the Memories tab.
 **Write the row and enqueue it in one transaction.** A session that exists without a queue
 entry is a silently lost sync.
 
+Drained by `src/lib/sync.ts` over `src/db/queue.ts` (D-33). A queue row is deleted only on a
+response that accounts for it, and deleting it never touches the `game_session` or
+`reminder_event` it describes — this is an outbox, not the record.
+
 ---
 
 ## 2. Server — PostgreSQL + TimescaleDB
 
-### Relational
-- `patients` — id, display name, preferred language, enrolled_at, enrolled_by
-- `caregivers` — id, name, contact, auth subject
-- `enrollments` — caregiver ↔ patient, role, created_at
-- `devices` — id, patient_id, last_seen_at, app_version
-- `people` / `memory_items` — the down-sync content, owned by caregivers
-- `reminders` — the server-authoritative definitions devices pull
+All of §2's tables exist as SQLAlchemy models and are created by `alembic/versions/0001_baseline.py`
+(D-35). None of the Timescale machinery does — `create_hypertable` needs to run in a migration
+**before** `session_events` holds meaningful data, because it rewrites the table.
 
 ### `memory_assets` ✅ — the media the family uploads
 One row per object in the memory bucket. **The row is the record; the bucket holds the
@@ -174,15 +189,59 @@ that is simply gone — it would keep showing a removed picture forever. Flippin
 is what tells it to drop the cached file.
 
 ### Hypertable: `session_events`
+### Relational
+- `patients` ✅ — id, `user_id` (Clerk), dob, address, contact number, preferred language,
+  `enrolled_at`, `enrolled_by`. **No display name** — D-20 wins over the earlier line here:
+  the server mirrors nothing about a person, the device holds the name it greets with, and
+  Clerk holds it for anyone with an account
+- `roles` ✅ / `patient_caregivers` ✅ — the enrollment link, keyed by Clerk id. There is no
+  `caregivers` table and there will not be one (D-20). `roles.smaran_id` is the nine-digit
+  number a person reads out so a caregiver can be linked to them, drawn from the
+  `smaran_id_seq` sequence that starts at 100,000,000 (D-37). `patient_caregivers.status`
+  is `pending` · `active` · `revoked` — a link typed in from a Smaran id is `pending` until
+  it is approved, so the id alone grants nothing
+- `devices` ✅ — id (the device's own uuid), patient_id, app_version, `last_synced_seq`
+  (the watermark every ingest response reports), last_seen_at, enrolled_at
+- `people` ✅ / `memory_items` ✅ — the down-sync content, owned by caregivers
+- `reminders` ✅ — the server-authoritative definitions devices pull, with caregiver CRUD
+  behind `/dashboard/patients/{id}/reminders` and a **soft** delete (D-34). A phone may also
+  *create* one through `POST /sync/reminders`, and only create it — no `device_id`/`seq`
+  here, because a client-generated uuid already makes that insert idempotent (D-36)
+
+The three down-sync tables carry `updated_at` **and `deleted_at`**: `GET /sync/pull?since=`
+has to tell a device that has been off for a week about a row that was removed as well as
+one that was added, and a hard delete is silent to a watermark. The append-only streams are
+not soft-deleted — nothing ever removes a fact.
+
+`memory_subjects` (the faces a recall game asks about) and `memory_items` (what the
+Memories tab shows) are different tables on purpose. So are `people` and `memory_subjects`:
+one is someone to reach, the other is someone to be asked about, and the same human is
+often both.
+
+### Hypertable: `session_events` 🟡 *(table ✅, hypertable ⬜)*
 
 ```sql
 SELECT create_hypertable('session_events', 'ended_at');
-CREATE UNIQUE INDEX ON session_events (device_id, seq);
 ```
 
-Columns mirror `game_session` plus `patient_id` and `device_id`. `(device_id, seq)` is the
-idempotency key — ingest is an upsert on it, so a retried batch is a no-op
-(`decisions.md` D-09).
+Columns mirror the device's `game_session` — `SessionStats` field for field — plus
+`patient_id`, `device_id` and `received_at`, the server's own clock on arrival.
+
+**This is the server's copy of `game_session`, not of the device's `session_event`.** The
+name collides and the collision has bitten already: per-attempt detail stays on the phone
+(§1), one row here is a whole round. It is also not `game_sessions`, the older
+caregiver-authored activity record the dashboard reads today.
+
+`(device_id, seq)` is the idempotency key — ingest is an upsert on it, so a retried batch is
+a no-op (`decisions.md` D-09). **Both keys carry `ended_at`**: the primary key is
+`(id, ended_at)` and the unique constraint is `(device_id, seq, ended_at)`, because
+Timescale refuses a hypertable whose unique indexes do not include the partitioning column.
+A retry sends the queued JSON snapshot byte for byte, so the extra column is as
+deterministic as the other two (D-32).
+
+`reminder_events.reminder_id` is a **plain uuid with no foreign key** — every reminder is
+device-created today, so its definition has no row here and the constraint would refuse the
+insert. An event is evidence and has to land. Do not add the constraint (D-32).
 
 ### Continuous aggregates
 
