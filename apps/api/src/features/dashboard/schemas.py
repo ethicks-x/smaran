@@ -311,17 +311,77 @@ class AttentionFlagOut(BaseModel):
     observed_at: datetime
 
 
+class AiObservationItem(BaseModel):
+    """Single cognitive or behavioral observation derived from personal baseline data."""
+
+    category: str  # "cognitive" | "routine" | "engagement" | "fatigue"
+    title: str
+    description: str
+    trend: str  # "improving" | "steady" | "attention"
+    highlight_metric: str | None = None
+
+
+class AiRoutineItem(BaseModel):
+    """Time-of-day adherence pattern observation."""
+
+    time_of_day: str  # "morning" | "afternoon" | "evening" | "all_day"
+    adherence_rate: int
+    observation: str
+
+
+class AiCaregiverTip(BaseModel):
+    """Actionable, empathetic suggestion for the caregiver."""
+
+    priority: str  # "recommended" | "suggestion" | "note"
+    title: str
+    advice: str
+
+
+class AiDataWindowSummary(BaseModel):
+    """Summary of the historical data window analyzed by the AI engine."""
+
+    window_days: int
+    sessions_analyzed: int
+    reminders_analyzed: int
+    overall_accuracy: int
+    overall_adherence: int
+
+
+class PatientAiInsightsOut(BaseModel):
+    """Complete AI-generated clinical and daily insights response."""
+
+    patient_id: UUID
+    generated_at: datetime
+    model_used: str = "Google Gemini Flash"
+    status_level: str  # "thriving" | "steady" | "attention"
+    headline: str
+    observations: list[AiObservationItem]
+    routine_insights: list[AiRoutineItem]
+    actionable_tips: list[AiCaregiverTip]
+    data_summary: AiDataWindowSummary
+    disclaimer: str = (
+        "Advisory observations computed from this individual's historical patterns. "
+        "Not a medical diagnosis."
+    )
+
+
 __all__ = [
     "ActivityBreakdownItem",
     "ActivityFeedOut",
+    "AiCaregiverTip",
+    "AiDataWindowSummary",
+    "AiObservationItem",
+    "AiRoutineItem",
     "AttentionFlagOut",
     "CasualPlayCreateIn",
     "CasualPlayOut",
     "DashboardSummaryOut",
+    "MemoryAssetOut",
     "MemorySubjectCreateIn",
     "MemorySubjectOut",
     "MemorySubjectUpdateIn",
     "NotificationOut",
+    "PatientAiInsightsOut",
     "PatientCardOut",
     "PatientCreateIn",
     "PatientDetailOut",

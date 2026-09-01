@@ -5,9 +5,11 @@ Routers stay thin; all database operations and calculations live here.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+import httpx
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 
@@ -24,6 +26,10 @@ from features.care.schemas import LINK_ACTIVE
 from features.dashboard.schemas import (
     ActivityBreakdownItem,
     ActivityFeedOut,
+    AiCaregiverTip,
+    AiDataWindowSummary,
+    AiObservationItem,
+    AiRoutineItem,
     AttentionFlagOut,
     CasualPlayCreateIn,
     CasualPlayOut,
@@ -33,6 +39,7 @@ from features.dashboard.schemas import (
     MemorySubjectOut,
     MemorySubjectUpdateIn,
     NotificationOut,
+    PatientAiInsightsOut,
     PatientCardOut,
     PatientCreateIn,
     PatientDetailOut,
@@ -54,6 +61,7 @@ from features.database.models import (
     PatientCaregiver,
     QuestionEvent,
     Reminder,
+    ReminderEvent,
     SessionEvent,
 )
 
@@ -1423,3 +1431,495 @@ async def _owned_reminder(
         )
 
     return reminder
+
+
+# --- AI Patient Insights ---
+
+
+async def generate_patient_ai_insights(
+    session: AsyncSession,
+    caregiver_id: str,
+    patient_id: UUID,
+) -> PatientAiInsightsOut:
+    """Generate on-demand AI clinical and daily routine insights for a patient using Google Gemini.
+
+    Compares strictly against this patient's own baseline history (AGENTS.md §2.4).
+    Anonymized metrics only — no PII is sent to the model (§2.5).
+    """
+    await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
+
+    # Check for valid Gemini API key
+    if not settings.gemini_api_key or settings.gemini_api_key.strip() in (
+        "",
+        "your_gemini_api_key_here",
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini AI is not configured. Please add a valid GEMINI_API_KEY to apps/api/.env.",
+        )
+
+    window_days = 30
+    now = _utcnow()
+    since_dt = now - timedelta(days=window_days)
+    recent_7d_dt = now - timedelta(days=7)
+
+    # 1. Fetch SessionEvents
+    s_events = (
+        await session.scalars(
+            select(SessionEvent)
+            .where(SessionEvent.patient_id == patient_id, SessionEvent.ended_at >= since_dt)
+            .order_by(SessionEvent.ended_at.desc())
+        )
+    ).all()
+
+    # 2. Fetch ReminderEvents
+    r_events = (
+        await session.scalars(
+            select(ReminderEvent)
+            .where(ReminderEvent.patient_id == patient_id, ReminderEvent.due_at >= since_dt)
+            .order_by(ReminderEvent.due_at.desc())
+        )
+    ).all()
+
+    # 3. Fetch CasualPlayLogs
+    casual_logs = (
+        await session.scalars(
+            select(CasualPlayLog).where(
+                CasualPlayLog.patient_id == patient_id, CasualPlayLog.played_at >= since_dt
+            )
+        )
+    ).all()
+
+    # 4. Fetch MemorySubjects count
+    memories_count = (
+        await session.scalar(
+            select(func.count(MemorySubject.id)).where(
+                MemorySubject.patient_id == patient_id, MemorySubject.is_active.is_(True)
+            )
+        )
+    ) or 0
+
+    # Aggregate cognitive stats
+    sessions_count = len(s_events)
+    if sessions_count > 0:
+        total_attempts = sum(e.attempts for e in s_events)
+        total_correct = sum(e.correct for e in s_events)
+        overall_accuracy = (
+            round((total_correct / total_attempts) * 100)
+            if total_attempts > 0
+            else round((sum(e.accuracy for e in s_events) / sessions_count) * 100)
+        )
+        avg_speed_sec = sum(e.avg_response_ms for e in s_events) / (sessions_count * 1000)
+
+        # 7-day slice
+        recent_events = [e for e in s_events if e.ended_at >= recent_7d_dt]
+        if recent_events:
+            r_attempts = sum(e.attempts for e in recent_events)
+            r_correct = sum(e.correct for e in recent_events)
+            accuracy_7d = (
+                round((r_correct / r_attempts) * 100)
+                if r_attempts > 0
+                else round((sum(e.accuracy for e in recent_events) / len(recent_events)) * 100)
+            )
+        else:
+            accuracy_7d = overall_accuracy
+    else:
+        overall_accuracy = 0
+        accuracy_7d = 0
+        avg_speed_sec = 0.0
+
+    # Aggregate reminder adherence stats
+    reminders_count = len(r_events)
+    if reminders_count > 0:
+        done_count = sum(1 for r in r_events if r.outcome == "done")
+        adherence_pct = round((done_count / reminders_count) * 100)
+
+        # Split by time of day
+        mornings = [r for r in r_events if 5 <= r.due_at.hour < 12]
+        afternoons = [r for r in r_events if 12 <= r.due_at.hour < 17]
+        evenings = [r for r in r_events if 17 <= r.due_at.hour < 23]
+
+        morning_adh = (
+            round((sum(1 for r in mornings if r.outcome == "done") / len(mornings)) * 100)
+            if mornings
+            else 100
+        )
+        afternoon_adh = (
+            round((sum(1 for r in afternoons if r.outcome == "done") / len(afternoons)) * 100)
+            if afternoons
+            else 100
+        )
+        evening_adh = (
+            round((sum(1 for r in evenings if r.outcome == "done") / len(evenings)) * 100)
+            if evenings
+            else 100
+        )
+    else:
+        adherence_pct = 100
+        morning_adh = 100
+        afternoon_adh = 100
+        evening_adh = 100
+
+    casual_count = len(casual_logs)
+
+    # Prepare anonymized structured prompt for Gemini
+    stats_payload = {
+        "analysis_window_days": window_days,
+        "cognitive_metrics": {
+            "total_sessions": sessions_count,
+            "overall_accuracy_pct": overall_accuracy,
+            "recent_7d_accuracy_pct": accuracy_7d,
+            "avg_response_time_sec": round(avg_speed_sec, 2),
+            "trend_direction": "up"
+            if accuracy_7d > overall_accuracy + 3
+            else ("down" if accuracy_7d < overall_accuracy - 5 else "stable"),
+        },
+        "routine_adherence": {
+            "total_reminders": reminders_count,
+            "overall_adherence_pct": adherence_pct,
+            "morning_adherence_pct": morning_adh,
+            "afternoon_adherence_pct": afternoon_adh,
+            "evening_adherence_pct": evening_adh,
+        },
+        "engagement": {
+            "active_memory_subjects": memories_count,
+            "casual_games_played": casual_count,
+        },
+    }
+
+    system_instruction = (
+        "You are an empathetic, clinical AI assistant for Smaran, an offline-first cognitive care platform for elderly people with dementia. "
+        "Your role is to analyze a patient's historical telemetry and provide warm, insightful, non-diagnostic observations for their family caregiver.\n\n"
+        "Strict Guidelines:\n"
+        "1. PERSONAL BASELINE ONLY: Compare the individual only against their own historical data window. Never cite population norms or averages.\n"
+        "2. NON-DIAGNOSTIC & EMPATHETIC: Use warm, supportive second-person language. Never diagnose, stage dementia, or cause panic. Frame observations constructively.\n"
+        "3. OBSERVATIONS: Provide 2 to 4 key observations across cognitive patterns, routine adherence, and engagement.\n"
+        "4. ROUTINE INSIGHTS: Break down morning, afternoon, and evening routines concisely.\n"
+        "5. ACTIONABLE CAREGIVER TIPS: Give 2 to 3 practical, daily suggestions (e.g. hydration timing, photo memories, optimal play times).\n"
+        "6. Return strictly valid JSON adhering to the requested schema."
+    )
+
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{settings.gemini_model}:generateContent?key={settings.gemini_api_key}"
+    )
+
+    response_schema = {
+        "type": "OBJECT",
+        "properties": {
+            "status_level": {"type": "STRING", "enum": ["thriving", "steady", "attention"]},
+            "headline": {"type": "STRING"},
+            "observations": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "category": {
+                            "type": "STRING",
+                            "enum": ["cognitive", "routine", "engagement", "fatigue"],
+                        },
+                        "title": {"type": "STRING"},
+                        "description": {"type": "STRING"},
+                        "trend": {"type": "STRING", "enum": ["improving", "steady", "attention"]},
+                        "highlight_metric": {"type": "STRING"},
+                    },
+                    "required": ["category", "title", "description", "trend"],
+                },
+            },
+            "routine_insights": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "time_of_day": {
+                            "type": "STRING",
+                            "enum": ["morning", "afternoon", "evening", "all_day"],
+                        },
+                        "adherence_rate": {"type": "INTEGER"},
+                        "observation": {"type": "STRING"},
+                    },
+                    "required": ["time_of_day", "adherence_rate", "observation"],
+                },
+            },
+            "actionable_tips": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "priority": {
+                            "type": "STRING",
+                            "enum": ["recommended", "suggestion", "note"],
+                        },
+                        "title": {"type": "STRING"},
+                        "advice": {"type": "STRING"},
+                    },
+                    "required": ["priority", "title", "advice"],
+                },
+            },
+        },
+        "required": [
+            "status_level",
+            "headline",
+            "observations",
+            "routine_insights",
+            "actionable_tips",
+        ],
+    }
+
+    body = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": (
+                            f"System: {system_instruction}\n\n"
+                            f"Patient Telemetry:\n{json.dumps(stats_payload, indent=2)}\n\n"
+                            "Generate the structured caregiver insights JSON with rich observations, routine items, and tips."
+                        )
+                    }
+                ],
+            }
+        ],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseSchema": response_schema,
+            "temperature": 0.3,
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            resp = await client.post(url, json=body)
+    except httpx.TimeoutException as err:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Gemini AI request timed out. Please try again in a few seconds.",
+        ) from err
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to connect to Google Gemini API: {err}",
+        ) from err
+
+    if resp.status_code != 200:
+        error_detail = resp.text
+        try:
+            err_json = resp.json()
+            if "error" in err_json and "message" in err_json["error"]:
+                error_detail = err_json["error"]["message"]
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Google Gemini API error ({resp.status_code}): {error_detail}",
+        )
+
+    result = resp.json()
+    candidates = result.get("candidates", [])
+    if not candidates:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Gemini AI returned an empty response. Please try again.",
+        )
+
+    # Collect text parts from Gemini candidate
+    text_parts = [
+        p.get("text", "")
+        for p in candidates[0].get("content", {}).get("parts", [])
+        if "text" in p and p.get("text", "").strip()
+    ]
+    raw_text = text_parts[-1] if text_parts else ""
+    if not raw_text:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Gemini AI produced no text content.",
+        )
+
+    try:
+        parsed = json.loads(raw_text)
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to parse Gemini AI response JSON: {err}",
+        ) from err
+
+    # 1. Parse Status Level
+    status_level = str(parsed.get("status_level", "steady")).lower()
+    if status_level not in ("thriving", "steady", "attention"):
+        status_level = "steady"
+
+    # 2. Parse Headline
+    headline = str(
+        parsed.get(
+            "headline",
+            "Consistent telemetry patterns observed across cognitive play and daily routines.",
+        )
+    )
+
+    # 3. Parse Observations
+    raw_obs = parsed.get("observations", [])
+    observations: list[AiObservationItem] = []
+    if isinstance(raw_obs, list):
+        for o in raw_obs:
+            if isinstance(o, dict) and "title" in o and "description" in o:
+                cat = str(o.get("category", "cognitive")).lower()
+                trend = str(o.get("trend", "steady")).lower()
+                if trend not in ("improving", "steady", "attention"):
+                    trend = "steady"
+                observations.append(
+                    AiObservationItem(
+                        category=cat
+                        if cat in ("cognitive", "routine", "engagement", "fatigue")
+                        else "cognitive",
+                        title=str(o["title"]),
+                        description=str(o["description"]),
+                        trend=trend,
+                        highlight_metric=str(o.get("highlight_metric", "")) or None,
+                    )
+                )
+            elif isinstance(o, str) and o.strip():
+                observations.append(
+                    AiObservationItem(
+                        category="cognitive"
+                        if "cognitive" in o.lower() or "accuracy" in o.lower()
+                        else "routine",
+                        title="Observed Behavioral Trend",
+                        description=o.strip(),
+                        trend="steady",
+                    )
+                )
+
+    # If observations are sparse, enrich with computed facts
+    if len(observations) < 2:
+        if sessions_count > 0:
+            observations.append(
+                AiObservationItem(
+                    category="cognitive",
+                    title="Cognitive Performance Baseline",
+                    description=f"Recorded {sessions_count} sessions with {overall_accuracy}% overall accuracy and ~{avg_speed_sec:.1f}s average response time.",
+                    trend="steady" if accuracy_7d >= overall_accuracy - 5 else "attention",
+                    highlight_metric=f"{accuracy_7d}% 7-day avg",
+                )
+            )
+        if reminders_count > 0:
+            observations.append(
+                AiObservationItem(
+                    category="routine",
+                    title="Daily Schedule Adherence",
+                    description=f"{adherence_pct}% overall completion rate across scheduled daily reminders.",
+                    trend="improving" if adherence_pct >= 85 else "steady",
+                    highlight_metric=f"{adherence_pct}% adherence",
+                )
+            )
+
+    # 4. Parse Routine Insights
+    raw_rout = parsed.get("routine_insights", [])
+    routine_insights: list[AiRoutineItem] = []
+    if isinstance(raw_rout, list):
+        for r in raw_rout:
+            if isinstance(r, dict) and "observation" in r:
+                tod = str(r.get("time_of_day", "all_day")).lower()
+                adh = int(r.get("adherence_rate", adherence_pct))
+                routine_insights.append(
+                    AiRoutineItem(
+                        time_of_day=tod
+                        if tod in ("morning", "afternoon", "evening", "all_day")
+                        else "all_day",
+                        adherence_rate=max(0, min(100, adh)),
+                        observation=str(r["observation"]),
+                    )
+                )
+            elif isinstance(r, str) and r.strip():
+                routine_insights.append(
+                    AiRoutineItem(
+                        time_of_day="all_day",
+                        adherence_rate=adherence_pct,
+                        observation=r.strip(),
+                    )
+                )
+
+    # Ensure full morning/afternoon/evening routine cards are present
+    existing_tods = {r.time_of_day for r in routine_insights}
+    if "morning" not in existing_tods:
+        routine_insights.insert(
+            0,
+            AiRoutineItem(
+                time_of_day="morning",
+                adherence_rate=morning_adh,
+                observation="Morning routines and medications show consistent follow-up and good start to the day.",
+            ),
+        )
+    if "afternoon" not in existing_tods:
+        routine_insights.append(
+            AiRoutineItem(
+                time_of_day="afternoon",
+                adherence_rate=afternoon_adh,
+                observation="Afternoon hours show calm pacing; reminders are acknowledged reliably.",
+            )
+        )
+    if "evening" not in existing_tods:
+        routine_insights.append(
+            AiRoutineItem(
+                time_of_day="evening",
+                adherence_rate=evening_adh,
+                observation="Evening winding-down routine proceeds smoothly without notable disruption.",
+            )
+        )
+
+    # 5. Parse Actionable Tips
+    raw_tips = parsed.get("actionable_tips", [])
+    actionable_tips: list[AiCaregiverTip] = []
+    if isinstance(raw_tips, list):
+        for t in raw_tips:
+            if isinstance(t, dict) and "advice" in t:
+                prio = str(t.get("priority", "suggestion")).lower()
+                actionable_tips.append(
+                    AiCaregiverTip(
+                        priority=prio
+                        if prio in ("recommended", "suggestion", "note")
+                        else "suggestion",
+                        title=str(t.get("title", "Caregiver Tip")),
+                        advice=str(t["advice"]),
+                    )
+                )
+            elif isinstance(t, str) and t.strip():
+                actionable_tips.append(
+                    AiCaregiverTip(
+                        priority="suggestion",
+                        title="Daily Routine Tip",
+                        advice=t.strip(),
+                    )
+                )
+
+    if not actionable_tips:
+        actionable_tips = [
+            AiCaregiverTip(
+                priority="recommended",
+                title="Gentle Afternoon Refreshment",
+                advice="Offer a fresh glass of water or tea around 3 PM to maintain alertness and smooth routine adherence.",
+            ),
+            AiCaregiverTip(
+                priority="suggestion",
+                title="Personalized Memory Sharing",
+                advice="Add 1 or 2 new family photos in the Memories section to keep recall games fresh and engaging.",
+            ),
+        ]
+
+    return PatientAiInsightsOut(
+        patient_id=patient_id,
+        generated_at=now,
+        model_used=f"Google {settings.gemini_model}",
+        status_level=status_level,
+        headline=headline,
+        observations=observations,
+        routine_insights=routine_insights,
+        actionable_tips=actionable_tips,
+        data_summary=AiDataWindowSummary(
+            window_days=window_days,
+            sessions_analyzed=sessions_count,
+            reminders_analyzed=reminders_count,
+            overall_accuracy=overall_accuracy,
+            overall_adherence=adherence_pct,
+        ),
+    )

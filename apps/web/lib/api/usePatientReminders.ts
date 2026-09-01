@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type {
+	ReminderApi,
+	ReminderCreateInput,
+	ReminderUpdateInput,
+} from "@/lib/types";
 import { useApi } from "./client";
-import type { ReminderApi, ReminderCreateInput, ReminderUpdateInput } from "@/lib/types";
 
 interface UsePatientRemindersResult {
 	reminders: ReminderApi[];
@@ -10,14 +14,19 @@ interface UsePatientRemindersResult {
 	error: string | null;
 	refetch: () => Promise<void>;
 	createReminder: (data: ReminderCreateInput) => Promise<ReminderApi>;
-	updateReminder: (reminderId: string, data: ReminderUpdateInput) => Promise<ReminderApi>;
+	updateReminder: (
+		reminderId: string,
+		data: ReminderUpdateInput,
+	) => Promise<ReminderApi>;
 	deleteReminder: (reminderId: string) => Promise<void>;
 	isCreating: boolean;
 	isUpdating: boolean;
 	isDeleting: boolean;
 }
 
-export function usePatientReminders(patientId: string): UsePatientRemindersResult {
+export function usePatientReminders(
+	patientId: string,
+): UsePatientRemindersResult {
 	const { apiFetch } = useApi();
 	const [reminders, setReminders] = useState<ReminderApi[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -30,12 +39,13 @@ export function usePatientReminders(patientId: string): UsePatientRemindersResul
 		try {
 			setLoading(true);
 			const res = await apiFetch<ReminderApi[]>(
-				`/dashboard/patients/${patientId}/reminders?include_inactive=true`
+				`/dashboard/patients/${patientId}/reminders?include_inactive=true`,
 			);
 			setReminders(res);
 			setError(null);
 		} catch (err) {
-			const message = err instanceof Error ? err.message : "Failed to load reminders";
+			const message =
+				err instanceof Error ? err.message : "Failed to load reminders";
 			setError(message);
 		} finally {
 			setLoading(false);
@@ -46,7 +56,9 @@ export function usePatientReminders(patientId: string): UsePatientRemindersResul
 		await fetchReminders();
 	};
 
-	const createReminder = async (data: ReminderCreateInput): Promise<ReminderApi> => {
+	const createReminder = async (
+		data: ReminderCreateInput,
+	): Promise<ReminderApi> => {
 		try {
 			setIsCreating(true);
 			const res = await apiFetch<ReminderApi>(
@@ -54,7 +66,7 @@ export function usePatientReminders(patientId: string): UsePatientRemindersResul
 				{
 					method: "POST",
 					body: JSON.stringify(data),
-				}
+				},
 			);
 			setReminders((prev) => [...prev, res]);
 			return res;
@@ -65,7 +77,7 @@ export function usePatientReminders(patientId: string): UsePatientRemindersResul
 
 	const updateReminder = async (
 		reminderId: string,
-		data: ReminderUpdateInput
+		data: ReminderUpdateInput,
 	): Promise<ReminderApi> => {
 		try {
 			setIsUpdating(true);
@@ -74,11 +86,9 @@ export function usePatientReminders(patientId: string): UsePatientRemindersResul
 				{
 					method: "PATCH",
 					body: JSON.stringify(data),
-				}
+				},
 			);
-			setReminders((prev) =>
-				prev.map((r) => (r.id === reminderId ? res : r))
-			);
+			setReminders((prev) => prev.map((r) => (r.id === reminderId ? res : r)));
 			return res;
 		} finally {
 			setIsUpdating(false);
@@ -92,7 +102,7 @@ export function usePatientReminders(patientId: string): UsePatientRemindersResul
 				`/dashboard/patients/${patientId}/reminders/${reminderId}`,
 				{
 					method: "DELETE",
-				}
+				},
 			);
 			setReminders((prev) => prev.filter((r) => r.id !== reminderId));
 		} finally {

@@ -5,18 +5,34 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ReminderList, ReminderForm } from "@/components/reminders";
-import { usePatientReminders } from "@/lib/api/usePatientReminders";
+import { ReminderForm, ReminderList } from "@/components/reminders";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import type { ReminderApi, ReminderCreateInput, ReminderUpdateInput } from "@/lib/types";
+import { usePatientReminders } from "@/lib/api/usePatientReminders";
+import type {
+	ReminderApi,
+	ReminderCreateInput,
+	ReminderUpdateInput,
+} from "@/lib/types";
 
 export default function RemindersPage() {
 	const params = useParams<{ id: string }>();
 	const { showToast } = useToast();
-	const { reminders, loading, error, createReminder, updateReminder, deleteReminder, isCreating, isUpdating, isDeleting } = usePatientReminders(params.id);
+	const {
+		reminders,
+		loading,
+		error,
+		createReminder,
+		updateReminder,
+		deleteReminder,
+		isCreating,
+		isUpdating,
+		isDeleting,
+	} = usePatientReminders(params.id);
 	const [showForm, setShowForm] = useState(false);
-	const [editingReminder, setEditingReminder] = useState<ReminderApi | null>(null);
+	const [editingReminder, setEditingReminder] = useState<ReminderApi | null>(
+		null,
+	);
 
 	const handleCreate = async (data: Record<string, any>) => {
 		try {
@@ -69,10 +85,7 @@ export default function RemindersPage() {
 						</p>
 					</div>
 					{!showForm && !editingReminder && (
-						<Button
-							onClick={() => setShowForm(true)}
-							className="gap-2"
-						>
+						<Button onClick={() => setShowForm(true)} className="gap-2">
 							<Plus size={18} /> Add Reminder
 						</Button>
 					)}
@@ -116,7 +129,7 @@ export default function RemindersPage() {
 					</div>
 				) : (
 					<ReminderList
-						reminders={reminders.filter(r => r.active)}
+						reminders={reminders.filter((r) => r.active)}
 						onEdit={setEditingReminder}
 						onDelete={handleDelete}
 						isDeleting={isDeleting}
@@ -124,13 +137,13 @@ export default function RemindersPage() {
 					/>
 				)}
 
-				{reminders.filter(r => !r.active).length > 0 && (
+				{reminders.filter((r) => !r.active).length > 0 && (
 					<div className="mt-8">
 						<h2 className="mb-4 text-lg font-semibold text-ink-900">
 							Inactive Reminders
 						</h2>
 						<ReminderList
-							reminders={reminders.filter(r => !r.active)}
+							reminders={reminders.filter((r) => !r.active)}
 							onEdit={setEditingReminder}
 							onDelete={handleDelete}
 							isDeleting={isDeleting}

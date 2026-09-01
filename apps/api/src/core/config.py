@@ -92,6 +92,16 @@ class Settings(BaseSettings):
         description="Value of roles.role that marks a patient",
     )
 
+    # Google Gemini AI settings for clinical and routine caregiver insights
+    gemini_api_key: str | None = Field(
+        None,
+        description="Google Gemini API key for generating AI patient insights",
+    )
+    gemini_model: str = Field(
+        "gemini-3.1-flash-lite",
+        description="Gemini model identifier (e.g. gemini-3.1-flash-lite, gemini-3.6-flash)",
+    )
+
     @field_validator("clerk_authorized_parties", "cors_allow_origins", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:

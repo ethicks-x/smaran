@@ -244,3 +244,44 @@ export interface ReminderUpdateInput {
 	schedule?: string;
 	active?: boolean;
 }
+
+export interface AiObservationItem {
+	category: "cognitive" | "routine" | "engagement" | "fatigue";
+	title: string;
+	description: string;
+	trend: "improving" | "steady" | "attention";
+	highlight_metric?: string | null;
+}
+
+export interface AiRoutineItem {
+	time_of_day: "morning" | "afternoon" | "evening" | "all_day";
+	adherence_rate: number;
+	observation: string;
+}
+
+export interface AiCaregiverTip {
+	priority: "recommended" | "suggestion" | "note";
+	title: string;
+	advice: string;
+}
+
+export interface AiDataWindowSummary {
+	window_days: number;
+	sessions_analyzed: number;
+	reminders_analyzed: number;
+	overall_accuracy: number;
+	overall_adherence: number;
+}
+
+export interface PatientAiInsightsApi {
+	patient_id: string;
+	generated_at: string;
+	model_used?: string;
+	status_level: "thriving" | "steady" | "attention";
+	headline: string;
+	observations: AiObservationItem[];
+	routine_insights: AiRoutineItem[];
+	actionable_tips: AiCaregiverTip[];
+	data_summary: AiDataWindowSummary;
+	disclaimer: string;
+}

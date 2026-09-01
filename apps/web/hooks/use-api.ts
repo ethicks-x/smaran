@@ -20,10 +20,10 @@ export type ApiCall = <T>(path: string, init?: ApiRequestInit) => Promise<T>;
  * as a dependency of an effect or a query key.
  */
 export function useApi(): ApiCall {
-  const { getToken } = useAuth();
+	const { getToken } = useAuth();
 
-  return useCallback<ApiCall>(
-    (path, init) => apiFetch(path, getToken, init),
-    [getToken],
-  );
+	return useCallback<ApiCall>(
+		(path, init) => apiFetch(path, getToken, init),
+		[getToken],
+	);
 }

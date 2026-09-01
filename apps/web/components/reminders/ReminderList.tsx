@@ -19,12 +19,13 @@ const KIND_LABELS: Record<ReminderKind, string> = {
 	appointment: "Appointment",
 };
 
-const KIND_TONES: Record<ReminderKind, "coral" | "indigo" | "mint" | "amber"> = {
-	medicine: "coral",
-	hydration: "indigo",
-	activity: "mint",
-	appointment: "amber",
-};
+const KIND_TONES: Record<ReminderKind, "coral" | "indigo" | "mint" | "amber"> =
+	{
+		medicine: "coral",
+		hydration: "indigo",
+		activity: "mint",
+		appointment: "amber",
+	};
 
 function parseSchedule(schedule: string): { time: string; days: string } {
 	const [time, daysMask] = schedule.split("|");
@@ -48,7 +49,9 @@ export function ReminderList({
 	if (reminders.length === 0) {
 		return (
 			<div className="rounded-2xl border border-dashed border-black/15 dark:border-white/15 bg-surface p-8 text-center">
-				<p className="text-sm text-ink-500">No reminders yet. Create one to get started.</p>
+				<p className="text-sm text-ink-500">
+					No reminders yet. Create one to get started.
+				</p>
 			</div>
 		);
 	}

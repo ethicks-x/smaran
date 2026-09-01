@@ -1,11 +1,15 @@
+import { Sparkles } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { PatientAiInsights } from "@/components/patients/PatientAiInsights";
 import { PatientMemoriesTab } from "@/components/patients/PatientMemoriesTab";
 import { PatientProfileHeader } from "@/components/patients/PatientProfileHeader";
 import { PatientRemindersTab } from "@/components/patients/PatientRemindersTab";
 import { PatientTabs } from "@/components/patients/PatientTabs";
 import { ActivityBreakdown } from "@/components/progress/ActivityBreakdown";
 import { SessionAccuracyChart } from "@/components/progress/SessionAccuracyChart";
+import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api-server";
 
 interface PatientDetailOut {
@@ -137,32 +141,64 @@ export default async function PatientProfilePage({
 
 					<div className="p-6">
 						{tab === "overview" && (
-							<div className="grid gap-4 sm:grid-cols-3">
-								<div className="rounded-xl bg-indigo-50 p-4">
-									<p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
-										Sessions
-									</p>
-									<p className="mt-2 font-display text-2xl font-bold text-ink-900">
-										{sessions.length}
-									</p>
+							<div className="space-y-6">
+								<div className="grid gap-4 sm:grid-cols-3">
+									<div className="rounded-xl bg-indigo-50 p-4">
+										<p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+											Sessions
+										</p>
+										<p className="mt-2 font-display text-2xl font-bold text-ink-900">
+											{sessions.length}
+										</p>
+									</div>
+									<div className="rounded-xl bg-mint-50 p-4">
+										<p className="text-xs font-semibold uppercase tracking-wide text-mint-600">
+											Accuracy
+										</p>
+										<p className="mt-2 font-display text-2xl font-bold text-ink-900">
+											{accuracy}%
+										</p>
+									</div>
+									<div className="rounded-xl bg-amber-50 p-4">
+										<p className="text-xs font-semibold uppercase tracking-wide text-amber-500">
+											Memory Subjects
+										</p>
+										<p className="mt-2 font-display text-2xl font-bold text-ink-900">
+											{memories.length}
+										</p>
+									</div>
 								</div>
-								<div className="rounded-xl bg-mint-50 p-4">
-									<p className="text-xs font-semibold uppercase tracking-wide text-mint-600">
-										Accuracy
-									</p>
-									<p className="mt-2 font-display text-2xl font-bold text-ink-900">
-										{accuracy}%
-									</p>
-								</div>
-								<div className="rounded-xl bg-amber-50 p-4">
-									<p className="text-xs font-semibold uppercase tracking-wide text-amber-500">
-										Memory Subjects
-									</p>
-									<p className="mt-2 font-display text-2xl font-bold text-ink-900">
-										{memories.length}
-									</p>
+
+								{/* AI Insights Quick Access Card */}
+								<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-gradient-to-r from-indigo-50/60 via-purple-50/30 to-surface p-5">
+									<div className="flex items-start sm:items-center gap-3.5">
+										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
+											<Sparkles size={20} />
+										</div>
+										<div className="space-y-0.5">
+											<h4 className="font-display text-sm font-bold text-ink-900">
+												AI Clinical & Daily Insights
+											</h4>
+											<p className="text-xs text-ink-500">
+												Get real-time pattern analysis, circadian adherence
+												insights, and caregiver suggestions.
+											</p>
+										</div>
+									</div>
+									<Link href={`/patients/${patient.id}?tab=insights`}>
+										<Button size="sm" className="gap-1.5 shrink-0">
+											<Sparkles size={14} /> View AI Insights
+										</Button>
+									</Link>
 								</div>
 							</div>
+						)}
+
+						{tab === "insights" && (
+							<PatientAiInsights
+								patientId={patient.id}
+								patientName={patient.full_name}
+							/>
 						)}
 
 						{tab === "memories" && (

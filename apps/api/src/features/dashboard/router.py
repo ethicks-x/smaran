@@ -18,6 +18,7 @@ from features.dashboard.schemas import (  # noqa: TC001
     MemorySubjectOut,
     MemorySubjectUpdateIn,
     NotificationOut,
+    PatientAiInsightsOut,
     PatientCardOut,
     PatientCreateIn,
     PatientDetailOut,
@@ -38,6 +39,7 @@ from features.dashboard.service import (
     delete_patient,
     delete_reminder,
     deregister_patient,
+    generate_patient_ai_insights,
     get_activity_feed,
     get_attention_flags,
     get_dashboard_summary,
@@ -407,3 +409,22 @@ async def read_patient_flags(
 ) -> list[AttentionFlagOut]:
     """Advisory attention flags computed against a patient's own history baseline."""
     return await get_attention_flags(db, auth.user_id, patient_id=patient_id)
+
+
+# --- AI Patient Insights ---
+
+
+@router.post("/patients/{patient_id}/ai-insights", response_model=PatientAiInsightsOut)
+@router.get("/patients/{patient_id}/ai-insights", response_model=PatientAiInsightsOut)
+@caregiver_required
+async def fetch_patient_ai_insights(
+    patient_id: UUID,
+    db: DbSession,
+    auth: AuthContext,
+) -> PatientAiInsightsOut:
+    """Generate on-demand AI clinical and daily routine insights based on this patient's telemetry.
+
+    Compares the individual against their own historical baseline (AGENTS.md §2.4) and
+    provides warm, non-diagnostic caregiver observations with actionable daily tips.
+    """
+    return await generate_patient_ai_insights(db, auth.user_id, patient_id)

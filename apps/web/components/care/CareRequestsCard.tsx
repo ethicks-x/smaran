@@ -77,7 +77,9 @@ export function CareRequestsCard({ onDecision }: CareRequestsCardProps) {
 											{request.patient_name || "New Patient"}
 										</p>
 										<p className="text-xs text-ink-500">
-											{request.patient_email || request.patient_phone || "Requested care link"}
+											{request.patient_email ||
+												request.patient_phone ||
+												"Requested care link"}
 										</p>
 									</div>
 								</div>

@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import type { ReminderApi, ReminderKind, ReminderCreateInput, ReminderUpdateInput } from "@/lib/types";
+import type {
+	ReminderApi,
+	ReminderCreateInput,
+	ReminderKind,
+	ReminderUpdateInput,
+} from "@/lib/types";
 
 interface ReminderFormProps {
 	onSubmit: (data: Record<string, any>) => Promise<void>;
@@ -11,7 +16,12 @@ interface ReminderFormProps {
 	isLoading?: boolean;
 }
 
-const REMINDER_KINDS: ReminderKind[] = ["medicine", "hydration", "activity", "appointment"];
+const REMINDER_KINDS: ReminderKind[] = [
+	"medicine",
+	"hydration",
+	"activity",
+	"appointment",
+];
 
 const KIND_LABELS: Record<ReminderKind, string> = {
 	medicine: "Medicine",
@@ -26,14 +36,16 @@ export function ReminderForm({
 	initialData,
 	isLoading = false,
 }: ReminderFormProps) {
-	const [kind, setKind] = useState<ReminderKind>(initialData?.kind || "medicine");
+	const [kind, setKind] = useState<ReminderKind>(
+		initialData?.kind || "medicine",
+	);
 	const [title, setTitle] = useState(initialData?.title || "");
 	const [detail, setDetail] = useState(initialData?.detail || "");
 	const [time, setTime] = useState(
-		initialData?.schedule?.split("|")[0] || "09:00"
+		initialData?.schedule?.split("|")[0] || "09:00",
 	);
 	const [daysMask, setDaysMask] = useState(
-		initialData?.schedule?.split("|")[1] || "1111111"
+		initialData?.schedule?.split("|")[1] || "1111111",
 	);
 	const [active, setActive] = useState(initialData?.active !== false);
 	const [error, setError] = useState<string | null>(null);
@@ -96,7 +108,10 @@ export function ReminderForm({
 	const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 	return (
-		<form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-surface p-6 shadow-[0_2px_8px_rgba(44,31,88,0.06)] dark:shadow-none">
+		<form
+			onSubmit={handleSubmit}
+			className="space-y-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-surface p-6 shadow-[0_2px_8px_rgba(44,31,88,0.06)] dark:shadow-none"
+		>
 			{error && (
 				<div className="rounded-xl border border-coral-200 bg-coral-50/40 p-3 text-sm text-coral-600 dark:border-coral-400/30">
 					{error}
@@ -203,11 +218,7 @@ export function ReminderForm({
 
 			{/* Actions */}
 			<div className="flex gap-3 pt-4">
-				<Button
-					type="submit"
-					disabled={isLoading}
-					className="flex-1"
-				>
+				<Button type="submit" disabled={isLoading} className="flex-1">
 					{isLoading ? "Saving..." : "Save Reminder"}
 				</Button>
 				{onCancel && (

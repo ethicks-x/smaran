@@ -1,6 +1,5 @@
 "use client";
 
-import { useEnrollCaregiver } from "@/lib/api/useEnrollCaregiver";
 import { AnimatePresence, motion } from "framer-motion";
 import {
 	BarChart3,
@@ -14,6 +13,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
+import { useEnrollCaregiver } from "@/lib/api/useEnrollCaregiver";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 
