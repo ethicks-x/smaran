@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from features.auth.router import router as auth_router
+from features.care.router import router as care_router
 from features.dashboard.router import router as dashboard_router
 from features.database.db import init_db
 from features.sync.router import router as sync_router
@@ -45,6 +46,12 @@ app.include_router(
     user_router,
     prefix="/users",
     tags=["Users"],
+)
+
+app.include_router(
+    care_router,
+    prefix="/care",
+    tags=["Care"],
 )
 
 app.include_router(

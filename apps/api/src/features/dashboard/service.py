@@ -12,6 +12,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 
 from core.clerk import resolve_clerk_user
+from features.care.schemas import LINK_ACTIVE
 from features.dashboard.schemas import (
     ActivityBreakdownItem,
     ActivityFeedOut,
@@ -84,9 +85,15 @@ def _format_time_ago(dt: datetime) -> str:
 async def ensure_caregiver_patient_access(
     session: AsyncSession, caregiver_id: str, patient_id: UUID
 ) -> tuple[Patient, PatientCaregiver]:
-    """Verify that a patient exists and is linked to the requesting caregiver.
+    """Verify that a patient exists and is **actively** linked to the requesting caregiver.
 
-    Raises a 404/403 if no active link exists.
+    Only an `active` row is access. A patient's phone can create a link by typing a Smaran
+    id into its setup screen, and that row arrives `pending` — so a caregiver whose number
+    somebody quoted sees nothing until they have accepted (`AGENTS.md` §2.5). `revoked` is
+    excluded by the same filter: access that has ended stays ended, and the row survives
+    only as the record of when it did.
+
+    Raises a 404 if there is no such link.
     """
     stmt = (
         select(Patient, PatientCaregiver)
@@ -94,6 +101,7 @@ async def ensure_caregiver_patient_access(
         .where(
             Patient.id == patient_id,
             PatientCaregiver.caregiver_id == caregiver_id,
+            PatientCaregiver.status == LINK_ACTIVE,
         )
     )
     result = (await session.execute(stmt)).first()
@@ -184,7 +192,10 @@ async def get_dashboard_summary(session: AsyncSession, caregiver_id: str) -> Das
     links_stmt = (
         select(Patient, PatientCaregiver)
         .join(PatientCaregiver, PatientCaregiver.patient_id == Patient.id)
-        .where(PatientCaregiver.caregiver_id == caregiver_id)
+        .where(
+            PatientCaregiver.caregiver_id == caregiver_id,
+            PatientCaregiver.status == LINK_ACTIVE,
+        )
     )
     patient_pairs = (await session.execute(links_stmt)).all()
 
@@ -233,7 +244,10 @@ async def list_patients(session: AsyncSession, caregiver_id: str) -> list[Patien
     stmt = (
         select(Patient, PatientCaregiver)
         .join(PatientCaregiver, PatientCaregiver.patient_id == Patient.id)
-        .where(PatientCaregiver.caregiver_id == caregiver_id)
+        .where(
+            PatientCaregiver.caregiver_id == caregiver_id,
+            PatientCaregiver.status == LINK_ACTIVE,
+        )
     )
     pairs = (await session.execute(stmt)).all()
     cards: list[PatientCardOut] = []
@@ -624,7 +638,8 @@ async def get_activity_feed(
         target_ids = [patient_id]
     else:
         links_stmt = select(PatientCaregiver.patient_id).where(
-            PatientCaregiver.caregiver_id == caregiver_id
+            PatientCaregiver.caregiver_id == caregiver_id,
+            PatientCaregiver.status == LINK_ACTIVE,
         )
         target_ids = list((await session.scalars(links_stmt)).all())
 
@@ -709,7 +724,10 @@ async def get_attention_flags(
         stmt = (
             select(Patient)
             .join(PatientCaregiver, PatientCaregiver.patient_id == Patient.id)
-            .where(PatientCaregiver.caregiver_id == caregiver_id)
+            .where(
+                PatientCaregiver.caregiver_id == caregiver_id,
+                PatientCaregiver.status == LINK_ACTIVE,
+            )
         )
         target_patients = list((await session.scalars(stmt)).all())
 
@@ -803,7 +821,8 @@ async def get_notifications(session: AsyncSession, caregiver_id: str) -> list[No
 
     # 2. Recent session completions
     links_stmt = select(PatientCaregiver.patient_id).where(
-        PatientCaregiver.caregiver_id == caregiver_id
+        PatientCaregiver.caregiver_id == caregiver_id,
+        PatientCaregiver.status == LINK_ACTIVE,
     )
     patient_ids = list((await session.scalars(links_stmt)).all())
 

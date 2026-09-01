@@ -1541,6 +1541,16 @@ data matters, for the reason above.
 its migrations and no way for them to drift. `env.py` uses the same async psycopg driver as
 the app, so a dialect quirk cannot appear in one and not the other.
 
+**Clerk's `getToken` is not referentially stable, and in this file that was a bug.** The
+first cut listed it as an effect dependency; Clerk returns a new function every render, so
+the effect re-ran every render, its own `setLink` caused the next render, and the phone
+asked `/care/link` two or three times a second for as long as it was open. `getToken` is
+now read through a ref and the effects depend on `userId` and the two Clerk booleans only —
+the same fix applied to `useRoleEnrolment`, which had the identical shape and would POST
+`/auth/patient-role` on every render until its marker was written. Anything else that takes
+`getToken` from `useAuth` inside an effect wants the same treatment; `useSync` is safe only
+because a two-minute guard swallows the repeats.
+
 **Verified** against a throwaway Postgres in all three starting states: each converges on
 the same 14 tables at revision 0001, an existing `patients` row survives with `enrolled_at`
 backfilled to the migration's own clock, re-running applies nothing, and
@@ -1646,3 +1656,89 @@ existence, or the pending state buys nothing.
 
 **Would change it if:** ids ever needed to be unguessable, in which case the answer is a
 longer random id *plus* the approval step, never the id alone.
+
+---
+
+## D-38 · 2026-09-01 · Setup asks for a caregiver's Smaran id before the app opens, and the answer is cached
+
+**Decision.** A signed-in reader whose device does not know of an **active** caregiver link
+lands on `src/app/setup.tsx` and nothing else. They type the nine-digit Smaran id of the
+person who helps them, `POST /care/link` writes a `pending` row, and the screen becomes a
+spinner until a caregiver accepts. `CareLinkProvider` (`hooks/use-care-link.tsx`) holds the
+answer, caches it in the secure store under the Clerk user id, and the root gate reads
+**that cache** — never the network. This is D-37's "not built yet" built.
+
+**The cache is the gate; the network only corrects it.** Opening the app waits on a
+key/value read that works with the radio off, so a phone linked in March opens in June in a
+house with no signal exactly as it did the day it was set up (§2.1). The refresh that
+follows is awaited by nobody: if it fails, the cached status stands and the reader is told
+nothing.
+
+**Setting up is the one reader-facing flow that genuinely needs a signal, and that is not a
+§2.1 violation so much as the shape of the problem** — there is no way to learn that a
+caregiver said yes without asking them. It happens once, next to the sign-in that also
+needs a signal, and everything downstream of it is local. The alternative — letting an
+unlinked phone into the app — is a phone with no reminders, no people to call, and a
+`sync_queue` that 409s forever because nothing has a `patients` row to attribute it to.
+
+**Setup is where a self-signed-up reader becomes a `patients` row.** `ensure_patient()` in
+`features/care/service.py` creates it, writing nothing but the Clerk id. Before this, only
+a caregiver creating a patient on the dashboard made that row, so a reader who signed
+themselves in had every sync call refused with the 409 D-33 defined and no way at all to
+resolve it. Creating it at a deliberate act rather than at sign-in keeps the row meaning
+"somebody set this phone up".
+
+**The caregiver's read path now filters on `status = 'active'`, and that was the load-bearing
+half of this change.** Six queries in `features/dashboard/service.py` joined
+`patient_caregivers` on `caregiver_id` alone. That was harmless while nothing created a
+`pending` row; the moment a patient can create one by typing a number, it would have meant
+that quoting somebody's Smaran id handed them a patient's data — the exact thing D-37's
+`pending` state exists to prevent (§2.5). `LINK_ACTIVE` is defined once, in
+`features/care/schemas.py`, so the write path and the read path cannot drift.
+
+**`POST /care/requests/{id}` is the only thing that grants access**, and it is deliberately
+a caregiver route: access is something a patient asked for and a caregiver agreed to, never
+something either half arranged alone. `GET /care/requests` returns a link id, a patient id
+and a status and nothing else — everything that would help a caregiver recognise the
+patient sits *behind* the approval, not in front of it.
+
+**The waiting screen polls every 15 seconds** while it is open in front of somebody, and
+stops the moment the link is accepted. That is not background work and nothing depends on
+it having run (§2.2) — the "Check again" button does the same thing, and closing the app
+and reopening it does too.
+
+**Idempotent by contract.** Asking twice for the same caregiver returns the request that
+already exists rather than stacking up rows for somebody to answer one at a time. A
+`revoked` link asked for again goes back to `pending`: ending access is not the same as
+refusing to consider it a second time, and the caregiver still has to say yes.
+
+**Clerk's `getToken` is not referentially stable, and in this file that was a bug.** The
+first cut listed it as an effect dependency; Clerk returns a new function every render, so
+the effect re-ran every render, its own `setLink` caused the next render, and the phone
+asked `/care/link` two or three times a second for as long as it was open. `getToken` is
+now read through a ref and the effects depend on `userId` and the two Clerk booleans only —
+the same fix applied to `useRoleEnrolment`, which had the identical shape and would POST
+`/auth/patient-role` on every render until its marker was written. Anything else that takes
+`getToken` from `useAuth` inside an effect wants the same treatment; `useSync` is safe only
+because a two-minute guard swallows the repeats.
+
+**Verified** against a throwaway Postgres migrated by Alembic, at the service layer: an
+unset-up phone reads `none`; an unknown number and a *patient's* own number are both 404s;
+the request lands `pending` and creates the `patients` row; asking twice makes one row; a
+pending link grants no dashboard access; the caregiver sees the request and another
+caregiver sees neither it nor any way to approve it; approval flips both the phone's read
+and the dashboard's; revoking ends access and can be asked for again; and a caregiver
+account asking for a carer is a 403.
+
+**Costs and what is not done.** There is no caregiver-side *screen* for any of this — the
+approval is an endpoint, so the loop closes over HTTP but not yet in the dashboard UI. A
+reader who cannot reach the API cannot complete setup, and the screen says so warmly rather
+than pretending otherwise. `patient_caregivers` still has no timestamp, so requests come
+back in no particular order; that is fine for a handful and wants a `requested_at` column
+before it is not.
+
+**Would change it if:** setup ever needed to work fully offline — the answer there is a
+caregiver-provisioned phone, where the family sets the device up on their own account and
+hands it over already linked, and the Smaran id flow stays as the path for a reader who
+signed themselves in.
+

@@ -10,6 +10,7 @@ import { useEffect, useMemo } from "react";
 import "@/i18n";
 
 import { AppearanceProvider, useAppearance } from "@/hooks/use-appearance";
+import { CareLinkProvider, useCareLink } from "@/hooks/use-care-link";
 import { LanguageProvider, useLanguage } from "@/hooks/use-language";
 import { RecallProvider, useRecall } from "@/hooks/use-recall";
 import { useRoleEnrolment } from "@/hooks/use-role-enrolment";
@@ -47,9 +48,11 @@ export default function RootLayout() {
 		>
 			<LanguageProvider>
 				<AppearanceProvider>
-					<RecallProvider>
-						<RootNavigator />
-					</RecallProvider>
+					<CareLinkProvider>
+						<RecallProvider>
+							<RootNavigator />
+						</RecallProvider>
+					</CareLinkProvider>
 				</AppearanceProvider>
 			</LanguageProvider>
 		</ClerkProvider>
@@ -57,17 +60,23 @@ export default function RootLayout() {
 }
 
 /**
- * Holds the splash screen until Clerk has restored the session and the reader's
- * appearance and language choices have been read back, then routes to the
- * landing screen, the once-a-launch name recall, or the app itself. Keeping the
- * guard here means no screen ever renders in a half-authenticated state — or,
- * for a frame, in the wrong theme or the wrong language.
+ * Holds the splash screen until Clerk has restored the session, the reader's
+ * appearance and language choices have been read back, and the device has said
+ * who looks after them — then routes to the landing screen, setup, the
+ * once-a-launch name recall, or the app itself. Keeping the guard here means no
+ * screen ever renders in a half-authenticated state — or, for a frame, in the
+ * wrong theme or the wrong language.
+ *
+ * Every one of those four is a **local** read. The care link in particular is
+ * the cached answer and never the network's (`hooks/use-care-link.tsx`), so a
+ * phone that was set up in March opens in a house with no signal in June.
  */
 function RootNavigator() {
 	const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
 	const { isLoaded: isAppearanceLoaded } = useAppearance();
 	const { isLoaded: isLanguageLoaded } = useLanguage();
 	const { isRecalled } = useRecall();
+	const { isLoaded: isCareLinkLoaded, isLinked } = useCareLink();
 	const { isDark, colors } = useTheme();
 
 	// Fires on the first session this account has on this phone, and is awaited by
@@ -80,7 +89,8 @@ function RootNavigator() {
 	// sending it is the only part that is allowed to fail (§2.1).
 	useSync();
 
-	const isLoaded = isAuthLoaded && isAppearanceLoaded && isLanguageLoaded;
+	const isLoaded =
+		isAuthLoaded && isAppearanceLoaded && isLanguageLoaded && isCareLinkLoaded;
 
 	const navigationTheme = useMemo(
 		() => toNavigationTheme(colors, isDark),
@@ -114,11 +124,19 @@ function RootNavigator() {
 					contentStyle: { backgroundColor: colors.background },
 				}}
 			>
-				<Stack.Protected guard={isSignedIn && !isRecalled}>
+				{/* Before anything else a signed-in reader can see: a phone
+            nobody has connected to a family has no reminders to show and
+            nowhere for what it records to go. Setup is the only screen that
+            needs a signal, and it needs it once. */}
+				<Stack.Protected guard={isSignedIn && !isLinked}>
+					<Stack.Screen name="setup" />
+				</Stack.Protected>
+
+				<Stack.Protected guard={isSignedIn && isLinked && !isRecalled}>
 					<Stack.Screen name="recall" />
 				</Stack.Protected>
 
-				<Stack.Protected guard={isSignedIn && isRecalled}>
+				<Stack.Protected guard={isSignedIn && isLinked && isRecalled}>
 					<Stack.Screen name="(tabs)" />
 					{/* No `animation` override: each platform already knows what a
               pushed screen should do, and a phone's own transition is the one

@@ -73,6 +73,24 @@
 		"reveal": "Show me my name",
 		"revealed": "Your name is {{name}}. Type it in to carry on."
 	},
+	"setup": {
+		"title": "Who looks after you?",
+		"body": "Ask the person who helps you for their Smaran number. It has nine numbers, and they will find it in their own app.",
+		"numberLabel": "Their Smaran number",
+		"numberHint": "Nine numbers, no spaces",
+		"submit": "Ask them to look after me",
+		"reassurance": "They will see your request and say yes. Nothing is shared until they do.",
+		"waitingLabel": "Waiting for an answer",
+		"waitingTitle": "We have asked them",
+		"waitingBody": "This page will open on its own as soon as they say yes. You can leave it here.",
+		"waitingBodyNumber": "We asked the person with the number {{number}}. This page will open on its own as soon as they say yes.",
+		"check": "Check again",
+		"failure": {
+			"unknown-number": "We could not find that number. Please check it with the person who gave it to you.",
+			"offline": "The phone is not connected right now. Please try again in a little while.",
+			"failed": "That did not work just now. Please try again."
+		}
+	},
 	"today": {
 		"nextUp": "Next up",
 		"nothingScheduled": "Nothing scheduled yet",
