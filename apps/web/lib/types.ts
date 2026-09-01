@@ -83,6 +83,7 @@ export interface UserProfileApi {
 	roles: string[];
 	is_caregiver: boolean;
 	patient: PatientProfileApi | null;
+	smaran_id: number | null;
 }
 
 export interface PatientCardApi {
@@ -110,6 +111,14 @@ export interface DashboardSummaryApi {
 	total_memory_subjects: number;
 	needs_attention: number;
 	patients: PatientCardApi[];
+}
+
+export type CareLinkStatus = "none" | "pending" | "active" | "revoked";
+
+export interface CareRequestApi {
+	id: string;
+	patient_id: string;
+	status: CareLinkStatus;
 }
 
 export interface MemorySubjectApi {
@@ -179,4 +188,39 @@ export interface QuestionEventApi {
 export interface ActivityFeedApi {
 	events: QuestionEventApi[];
 	total: number;
+}
+
+export type ReminderKind =
+	| "medicine"
+	| "hydration"
+	| "activity"
+	| "appointment";
+
+export interface ReminderApi {
+	id: string;
+	patient_id: string;
+	kind: ReminderKind;
+	title: string;
+	detail: string | null;
+	schedule: string; // "HH:MM|1111111" format
+	active: boolean;
+	created_by: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface ReminderCreateInput {
+	kind: ReminderKind;
+	title: string;
+	detail?: string | null;
+	schedule: string; // "HH:MM|1111111" format
+	active?: boolean;
+}
+
+export interface ReminderUpdateInput {
+	kind?: ReminderKind;
+	title?: string;
+	detail?: string | null;
+	schedule?: string;
+	active?: boolean;
 }

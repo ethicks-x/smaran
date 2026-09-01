@@ -1,33 +1,48 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { notifications as initial } from "@/lib/mock-data";
+import { useApi } from "@/hooks/use-api";
 
 const STORAGE_KEY = "smaran:read-notifications";
 
+interface Notification {
+  id: string;
+  read: boolean;
+}
+
 export function useUnreadCount() {
+  const api = useApi();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    function recalculate() {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      const readIds: string[] = saved ? JSON.parse(saved) : [];
-      const unread = initial.filter((n) => !readIds.includes(n.id)).length;
-      setCount(unread);
+    async function fetchAndCalculate() {
+      try {
+        const notifications = await api<Notification[]>("/dashboard/notifications");
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const readIds: string[] = saved ? JSON.parse(saved) : [];
+        const unread = notifications.filter((n) => !readIds.includes(n.id)).length;
+        setCount(unread);
+      } catch (err) {
+        console.error("Failed to fetch notifications for unread count:", err);
+        // Fallback: use localStorage as fallback
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const readIds: string[] = saved ? JSON.parse(saved) : [];
+        setCount(Math.max(0, -readIds.length)); // Shows 0 on error
+      }
     }
 
-    recalculate();
+    fetchAndCalculate();
 
-    // Recalculate if another tab/page updates it, and poll lightly as a fallback
-    // since localStorage writes in the same tab don't fire the "storage" event.
-    window.addEventListener("storage", recalculate);
-    const interval = setInterval(recalculate, 1000);
+    // Recalculate if another tab/page updates it, and poll periodically
+    const handleStorageChange = () => fetchAndCalculate();
+    window.addEventListener("storage", handleStorageChange);
+    const interval = setInterval(fetchAndCalculate, 5000); // Poll every 5 seconds
 
     return () => {
-      window.removeEventListener("storage", recalculate);
+      window.removeEventListener("storage", handleStorageChange);
       clearInterval(interval);
     };
-  }, []);
+  }, [api]);
 
   return count;
 }

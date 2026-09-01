@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Brain, Heart, AlertTriangle, CheckCheck } from "lucide-react";
+import { Brain, Heart, AlertTriangle, CheckCheck, Loader } from "lucide-react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Button } from "@/components/ui/Button";
-import { notifications as initial } from "@/lib/mock-data";
+import { useApi } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 const iconMap = {
@@ -15,8 +15,41 @@ const iconMap = {
 
 const STORAGE_KEY = "smaran:read-notifications";
 
+interface Notification {
+  id: string;
+  type: "activity" | "memory" | "alert";
+  title: string;
+  description: string;
+  time: string;
+  timestamp: string;
+  read: boolean;
+  patient_id?: string;
+}
+
 export default function NotificationsPage() {
-  const [items, setItems] = useState(initial);
+  const api = useApi();
+  const [items, setItems] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await api<Notification[]>("/dashboard/notifications");
+        setItems(data);
+      } catch (err) {
+        console.error("Failed to fetch notifications:", err);
+        setError("Failed to load notifications. Please try again.");
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotifications();
+  }, [api]);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -53,10 +86,28 @@ export default function NotificationsPage() {
           <h1 className="font-display text-2xl font-bold text-ink-900 sm:text-3xl">Notifications</h1>
           <p className="mt-1.5 text-sm text-ink-500">Activity, memories, and things needing attention.</p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={markAllRead}>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={markAllRead} disabled={loading || items.length === 0}>
           <CheckCheck size={14} /> Mark all read
         </Button>
       </div>
+
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader className="animate-spin text-indigo-600" size={24} />
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-2xl border border-coral-200 bg-coral-50/40 p-4">
+          <p className="text-sm font-semibold text-coral-600">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && items.length === 0 && (
+        <div className="rounded-2xl border border-black/[0.06] bg-surface p-8 text-center">
+          <p className="text-sm text-ink-500">No notifications yet.</p>
+        </div>
+      )}
 
       <div className="space-y-2.5">
         {items.map((n) => {

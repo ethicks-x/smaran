@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
+import { useCallback, useEffect, useRef } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -19,31 +20,35 @@ export class ApiError extends Error {
  */
 export function useApi() {
 	const { getToken } = useAuth();
+	const getTokenRef = useRef(getToken);
 
-	async function apiFetch<T>(
-		path: string,
-		options: RequestInit = {},
-	): Promise<T> {
-		const token = await getToken();
+	useEffect(() => {
+		getTokenRef.current = getToken;
+	}, [getToken]);
 
-		const res = await fetch(`${API_URL}${path}`, {
-			...options,
-			headers: {
-				"Content-Type": "application/json",
-				...(token ? { Authorization: `Bearer ${token}` } : {}),
-				...options.headers,
-			},
-		});
+	const apiFetch = useCallback(
+		async <T>(path: string, options: RequestInit = {}): Promise<T> => {
+			const token = await getTokenRef.current();
 
-		if (!res.ok) {
-			const body = await res.text().catch(() => "");
-			throw new ApiError(res.status, body || res.statusText);
-		}
+			const res = await fetch(`${API_URL}${path}`, {
+				...options,
+				headers: {
+					"Content-Type": "application/json",
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
+					...options.headers,
+				},
+			});
 
-		// Handle empty responses (e.g. 204 No Content)
-		const text = await res.text();
-		return text ? (JSON.parse(text) as T) : (undefined as T);
-	}
+			if (!res.ok) {
+				const body = await res.text().catch(() => "");
+				throw new ApiError(res.status, body || res.statusText);
+			}
+
+			const text = await res.text();
+			return text ? (JSON.parse(text) as T) : (undefined as T);
+		},
+		[],
+	);
 
 	return { apiFetch };
 }

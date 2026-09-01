@@ -1,24 +1,18 @@
 import { ChevronRight, Clock, Gamepad2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
-import {
-  getMemorySubjects,
-  getPatientAccuracy,
-  getSessionsForPatient,
-} from "@/lib/mock-data";
-import type { Patient } from "@/lib/types";
+import type { PatientCardApi } from "@/lib/types";
 import { calculateAge } from "@/lib/utils";
 
 export function PatientCard({
   patient,
   relationship,
 }: {
-  patient: Patient;
+  patient: PatientCardApi;
   relationship: string;
 }) {
-  const sessions = getSessionsForPatient(patient.id);
-  const accuracy = getPatientAccuracy(patient.id);
-  const memoryCount = getMemorySubjects(patient.id).length;
+  const accuracy = Math.round(patient.overall_accuracy * 100);
+  const sessionsCount = patient.sessions_count || 0;
 
   return (
     <Link
@@ -38,7 +32,7 @@ export function PatientCard({
               {patient.full_name}
             </p>
             <p className="text-sm text-ink-500">
-              {calculateAge(patient.dob)} yrs · {relationship}
+              {patient.dob ? calculateAge(patient.dob) : "—"} yrs · {relationship}
             </p>
           </div>
         </div>
@@ -54,7 +48,7 @@ export function PatientCard({
             </span>
           </div>
           <p className="mt-1 text-sm font-semibold text-ink-900">
-            {sessions.length} played
+            {sessionsCount} played
           </p>
         </div>
         <div className="rounded-xl bg-black/[0.03] px-3 py-2.5">
@@ -68,10 +62,7 @@ export function PatientCard({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-black/[0.06] pt-3.5">
-        <span className="text-xs text-ink-500">
-          {memoryCount} memory subjects
-        </span>
+      <div className="mt-4 flex items-center justify-end border-t border-black/[0.06] pt-3.5">
         <span className="flex items-center gap-1 text-sm font-medium text-indigo-600 transition-transform group-hover:translate-x-0.5">
           View Patient <ChevronRight size={14} />
         </span>
