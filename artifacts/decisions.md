@@ -1843,3 +1843,44 @@ go wrong on first setup. Abandoned `pending` rows still accumulate and nothing s
 **Would change it if:** uploads need virus-scanning or re-encoding before a patient sees them.
 That cannot happen in the browser — though a bucket event triggering a worker would keep this
 upload path exactly as it is.
+
+---
+
+## D-40 · 2026-09-01 · A raw browser network exception never reaches the caregiver's screen
+
+**Decision.** `apps/web/app/patients/[id]/memories/add/page.tsx` wraps only the S3 `PUT`
+(the middle of the three-step upload from D-39) in its own `try`/`catch`. A `fetch()` that
+*throws* there — as opposed to resolving with a non-`ok` response — is translated to plain
+copy naming the likely cause, rather than surfaced as whatever the browser's own exception
+happened to say.
+
+**This is D-39's predicted failure, confirmed rather than assumed.** D-39 flagged bucket
+CORS as "the likeliest thing to go wrong on first setup" without a way to prove it. It
+showed up exactly as predicted: `POST /uploads` returns 201 (presigning is a local HMAC, no
+network call, so a CORS gap here is invisible), the row lands `pending`, and the caregiver's
+screen shows a bare network error — because the browser blocks the `PUT` before any HTTP
+response exists to check `.ok` against, so control never reaches that branch at all.
+
+Reproduced directly rather than inferred from the report: two local origins, one playing
+the bucket, `PUT`ed to with the same headers this page sends. Direct `curl` to the "bucket"
+succeeds every time — confirming a correctly configured bucket is not itself the problem.
+The identical request from a real browser (Chromium) throws `TypeError: Failed to fetch`
+when the bucket has no CORS policy, and resolves clean (`200`) once one is added — the only
+variable changed between the two runs. That is what "NetworkError" in a caregiver's browser
+looks like from this code's side: a `fetch()` promise rejection, never a response.
+
+**Why the message names the bucket rather than retrying silently.** `AGENTS.md` §2.3: never
+jargon, never blame, no error code. "Failed to fetch" is a JavaScript engine's internal
+name for a browser security block, meaningless to a caregiver and actively misleading here
+— unlike an ordinary failed request, retrying does not help until the bucket's CORS policy
+changes, so the message says who to ask instead of "try again."
+
+**Why only the `PUT` is wrapped, not the whole `handleSave`.** The two `api()` calls either
+side of it already produce their own typed errors (`ApiError`, `ApiUnreachableError`) with
+sensible messages; wrapping the outer function would catch those too and flatten them to
+one generic line, losing whichever one was actually true.
+
+**Consequences.** This does not configure CORS — it cannot, from the browser side of a
+CORS block by definition. A bucket still needs a policy allowing the dashboard's origin,
+`PUT`, and the `content-type` header (S3-compatible providers all share this shape); D-39's
+"Consequences" note is now a confirmed cause rather than a guess.
