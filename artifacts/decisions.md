@@ -1792,3 +1792,54 @@ caregiver-provisioned phone, where the family sets the device up on their own ac
 hands it over already linked, and the Smaran id flow stays as the path for a reader who
 signed themselves in.
 
+
+---
+
+## D-39 · 2026-09-01 · The dashboard uploads a picture straight to the bucket; the API only signs and confirms
+
+**Decision.** `apps/api/src/core/storage.py`, four routes under
+`/dashboard/patients/{id}/memories` — `POST /uploads`, `POST /uploads/{asset_id}/confirm`,
+`GET /assets`, `DELETE /assets/{asset_id}` — migration `0003_memory_assets`, and a real
+upload in `apps/web/app/patients/[id]/memories/add/page.tsx`. Three steps, and the middle
+one does not touch this API: it mints a presigned PUT, the browser sends the bytes to the
+bucket, and the API then confirms what landed (D-32).
+
+**What it replaces: the picture was going into Postgres as base64.** The form read the file
+with `FileReader.readAsDataURL` and posted the resulting `data:` URL as `photo_url`, so a
+3 MB photo became roughly 4 MB of text in a `TEXT` column — dragged along by every query
+that selects a memory subject, and carried into the phone's sync payload. Its own comment
+said "in production, you'd upload to a storage service", which is the right instinct
+recorded in the wrong place: the table for that already existed.
+
+**Why the bytes bypass the API.** An upload from a caregiver on an NER mobile connection can
+take minutes. Proxied, each one holds an API worker open for that whole time doing nothing
+but copying. The bucket is built for this and the browser can talk to it directly.
+
+**Why a row exists before the object.** Minting the URL is what writes the row, so there is a
+window where `memory_assets` names bytes that have not arrived. `confirm` closes it by asking
+the bucket — never by believing the client. A row flipped to `ready` without an object behind
+it is one the phone syncs down and caches as a broken picture, which on the Memories tab is
+not a missing asset but a person the reader expected to see.
+
+**The size limit is enforced on confirm, not on presign.** A presigned PUT accepts whatever
+the browser sends it, so the declared `size_bytes` is only a courtesy check. The real size is
+read back from the bucket, and an oversized object is deleted rather than left unreferenced.
+
+**`photo_url` is resolved on read, not stored.** Unless the bucket is public the URL is signed
+and expires, so writing one into `memory_subjects.photo_url` would produce a column of dead
+links. `list_memory_subjects` mints one per read from the subject's newest ready asset, and a
+subject with no upload keeps whatever `photo_url` it already had — which is how an externally
+hosted image, and every row written before this change, still works.
+
+**`memory_assets` had no migration.** The model merged while `create_all` still ran on
+startup; by the time Alembic took the schema over (D-35) the table was in `models.py` and in
+no migration, so on any migrated database it simply did not exist. `0003` creates it, and
+`alembic check` now reports no drift.
+
+**Consequences.** The bucket needs CORS allowing PUT from the dashboard's origin — without it
+every upload fails in the browser as an opaque network error, which is the likeliest thing to
+go wrong on first setup. Abandoned `pending` rows still accumulate and nothing sweeps them.
+
+**Would change it if:** uploads need virus-scanning or re-encoding before a patient sees them.
+That cannot happen in the browser — though a bucket event triggering a worker would keep this
+upload path exactly as it is.

@@ -12,6 +12,16 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 
 from core.clerk import resolve_clerk_user
+from core.config import settings
+from core.storage import (
+    build_object_key,
+    check_content_type,
+    delete_object,
+    head_object,
+    memories_bucket,
+    presign_put,
+    view_url,
+)
 from features.care.schemas import LINK_ACTIVE
 from features.dashboard.schemas import (
     ActivityBreakdownItem,
@@ -20,9 +30,13 @@ from features.dashboard.schemas import (
     CasualPlayCreateIn,
     CasualPlayOut,
     DashboardSummaryOut,
+    MemoryAssetConfirmIn,
+    MemoryAssetOut,
     MemorySubjectCreateIn,
     MemorySubjectOut,
     MemorySubjectUpdateIn,
+    MemoryUploadCreateIn,
+    MemoryUploadOut,
     NotificationOut,
     PatientCardOut,
     PatientCreateIn,
@@ -39,6 +53,7 @@ from features.dashboard.schemas import (
 from features.database.models import (
     CasualPlayLog,
     GameSession,
+    MemoryAsset,
     MemorySubject,
     Patient,
     PatientCaregiver,
@@ -399,7 +414,43 @@ async def list_memory_subjects(
     query = query.order_by(MemorySubject.created_at.desc())
     results = (await session.scalars(query)).all()
 
-    return [MemorySubjectOut.model_validate(m) for m in results]
+    subjects = [MemorySubjectOut.model_validate(m) for m in results]
+    await _attach_subject_photos(session, subjects)
+    return subjects
+
+
+async def _attach_subject_photos(session: AsyncSession, subjects: list[MemorySubjectOut]) -> None:
+    """Point each subject at its uploaded picture, where it has one.
+
+    `photo_url` cannot simply be stored on the subject: unless the bucket is public the URL
+    is signed and expires, so it has to be minted per read. A subject with no upload keeps
+    whatever `photo_url` it already had, which is how an externally hosted image still works.
+    """
+    if not subjects:
+        return
+
+    stmt = (
+        select(MemoryAsset)
+        .where(
+            MemoryAsset.subject_id.in_([s.id for s in subjects]),
+            MemoryAsset.status == "ready",
+            MemoryAsset.is_active.is_(True),
+        )
+        .order_by(MemoryAsset.created_at.desc())
+    )
+    assets = (await session.scalars(stmt)).all()
+
+    # Newest first, so the first one seen for a subject is the one that wins — a re-upload
+    # replaces the picture without anything having to delete the old row.
+    newest: dict[UUID, MemoryAsset] = {}
+    for asset in assets:
+        if asset.subject_id is not None:
+            newest.setdefault(asset.subject_id, asset)
+
+    for subject in subjects:
+        asset = newest.get(subject.id)
+        if asset is not None:
+            subject.photo_url = view_url(asset.object_key)
 
 
 async def create_memory_subject(
@@ -485,6 +536,193 @@ async def delete_memory_subject(
 
     await session.delete(subject)
     await session.commit()
+
+
+# --- Memory Media ---
+
+
+async def create_memory_upload(
+    session: AsyncSession,
+    caregiver_id: str,
+    patient_id: UUID,
+    data: MemoryUploadCreateIn,
+) -> MemoryUploadOut:
+    """Reserve a place in the bucket and hand back a URL the browser can PUT to.
+
+    The row is written before the object exists, because minting the URL is what creates it.
+    It stays `pending` until `confirm_memory_upload` has seen the bytes land.
+    """
+    await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
+
+    extension = check_content_type(data.content_type)
+
+    # Checked here against what the browser claims, and again on confirm against what the
+    # bucket actually holds. A presigned PUT cannot enforce a size by itself, so the second
+    # check is the one that really binds.
+    if data.size_bytes > settings.s3_max_upload_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="That picture is too large. Try a smaller one.",
+        )
+
+    if data.subject_id is not None:
+        subject = await session.scalar(
+            select(MemorySubject).where(
+                MemorySubject.id == data.subject_id,
+                MemorySubject.patient_id == patient_id,
+            )
+        )
+        if subject is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Memory subject not found.",
+            )
+
+    asset = MemoryAsset(
+        patient_id=patient_id,
+        subject_id=data.subject_id,
+        kind=data.kind.lower(),
+        bucket=memories_bucket(),
+        object_key="",  # replaced below; the key is built from the row's own id
+        file_name=data.file_name,
+        content_type=data.content_type.lower().strip(),
+        size_bytes=data.size_bytes,
+        description=data.description,
+        status="pending",
+        uploaded_by=caregiver_id,
+    )
+    session.add(asset)
+    await session.flush()
+
+    asset.object_key = build_object_key(patient_id, asset.id, extension)
+    await session.commit()
+    await session.refresh(asset)
+
+    return MemoryUploadOut(
+        asset_id=asset.id,
+        upload_url=presign_put(asset.object_key, asset.content_type or data.content_type),
+        object_key=asset.object_key,
+        content_type=asset.content_type or data.content_type,
+        expires_in=settings.s3_presign_expiry_seconds,
+    )
+
+
+async def confirm_memory_upload(
+    session: AsyncSession,
+    caregiver_id: str,
+    patient_id: UUID,
+    asset_id: UUID,
+    data: MemoryAssetConfirmIn,
+) -> MemoryAssetOut:
+    """Mark an upload `ready`, having checked the bucket really holds it.
+
+    The client is never trusted for this. A row flipped to `ready` without the bytes behind
+    it is one the phone will sync down and cache as a broken picture.
+    """
+    await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
+
+    asset = await session.scalar(
+        select(MemoryAsset).where(
+            MemoryAsset.id == asset_id,
+            MemoryAsset.patient_id == patient_id,
+        )
+    )
+    if asset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="That upload was not found.",
+        )
+
+    found = await head_object(asset.object_key)
+    if found is None:
+        asset.status = "failed"
+        await session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The picture did not finish uploading. Please try again.",
+        )
+
+    etag, size_bytes = found
+
+    # The real size, not the declared one. A presigned PUT will accept whatever the browser
+    # sends, so this is where an oversized upload is actually caught — and the object goes
+    # with it, rather than sitting in the bucket unreferenced.
+    if size_bytes is not None and size_bytes > settings.s3_max_upload_bytes:
+        await delete_object(asset.object_key)
+        asset.status = "failed"
+        await session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="That picture is too large. Try a smaller one.",
+        )
+
+    asset.status = "ready"
+    asset.etag = etag or data.etag
+    asset.size_bytes = size_bytes or data.size_bytes or asset.size_bytes
+    asset.uploaded_at = _utcnow()
+    await session.commit()
+    await session.refresh(asset)
+
+    return _asset_out(asset)
+
+
+async def list_memory_assets(
+    session: AsyncSession,
+    caregiver_id: str,
+    patient_id: UUID,
+) -> list[MemoryAssetOut]:
+    """Every memory this patient has that is actually there, newest first."""
+    await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
+
+    stmt = (
+        select(MemoryAsset)
+        .where(
+            MemoryAsset.patient_id == patient_id,
+            MemoryAsset.status == "ready",
+            MemoryAsset.is_active.is_(True),
+        )
+        .order_by(MemoryAsset.created_at.desc())
+    )
+    return [_asset_out(a) for a in (await session.scalars(stmt)).all()]
+
+
+async def delete_memory_asset(
+    session: AsyncSession,
+    caregiver_id: str,
+    patient_id: UUID,
+    asset_id: UUID,
+) -> None:
+    """Take a memory off the phone.
+
+    A soft delete: down-sync is watermark-based, so a row that simply vanished is one no
+    device could ever be told about, and the picture would stay on the phone for good.
+    """
+    await ensure_caregiver_patient_access(session, caregiver_id, patient_id)
+
+    asset = await session.scalar(
+        select(MemoryAsset).where(
+            MemoryAsset.id == asset_id,
+            MemoryAsset.patient_id == patient_id,
+        )
+    )
+    if asset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="That memory was not found.",
+        )
+
+    asset.is_active = False
+    await session.commit()
+
+
+def _asset_out(asset: MemoryAsset) -> MemoryAssetOut:
+    """A stored memory plus a URL that will render it for as long as it is signed for."""
+    out = MemoryAssetOut.model_validate(asset)
+    # Only a `ready` row has bytes to point at; a pending one would sign a URL for an object
+    # that is not there yet.
+    if asset.status == "ready":
+        out.view_url = view_url(asset.object_key)
+    return out
 
 
 # --- Progress, Sessions & Analytics ---

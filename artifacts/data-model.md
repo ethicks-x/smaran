@@ -2,7 +2,8 @@
 
 **Device: ✅ built** (2026-09-01) — all nine tables exist in `apps/mobile/src/db/schema.ts`,
 created by `src/db/migrations.ts`. See `decisions.md` D-24.
-**Server: 🟡** — `apps/api` has SQLAlchemy models, `memory_assets` among them, but no
+**Server: 🟡** — `apps/api` has SQLAlchemy models, `memory_assets` among them and wired to
+a real upload path (D-39), but no
 migrations, no hypertable and no continuous aggregates; §2 below is otherwise still the
 design to build against.
 **Server: 🟡** — `apps/api/src/features/database/models.py` now has a SQLAlchemy model for
