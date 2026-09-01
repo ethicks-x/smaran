@@ -13,9 +13,13 @@ from features.dashboard.schemas import (  # noqa: TC001
     CasualPlayCreateIn,
     CasualPlayOut,
     DashboardSummaryOut,
+    MemoryAssetConfirmIn,
+    MemoryAssetOut,
     MemorySubjectCreateIn,
     MemorySubjectOut,
     MemorySubjectUpdateIn,
+    MemoryUploadCreateIn,
+    MemoryUploadOut,
     NotificationOut,
     PatientCardOut,
     PatientCreateIn,
@@ -28,10 +32,13 @@ from features.dashboard.schemas import (  # noqa: TC001
     TrendPointOut,
 )
 from features.dashboard.service import (
+    confirm_memory_upload,
     create_casual_play,
     create_memory_subject,
+    create_memory_upload,
     create_patient,
     create_reminder,
+    delete_memory_asset,
     delete_memory_subject,
     delete_patient,
     delete_reminder,
@@ -44,6 +51,7 @@ from features.dashboard.service import (
     get_patient_progress,
     get_patient_trends,
     list_casual_play,
+    list_memory_assets,
     list_memory_subjects,
     list_patients,
     list_reminders,
@@ -255,6 +263,58 @@ async def remove_reminder(
 ) -> dict[str, str]:
     """Retire a reminder. Soft — a phone that has been offline still learns it is gone."""
     await delete_reminder(db, auth.user_id, patient_id, reminder_id)
+    return {"status": "deleted"}
+
+
+# --- Memory Media ---
+
+
+@router.post("/patients/{patient_id}/memories/uploads", status_code=201)
+@caregiver_required
+async def start_memory_upload(
+    patient_id: UUID,
+    db: DbSession,
+    auth: AuthContext,
+    payload: MemoryUploadCreateIn,
+) -> MemoryUploadOut:
+    """Reserve a place in the memory bucket and return a URL to PUT the picture to."""
+    return await create_memory_upload(db, auth.user_id, patient_id, payload)
+
+
+@router.post("/patients/{patient_id}/memories/uploads/{asset_id}/confirm")
+@caregiver_required
+async def finish_memory_upload(
+    patient_id: UUID,
+    asset_id: UUID,
+    db: DbSession,
+    auth: AuthContext,
+    payload: MemoryAssetConfirmIn,
+) -> MemoryAssetOut:
+    """Mark an upload ready, once the bucket confirms it holds the object."""
+    return await confirm_memory_upload(db, auth.user_id, patient_id, asset_id, payload)
+
+
+@router.get("/patients/{patient_id}/memories/assets")
+@caregiver_required
+async def read_memory_assets(
+    patient_id: UUID,
+    db: DbSession,
+    auth: AuthContext,
+) -> list[MemoryAssetOut]:
+    """List the patient's stored memories, newest first."""
+    return await list_memory_assets(db, auth.user_id, patient_id)
+
+
+@router.delete("/patients/{patient_id}/memories/assets/{asset_id}")
+@caregiver_required
+async def remove_memory_asset(
+    patient_id: UUID,
+    asset_id: UUID,
+    db: DbSession,
+    auth: AuthContext,
+) -> dict[str, str]:
+    """Take a memory off the phone."""
+    await delete_memory_asset(db, auth.user_id, patient_id, asset_id)
     return {"status": "deleted"}
 
 

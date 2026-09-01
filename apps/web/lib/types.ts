@@ -137,6 +137,32 @@ export interface MemorySubjectApi {
 	created_at: string;
 }
 
+/** A stored memory: one object in the S3 bucket, plus what the caregiver said about it. */
+export interface MemoryAssetApi {
+	id: string;
+	patient_id: string;
+	subject_id: string | null;
+	kind: string; // "photo" | "audio" | "story"
+	file_name: string | null; // the caregiver's own name for the picture
+	description: string | null;
+	content_type: string | null;
+	size_bytes: number | null;
+	status: string; // "pending" | "ready" | "failed"
+	created_at: string;
+	/** Signed and short-lived unless the bucket is public — never store this anywhere. */
+	view_url: string | null;
+}
+
+/** Where to PUT the file. The browser uploads to `upload_url` directly, not via the API. */
+export interface MemoryUploadTicketApi {
+	asset_id: string;
+	upload_url: string;
+	object_key: string;
+	/** Must be sent back as the PUT's Content-Type: it is part of what the URL is signed over. */
+	content_type: string;
+	expires_in: number;
+}
+
 export interface SessionSummaryApi {
 	id: string;
 	date: string;

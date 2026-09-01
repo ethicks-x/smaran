@@ -1792,3 +1792,95 @@ caregiver-provisioned phone, where the family sets the device up on their own ac
 hands it over already linked, and the Smaran id flow stays as the path for a reader who
 signed themselves in.
 
+
+---
+
+## D-39 · 2026-09-01 · The dashboard uploads a picture straight to the bucket; the API only signs and confirms
+
+**Decision.** `apps/api/src/core/storage.py`, four routes under
+`/dashboard/patients/{id}/memories` — `POST /uploads`, `POST /uploads/{asset_id}/confirm`,
+`GET /assets`, `DELETE /assets/{asset_id}` — migration `0003_memory_assets`, and a real
+upload in `apps/web/app/patients/[id]/memories/add/page.tsx`. Three steps, and the middle
+one does not touch this API: it mints a presigned PUT, the browser sends the bytes to the
+bucket, and the API then confirms what landed (D-32).
+
+**What it replaces: the picture was going into Postgres as base64.** The form read the file
+with `FileReader.readAsDataURL` and posted the resulting `data:` URL as `photo_url`, so a
+3 MB photo became roughly 4 MB of text in a `TEXT` column — dragged along by every query
+that selects a memory subject, and carried into the phone's sync payload. Its own comment
+said "in production, you'd upload to a storage service", which is the right instinct
+recorded in the wrong place: the table for that already existed.
+
+**Why the bytes bypass the API.** An upload from a caregiver on an NER mobile connection can
+take minutes. Proxied, each one holds an API worker open for that whole time doing nothing
+but copying. The bucket is built for this and the browser can talk to it directly.
+
+**Why a row exists before the object.** Minting the URL is what writes the row, so there is a
+window where `memory_assets` names bytes that have not arrived. `confirm` closes it by asking
+the bucket — never by believing the client. A row flipped to `ready` without an object behind
+it is one the phone syncs down and caches as a broken picture, which on the Memories tab is
+not a missing asset but a person the reader expected to see.
+
+**The size limit is enforced on confirm, not on presign.** A presigned PUT accepts whatever
+the browser sends it, so the declared `size_bytes` is only a courtesy check. The real size is
+read back from the bucket, and an oversized object is deleted rather than left unreferenced.
+
+**`photo_url` is resolved on read, not stored.** Unless the bucket is public the URL is signed
+and expires, so writing one into `memory_subjects.photo_url` would produce a column of dead
+links. `list_memory_subjects` mints one per read from the subject's newest ready asset, and a
+subject with no upload keeps whatever `photo_url` it already had — which is how an externally
+hosted image, and every row written before this change, still works.
+
+**`memory_assets` had no migration.** The model merged while `create_all` still ran on
+startup; by the time Alembic took the schema over (D-35) the table was in `models.py` and in
+no migration, so on any migrated database it simply did not exist. `0003` creates it, and
+`alembic check` now reports no drift.
+
+**Consequences.** The bucket needs CORS allowing PUT from the dashboard's origin — without it
+every upload fails in the browser as an opaque network error, which is the likeliest thing to
+go wrong on first setup. Abandoned `pending` rows still accumulate and nothing sweeps them.
+
+**Would change it if:** uploads need virus-scanning or re-encoding before a patient sees them.
+That cannot happen in the browser — though a bucket event triggering a worker would keep this
+upload path exactly as it is.
+
+---
+
+## D-40 · 2026-09-01 · A raw browser network exception never reaches the caregiver's screen
+
+**Decision.** `apps/web/app/patients/[id]/memories/add/page.tsx` wraps only the S3 `PUT`
+(the middle of the three-step upload from D-39) in its own `try`/`catch`. A `fetch()` that
+*throws* there — as opposed to resolving with a non-`ok` response — is translated to plain
+copy naming the likely cause, rather than surfaced as whatever the browser's own exception
+happened to say.
+
+**This is D-39's predicted failure, confirmed rather than assumed.** D-39 flagged bucket
+CORS as "the likeliest thing to go wrong on first setup" without a way to prove it. It
+showed up exactly as predicted: `POST /uploads` returns 201 (presigning is a local HMAC, no
+network call, so a CORS gap here is invisible), the row lands `pending`, and the caregiver's
+screen shows a bare network error — because the browser blocks the `PUT` before any HTTP
+response exists to check `.ok` against, so control never reaches that branch at all.
+
+Reproduced directly rather than inferred from the report: two local origins, one playing
+the bucket, `PUT`ed to with the same headers this page sends. Direct `curl` to the "bucket"
+succeeds every time — confirming a correctly configured bucket is not itself the problem.
+The identical request from a real browser (Chromium) throws `TypeError: Failed to fetch`
+when the bucket has no CORS policy, and resolves clean (`200`) once one is added — the only
+variable changed between the two runs. That is what "NetworkError" in a caregiver's browser
+looks like from this code's side: a `fetch()` promise rejection, never a response.
+
+**Why the message names the bucket rather than retrying silently.** `AGENTS.md` §2.3: never
+jargon, never blame, no error code. "Failed to fetch" is a JavaScript engine's internal
+name for a browser security block, meaningless to a caregiver and actively misleading here
+— unlike an ordinary failed request, retrying does not help until the bucket's CORS policy
+changes, so the message says who to ask instead of "try again."
+
+**Why only the `PUT` is wrapped, not the whole `handleSave`.** The two `api()` calls either
+side of it already produce their own typed errors (`ApiError`, `ApiUnreachableError`) with
+sensible messages; wrapping the outer function would catch those too and flatten them to
+one generic line, losing whichever one was actually true.
+
+**Consequences.** This does not configure CORS — it cannot, from the browser side of a
+CORS block by definition. A bucket still needs a policy allowing the dashboard's origin,
+`PUT`, and the `content-type` header (S3-compatible providers all share this shape); D-39's
+"Consequences" note is now a confirmed cause rather than a guess.
