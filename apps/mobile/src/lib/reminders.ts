@@ -235,6 +235,92 @@ export function acknowledge(
 	});
 }
 
+/**
+ * A reminder definition as the server hands it down.
+ *
+ * `title` and `detail` arrive already in the reader's language — a caregiver
+ * typed them for this person — so nothing here translates or reformats them.
+ */
+export type PulledReminder = {
+	id: string;
+	kind: ReminderKind;
+	title: string;
+	detail: string | null;
+	schedule: string;
+	active: boolean;
+	/** The caregiver retired it. Everything else is the last thing we knew. */
+	deleted: boolean;
+};
+
+/**
+ * Take what the caregiver decided.
+ *
+ * Reminder definitions are server-authoritative (`data-model.md` §3 rule 2), so
+ * this is a replace and not a merge: there is one owner, so there is no conflict
+ * to resolve and nothing to ask anybody about.
+ *
+ * **Reminders the reader added on this phone are not touched.** They have local
+ * ids the server has never seen, and only ids named in this pull are written or
+ * removed — a device-created reminder is never collateral of a caregiver's edit.
+ * The other half of that is a real gap: a reminder added on the phone stays
+ * invisible on the dashboard, because definitions do not yet sync **up** (D-34).
+ *
+ * `notification_ids` is deliberately left alone on an update. It is this
+ * device's own scheduling state — which OS notifications this reminder currently
+ * has booked — and the server neither knows nor should know it. When
+ * `expo-notifications` lands, an edit arriving here is what has to cancel and
+ * rebook them, and it will read that column to know what to cancel.
+ *
+ * Returns how many rows actually changed, for the diagnostic. Whole thing is one
+ * transaction: a pull that dies halfway leaves the day the reader can see intact
+ * rather than half-rewritten.
+ */
+export function applyReminders(pulled: readonly PulledReminder[]): number {
+	if (pulled.length === 0) {
+		return 0;
+	}
+
+	return db().transaction((tx) => {
+		for (const row of pulled) {
+			if (row.deleted) {
+				// The reminder's own events cascade away with it. Their `sync_queue`
+				// entries do not — the queue holds a JSON snapshot rather than a
+				// pointer, so an acknowledgement that has not synced yet still will.
+				// Nothing removes a fact; this only stops the phone showing something
+				// nobody can see any more.
+				tx.delete(reminder).where(eq(reminder.id, row.id)).run();
+				continue;
+			}
+
+			const values = {
+				id: row.id,
+				kind: row.kind,
+				title: row.title,
+				detail: row.detail,
+				schedule: row.schedule,
+				active: row.active,
+				notificationIds: "[]",
+			};
+
+			tx.insert(reminder)
+				.values(values)
+				.onConflictDoUpdate({
+					target: reminder.id,
+					set: {
+						kind: values.kind,
+						title: values.title,
+						detail: values.detail,
+						schedule: values.schedule,
+						active: values.active,
+					},
+				})
+				.run();
+		}
+
+		return pulled.length;
+	});
+}
+
 /** A reminder and the day it fell on. Tomorrow's is a different occurrence. */
 const occurrenceKey = (id: string, dueAt: number) => `${id}:${dueAt}`;
 

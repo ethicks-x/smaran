@@ -13,6 +13,7 @@ import { AppearanceProvider, useAppearance } from "@/hooks/use-appearance";
 import { LanguageProvider, useLanguage } from "@/hooks/use-language";
 import { RecallProvider, useRecall } from "@/hooks/use-recall";
 import { useRoleEnrolment } from "@/hooks/use-role-enrolment";
+import { useSync } from "@/hooks/use-sync";
 import { useTheme } from "@/hooks/use-theme";
 import type { ThemeColors } from "@/theme";
 
@@ -73,6 +74,11 @@ function RootNavigator() {
 	// nothing — the splash below lifts on Clerk and the stored preferences, never
 	// on a network call.
 	useRoleEnrolment();
+
+	// The outbox, drained on the way in and whenever the reader comes back. Also
+	// awaited by nothing: what the phone has recorded is already on the phone, and
+	// sending it is the only part that is allowed to fail (§2.1).
+	useSync();
 
 	const isLoaded = isAuthLoaded && isAppearanceLoaded && isLanguageLoaded;
 

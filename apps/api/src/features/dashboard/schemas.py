@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -114,6 +115,61 @@ class MemorySubjectUpdateIn(BaseModel):
     relation: str | None = None
     photo_url: str | None = None
     is_active: bool | None = None
+
+
+class ReminderOut(BaseModel):
+    """A reminder definition, as the caregiver set it up.
+
+    Server-authoritative: the device takes what it is given (`data-model.md` §3 rule 2),
+    which is what makes this the one mutable record with no conflict to resolve.
+
+    `title` and `detail` are stored **already in the reader's language**. They are shown on
+    the phone and one day spoken aloud exactly as typed here, and nothing on the device
+    rewrites them — so a caregiver writing for an Assamese-speaking reader writes Assamese.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    patient_id: UUID
+    kind: str  # "medicine" | "hydration" | "activity" | "appointment"
+    title: str
+    detail: str | None = None
+    # `HH:MM|1111111` — a 24-hour local time and a days mask, Sunday first.
+    schedule: str
+    active: bool = True
+    created_by: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+# The four kinds the phone knows how to draw and, later, to speak. A fifth would render as
+# nothing recognisable on the device, so it is refused here rather than shipped to a screen.
+REMINDER_KINDS = ("medicine", "hydration", "activity", "appointment")
+
+# `HH:MM|1111111`, matching `parseSchedule` in `apps/mobile/src/lib/reminders.ts`. A string
+# the phone cannot parse is a reminder it silently skips, so it is rejected at the door.
+SCHEDULE_PATTERN = r"^([01]\d|2[0-3]):([0-5]\d)\|[01]{7}$"
+
+
+class ReminderCreateIn(BaseModel):
+    """Payload to add a reminder for a patient."""
+
+    kind: Literal["medicine", "hydration", "activity", "appointment"]
+    title: str = Field(..., min_length=1, max_length=200)
+    detail: str | None = Field(None, max_length=500)
+    schedule: str = Field(..., pattern=SCHEDULE_PATTERN, examples=["09:00|1111111"])
+    active: bool = True
+
+
+class ReminderUpdateIn(BaseModel):
+    """Payload to modify a reminder. Every field is optional; omitted ones are left alone."""
+
+    kind: Literal["medicine", "hydration", "activity", "appointment"] | None = None
+    title: str | None = Field(None, min_length=1, max_length=200)
+    detail: str | None = Field(None, max_length=500)
+    schedule: str | None = Field(None, pattern=SCHEDULE_PATTERN)
+    active: bool | None = None
 
 
 class SessionSummaryOut(BaseModel):
@@ -249,6 +305,9 @@ __all__ = [
     "PatientProgressOut",
     "PatientUpdateIn",
     "QuestionEventOut",
+    "ReminderCreateIn",
+    "ReminderOut",
+    "ReminderUpdateIn",
     "SessionSummaryOut",
     "TrendPointOut",
 ]

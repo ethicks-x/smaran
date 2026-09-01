@@ -125,4 +125,33 @@ export const MIGRATIONS: readonly string[] = [
 
 	CREATE INDEX sync_queue_entity_idx ON sync_queue (entity, entity_id);
 	`,
+
+	// v2 — what the device takes *down*: a place for history that is not its own, and a
+	// watermark for the pull that brings it (D-34).
+	`
+	ALTER TABLE device ADD COLUMN last_pulled_at INTEGER;
+
+	CREATE TABLE remote_session (
+		id                 TEXT PRIMARY KEY NOT NULL,
+		game_id            TEXT NOT NULL,
+		difficulty         INTEGER NOT NULL,
+		started_at         INTEGER NOT NULL,
+		ended_at           INTEGER NOT NULL,
+		duration_ms        INTEGER NOT NULL,
+		time_on_task_ms    INTEGER NOT NULL,
+		attempts           INTEGER NOT NULL,
+		correct            INTEGER NOT NULL,
+		total              INTEGER NOT NULL,
+		completed          INTEGER NOT NULL,
+		accuracy           REAL NOT NULL,
+		"precision"        REAL,
+		completion         REAL NOT NULL,
+		avg_response_ms    INTEGER NOT NULL,
+		median_response_ms INTEGER NOT NULL,
+		consistency        REAL,
+		longest_streak     INTEGER NOT NULL
+	);
+
+	CREATE INDEX remote_session_game_ended_idx ON remote_session (game_id, ended_at);
+	`,
 ];

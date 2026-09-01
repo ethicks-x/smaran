@@ -1293,3 +1293,214 @@ theme. It keeps its floating chrome and its own `StatusBar style="light"`.
 **Would change it if:** the fade turns out to read as a flicker on a page that is only just
 taller than the screen. The threshold is one constant in `useScrollBackdrop`, and the honest
 fix would be to raise it rather than to pin every bar.
+
+---
+
+## D-32 · 2026-09-01 · The server's synced tables mirror the device's, and the hypertable's keys carry `ended_at`
+
+**Decision.** `apps/api/src/features/database/models.py` now holds a server-side table for
+every device table that crosses the sync boundary: `devices`, `session_events`,
+`reminders`, `reminder_events`, `people`, `memory_items`. The columns come from
+`apps/mobile/src/db/schema.ts` — for `session_events`, from `SessionStats` field for field
+— plus the two things a device does not store about itself, `patient_id` and `device_id`.
+`patients` gained `enrolled_at` and `enrolled_by`. The device's `sync_queue` has no server
+twin; it is bookkeeping about what is owed, and the server is who it is owed to.
+
+**`session_events` is the server's copy of the device's `game_session`, not of its
+`session_event`.** The name is `data-model.md` §2's and it is the sharpest trap in the
+schema: on the phone, `session_event` is per-attempt detail that never leaves the device
+unless a session is flagged for review (`AGENTS.md` §2.5). One row here is a whole round.
+The docstring says so, because a reader who assumes otherwise will build the wrong ingest.
+It is also not `game_sessions`, the older caregiver-authored activity record the dashboard
+reads today — that table and `question_events` are untouched.
+
+**The primary key is `(id, ended_at)` and the idempotency key is `(device_id, seq,
+ended_at)`.** Timescale requires every unique index on a hypertable to include the
+partitioning column, and `create_hypertable` refuses a table whose keys do not. Widening
+them now costs a fatter index; widening them after the table has rows costs a rewrite of
+the ingest path as well as the data. The upsert stays exact because a retry sends the
+queued JSON snapshot byte for byte (D-24), so `ended_at` is as deterministic as the other
+two columns.
+
+**`reminder_events.reminder_id` is a plain uuid with no foreign key.** Every reminder today
+is created on the phone (D-25) and nothing syncs a definition up, so a real event would
+reference a row that does not exist here and the insert would be refused. An event is
+evidence and must land regardless; the column is still a real id, so a join finds the
+definition the day one arrives. **Do not "fix" this by adding the constraint** — it drops
+adherence data on the floor.
+
+**The down-sync tables carry `updated_at` and `deleted_at`.** `GET /sync/pull?since=` has
+to tell a device that has been off for a week about a person who was removed as well as one
+who was added, and a hard delete is silent to a watermark. `reminders`, `people` and
+`memory_items` are therefore soft-deleted; the append-only streams are not, because nothing
+ever removes a fact.
+
+**No display name on `patients`, still.** `data-model.md` §2 lists one; D-20 says the server
+mirrors nothing about a person and it wins. The device holds the name it greets the reader
+with, and Clerk holds it for anyone with an account. `people.name` is not an exception — a
+row there is a family member the caregiver typed in, not an account.
+
+**Not built by this change:** no migrations (`create_all` still), no hypertable, no
+continuous aggregate, and no endpoint writes any of these tables. This is the schema the
+`/sync/*` routes in `api-contract.md` §2 are owed, and nothing more.
+
+**Would change it if:** Timescale is dropped for plain Postgres, in which case the two
+composite keys go back to `id` and `(device_id, seq)` and the ingest simplifies with them.
+
+---
+
+## D-33 · 2026-09-01 · Sync is an outbox the device drains, and a queue row leaves only on a server's answer
+
+**Decision.** The two append-only streams now cross the boundary. `apps/api` gained
+`src/features/sync/` — `POST /sync/sessions` and `POST /sync/reminder-events`, both
+authenticated, both idempotent on `(device_id, seq)` (D-09) — and the phone gained
+`src/db/queue.ts` (the outbox, as storage sees it), `src/lib/sync.ts` (the drain, the only
+place in the app that sends anything anywhere) and `src/hooks/use-sync.ts`, mounted at the
+root beside `useRoleEnrolment`. The device registers itself on its first successful call;
+nobody provisions a `devices` row by hand.
+
+**A queue row is deleted only on a response that accounts for it.** Not on a timeout, not
+on a 5xx, not on a guess. The phone is holding the only copy of a round somebody actually
+played, so every ambiguous outcome — no radio, an expired session, a server that is down,
+a device nobody has enrolled yet — leaves the queue exactly as it was and stops the run.
+This is the one rule the ingest contract in `api-contract.md` §2 states outright, and it is
+why `apiFetch`'s split between `ApiUnreachableError` and `ApiError` (D-21) was worth having.
+
+**The server accounts for every row in a batch, one row at a time.** A row it already has
+is a **duplicate**, which is a success — that is what a retry is supposed to produce, and a
+batch that is entirely duplicates means the last attempt landed and only the acknowledgement
+was lost. A row it can never store comes back **named in `rejected`**, and the rest of the
+batch still lands. That requires one insert per row inside its own savepoint: a multi-row
+insert cannot say which row it choked on, and in Postgres one failed statement poisons the
+surrounding transaction and takes down every row that had already succeeded — the
+all-or-nothing outcome the contract exists to prevent. A batch is capped at 200 rows of a
+few dozen bytes on a stream that arrives a few times a day, so the round trips are affordable
+and the accounting is exact.
+
+**A rejected row is dropped from the queue, and its `game_session` row is not touched.**
+The queue is an outbox, not the record. Dropping an entry means "stop carrying this", never
+"this did not happen" — which is what makes it safe, and why the drop is safe for a rejected
+row and an accepted one alike. A row nobody will ever take, left at the head of the queue,
+blocks every row behind it forever.
+
+**422 is the only status the client ever gives up on**, and only after five attempts. It
+means this build sent something the server cannot parse — a phone newer than the API it is
+talking to — and no amount of waiting fixes it. Everything else is retried indefinitely,
+because everything else is somebody else's problem and not the row's. The inbound schemas
+are `extra="ignore"` for the same reason from the other side: a newer phone's unknown column
+must not cost the server a batch of true rows.
+
+**`device.last_synced_seq` is the lowest still-queued `seq` minus one**, computed on the
+phone, and it decides nothing. The two streams share one counter, so a batch of sessions
+says nothing about a reminder event numbered between them, and a watermark taken from a
+response would over-report. The queue is what says what is owed; the watermark is what a
+"last synced" line would read, and it must not be able to claim more than it knows. The
+server returns `last_seq` too — the highest sequence it holds across both streams — and it
+is diagnostic only.
+
+**Triggered on app open and on return to the foreground, awaited by nothing** (§2.1, §2.2).
+`useSync` sits next to a splash screen that lifts on Clerk and stored preferences and on
+nothing else, throttled to one run per two minutes so a reader switching between the app and
+a phone call does not drain the battery finding out there is nothing new. `sync()` never
+rejects — every outcome it has is a returned value — because there is no caller for whom a
+failed sync is exceptional.
+
+**Not built by this change.** No down-sync: `GET /sync/pull?since=` has a schema behind it
+(D-32) and no route, and the phone has nothing to apply one to yet — People and Memories are
+still `EmptyState`, caching a photo to the filesystem needs a dependency the app does not
+have, and who owns a reminder definition is unresolved while every reminder is device-created
+(D-25). No Alembic still, so these tables appear on a fresh database and not on an existing
+one. **And no connectivity trigger**: the natural third moment to drain is the radio coming
+back, which needs `@react-native-community/netinfo` or `expo-network`, and adding a dependency
+was out of scope here. Until one lands, a phone that regains signal while the app is open in
+front of someone waits for the next time they leave and come back.
+
+**Would change it if:** batches grow large enough that one insert per row costs real latency,
+in which case the fast path becomes a multi-row insert with the per-row savepoint loop kept
+as the fallback a failed batch retries through — the accounting the contract requires cannot
+be dropped, only skipped when nothing goes wrong.
+
+---
+
+## D-34 · 2026-09-01 · Sync runs both ways: reminders are server-owned, and a reinstalled phone gets its history back
+
+**Decision.** `GET /sync/pull?since=&restore=` completes the loop D-33 opened. Reminder
+definitions are owned by the caregiver and pulled **down**; a phone that has lost its
+storage pulls this reader's game history down with them. The dashboard gained the CRUD that
+makes the first half meaningful — `GET`/`POST /dashboard/patients/{id}/reminders` and
+`PATCH`/`DELETE .../{reminder_id}`. On the device: `remote_session` and
+`device.last_pulled_at` (migration v2), `applyReminders()` in `lib/reminders.ts`,
+`restoreSessions()` in `lib/game-history.ts`, and a `takeDown()` pass in `lib/sync.ts` that
+runs after the push.
+
+**Up first, then down, and a pull failure never costs a push.** What the device is holding
+is the only copy of it; what the server is holding is backed up. So the push runs first and
+the pull only runs if it got through, and neither can strand the other.
+
+**Reminders are server-authoritative, so there is no merge and no conflict** (`data-model.md`
+§3 rule 2). Whatever comes down replaces what the phone has. One owner is what buys that,
+and it is the whole reason to resist letting both sides edit the same row.
+
+**A retirement travels as a row, not as an absence.** `DELETE` is a soft delete setting
+`deleted_at`, and the reminder comes down with `deleted: true`. A hard delete is invisible
+to "what changed since Tuesday" — a phone that was switched off when the caregiver retired
+something would go on showing it forever. This is the single reason the down-sync tables
+carry `deleted_at` at all (D-32), and it is why the pull query has no `deleted_at IS NULL`
+filter: the retired row is the one a stale device most needs.
+
+**Deleting a reminder on the device cascades its `reminder_event` rows, and that is safe
+only because the outbox holds snapshots.** `sync_queue.payload` is a JSON copy rather than a
+pointer (D-33), so an acknowledgement that has not synced yet still syncs after its
+definition is gone. If the queue ever becomes a pointer, this cascade starts destroying
+adherence data.
+
+**`notification_ids` is never overwritten by a pull.** It is this device's own scheduling
+state — which OS notifications this reminder currently has booked — and the server does not
+know it. When `expo-notifications` lands, an edit arriving here is exactly what has to
+cancel and rebook them, reading that column to know what to cancel.
+
+**Restored history lives in `remote_session`, a separate table with no `seq`.** A sequence
+number belongs to the device that issued it, and these rounds were played on a phone that
+no longer exists — or on this one, before it was wiped. They are read like history and
+**never queued and never sent back up**; they are already on the server, which is where
+they came from. A separate table rather than a nullable column or a flag on `game_session`
+because SQLite cannot widen a `NOT NULL` column without rebuilding the table, and because
+two tables cannot be confused by a query that forgets to check a flag. `recentSessions()`
+merges both and dedupes by id, so **the adaptive engine never learns a reinstall happened**
+— which is the point: the comparison is against this reader's own past (`AGENTS.md` §2.4),
+and being handed a new phone is not an answer to that question.
+
+**`restore=true` is asked exactly when `last_pulled_at` is null**, not when the session
+table is empty. A reader who opens a fresh install offline and plays a round before it ever
+syncs would answer "not empty" to the second question and stay without the months of
+history that are sitting on the server.
+
+**The watermark is the server's clock, echoed back.** `PullOut.synced_at` is read *before*
+the queries and stored verbatim as `last_pulled_at`; the device sends it back as `since`. A
+phone's own clock can be wrong by hours, and the cost is either a window of the caregiver's
+changes silently skipped or the same ones re-sent forever. Reading the clock before the
+queries rather than after is the same bug in miniature: a reminder edited mid-request would
+otherwise carry an `updated_at` below the watermark and never arrive. The watermark moves
+only after both collections have been written.
+
+**Restores are capped at 200 rounds** — comfortably deeper than the fifty the engine reads,
+and bounded so a patient with two years of play does not turn one reinstall into a
+multi-megabyte response over 2G. `sessions_truncated` says when there was more; nothing asks
+for the rest yet.
+
+**Schedules and kinds are validated at the API door**, against the same `HH:MM|1111111`
+pattern `parseSchedule` uses and the same four kinds the phone can draw. A string the device
+cannot parse is a reminder it silently skips, and a caregiver would never find out — so it
+is refused where somebody is still looking at a screen.
+
+**Not built by this change.** **Reminder definitions do not sync up**: one added on the phone
+(D-25) stays invisible on the dashboard. That is the honest consequence of rule 2 — the
+device-created reminder is the stopgap, and the fix is for the phone's "add a reminder" to
+POST to the caregiver endpoint rather than for both sides to own the table. People and
+memories still do not come down, because nothing draws them and photo caching needs a
+dependency the app does not have. Still no Alembic, which now blocks `reminders` on a
+deployed database as well as the ingest tables.
+
+**Would change it if:** the family wants to add reminders from the phone as a first-class
+flow, at which point definitions need an up-stream and a real conflict rule — last-write-wins
+on `updated_at` would be the cheap answer and it would quietly lose a caregiver's edit.

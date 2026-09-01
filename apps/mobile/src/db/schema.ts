@@ -54,6 +54,13 @@ export const device = sqliteTable("device", {
 	/** How far the server has acknowledged. Everything above it is still owed. */
 	lastSyncedSeq: integer("last_synced_seq").notNull().default(0),
 	lastSyncedAt: integer("last_synced_at"),
+	/**
+	 * The server's own clock at the last successful pull, echoed back as `since`
+	 * on the next one. The **server's** clock and not this phone's: a device whose
+	 * date is wrong by hours would otherwise ask for a window that has already
+	 * gone by, and never hear about the reminder it skipped.
+	 */
+	lastPulledAt: integer("last_pulled_at"),
 });
 
 /**
@@ -109,6 +116,50 @@ export const gameSession = sqliteTable(
 		// The one query the engine makes: this reader's last few rounds of one
 		// game, newest first.
 		index("game_session_game_ended_idx").on(table.gameId, table.endedAt),
+	],
+);
+
+/**
+ * This reader's earlier rounds, as the server knows them. Pulled **down**.
+ *
+ * The same shape as `game_session` with one column missing, and the missing one
+ * is the whole difference: there is no `seq`, because a sequence number belongs
+ * to the device that issued it and these rounds were played on a phone that no
+ * longer exists — or on this one, before it was reset. They are somebody else's
+ * facts about this reader: read like history, and **never queued, never sent
+ * back up**. A separate table rather than a flag on `game_session` so that the
+ * two can never be confused by a query that forgets to check one.
+ *
+ * This is what stops a reinstall from erasing a person. `game_session` is what
+ * happened on this device; the adaptive engine reads both, because the question
+ * it asks is what *this reader* has been doing lately (`AGENTS.md` §2.4) and the
+ * answer does not change when a phone is wiped. Safe to drop and re-pull at any
+ * time — nothing here is owed to anyone.
+ */
+export const remoteSession = sqliteTable(
+	"remote_session",
+	{
+		id: text("id").primaryKey(),
+		gameId: text("game_id").notNull(),
+		difficulty: integer("difficulty").notNull(),
+		startedAt: integer("started_at").notNull(),
+		endedAt: integer("ended_at").notNull(),
+		durationMs: integer("duration_ms").notNull(),
+		timeOnTaskMs: integer("time_on_task_ms").notNull(),
+		attempts: integer("attempts").notNull(),
+		correct: integer("correct").notNull(),
+		total: integer("total").notNull(),
+		completed: integer("completed", { mode: "boolean" }).notNull(),
+		accuracy: real("accuracy").notNull(),
+		precision: real("precision"),
+		completion: real("completion").notNull(),
+		avgResponseMs: integer("avg_response_ms").notNull(),
+		medianResponseMs: integer("median_response_ms").notNull(),
+		consistency: real("consistency"),
+		longestStreak: integer("longest_streak").notNull(),
+	},
+	(table) => [
+		index("remote_session_game_ended_idx").on(table.gameId, table.endedAt),
 	],
 );
 
@@ -261,6 +312,7 @@ export const syncQueue = sqliteTable("sync_queue", {
 export type PatientRow = typeof patient.$inferSelect;
 export type DeviceRow = typeof device.$inferSelect;
 export type GameSessionRow = typeof gameSession.$inferSelect;
+export type RemoteSessionRow = typeof remoteSession.$inferSelect;
 export type SessionEventRow = typeof sessionEvent.$inferSelect;
 export type ReminderRow = typeof reminder.$inferSelect;
 export type ReminderEventRow = typeof reminderEvent.$inferSelect;
