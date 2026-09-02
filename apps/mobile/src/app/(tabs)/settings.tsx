@@ -54,7 +54,7 @@ export default function SettingsScreen() {
   const version = Constants.expoConfig?.version ?? "1.0.0";
 
   return (
-    <Screen title={t("account.title")} headerAction={<HeaderActions />}>
+    <Screen title={t("account.title")}>
       <Profile />
 
       <SettingsAccordion>
