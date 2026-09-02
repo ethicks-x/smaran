@@ -2112,3 +2112,59 @@ because a Material clock set to the wrong one would disagree with the time writt
 above it. A one-off whose day has passed simply stops appearing, which is why the date picker
 offers nothing before today. `expo-notifications` is still not installed, so none of this
 fires with the app closed (D-25).
+
+---
+
+## D-44 · 2026-09-02 · The Material controls are told every colour they paint
+
+**Decision.** Reported from a device: the reminder form's dropdowns sat in a tan fill nothing
+in the palette chose, at a width of their own beside two full-width rows, and the Material
+date and time dialogs arrived tinted to match. Both are now painted from Smaran's tokens.
+
+**`SelectField` is platform-split.** `select-field.android.tsx` builds the same Material 3
+exposed dropdown `@expo/ui`'s universal `Picker` builds — `ExposedDropdownMenuBox`, an
+`OutlinedTextField` anchor, `ExposedDropdownMenu`, `DropdownMenuItem` — but passes it
+`fillMaxWidth()` and an explicit `colors` set: `surface` for the container, `border` for the
+resting indicator, `primary` for the focused one and the chevron, `text` for the value, a
+`RoundedCorner` shape at `Radius.md`, and the type at `bodyLarge` through the reader's text
+scale. `select-field-props.ts` holds the props, for D-43's reason. iOS and web keep the
+universal `Picker`. The props type is unchanged, so nothing calling `SelectField` moved.
+
+**`SchedulePicker` on Android now passes `elementColors`.** Every container, headline,
+weekday, day, clock dial, selector and period-toggle colour is named from the palette rather
+than left to Material.
+
+**Why.** `NativeHost` hands Compose a *seed*, and a seed is not a palette — Compose expands
+it into a tonal scheme and picks its own containers out of it. Those tones are neither the
+colours D-03 contrast-checked nor the ones the card around them is painted in, so a control
+that looks correct in isolation reads as a differently-themed widget dropped into a Smaran
+form. The seed still does useful work for ripples, focus rings and the platform's own
+chrome; what a control fills and writes with is ours to say. §2.3's rule that colour comes
+from semantic tokens does not stop at the React Native boundary.
+
+**Consequences.** A Material colour role we do not name still comes from the seed, so a new
+Compose control needs the same treatment — `elementColors` or `colors`, from the palette,
+every time. The anchor is `readOnly` and holds its text natively, so the chosen label is
+pushed in through a ref once the view reports itself visible, exactly as `Picker` does it.
+
+**Amended the same day — the time dialog is assembled by hand.** `elementColors` reaches
+every part of Material's time picker except the card it sits on: `ExpoTimePickerDialogContent`
+in `@expo/ui` builds a bare `AlertDialog` and never passes it a container colour, so the card
+came out as whatever tone Compose generated from the seed — pink under the rose highlight, a
+different colour under each of the other five. `DatePickerDialog` takes `colors` and needed
+none of this, so only the time branch changed: a Jetpack `AlertDialog` with
+`colors.containerColor` from the palette, the inline `DateTimePicker` in
+`displayedComponents="hourAndMinute"` inside it, and `TextButton`s labelled from the locale
+catalogue at `TextStyles.label`.
+
+**What this costs, and it is not nothing.** The library's dialog carried Material's
+keyboard-entry toggle; the inline picker has no toggle, so the typed way to set a time is
+gone and the dial is the only way. D-25 is not broken — the dial's numbers are tapped rather
+than dragged, so no gesture is required — but the tremor case is now answered by tapping a
+number instead of by typing one, which is weaker. Getting both back means the toggle moving
+into `@expo/ui`'s inline picker (`showVariantToggle` is a date-only prop today) or a control
+of ours beside the clock. Worth revisiting if a reader struggles with the dial.
+
+**Also.** The inline picker reports every tap and drag as it happens, where the dialog only
+reported a confirmed time, so the last reported time is held in a ref and handed over by
+"Done" — otherwise cancelling would still have moved the reminder.
