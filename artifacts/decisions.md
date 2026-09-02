@@ -2168,3 +2168,52 @@ of ours beside the clock. Worth revisiting if a reader struggles with the dial.
 **Also.** The inline picker reports every tap and drag as it happens, where the dialog only
 reported a confirmed time, so the last reported time is held in a ref and handed over by
 "Done" — otherwise cancelling would still have moved the reminder.
+
+---
+
+## D-45 · 2026-09-02 · A public bucket's `photo_url` is persisted at upload, not only resolved on read
+
+**Decision.** `core/storage.py` gains `public_url(object_key) -> str | None` — the same
+`{public_base}/{object_key}` string `view_url` was already building internally, pulled out
+as its own function that returns `None` rather than falling back to a presigned URL when no
+public base is configured. `upload_memory_asset` calls it after a successful upload: when
+the upload is linked to a subject and the bucket has a public base configured, the
+subject's `photo_url` column is written and committed in the same request, not left `null`.
+
+**What prompted it.** `memory_subjects.photo_url` was always `null` in the actual table —
+by design, per D-42: `_attach_subject_photos` computes it fresh on every `list_memory_subjects`
+call and never writes it back, because a *presigned* URL expires, and persisting one would
+be exactly the "column of dead links" that reasoning existed to avoid. That reasoning holds
+for a presigned URL. It does not hold for a permanent one — once the bucket in front of this
+deployment answers at a fixed, non-expiring public path, there is no expiry to avoid, and a
+caregiver (or anything else) reading the row directly rather than through the API sees `null`
+for a picture that demonstrably exists.
+
+**Why `public_url` is a separate function from `view_url` rather than a parameter.**
+`view_url` is right to fall back to presigned — that fallback is what keeps every existing
+deployment without a public base working exactly as before. But falling back inside the
+*persistence* path would be wrong in the opposite direction: writing a presigned URL into a
+column meant to be read back indefinitely is the dead-link bug, reintroduced. Two functions
+means the write path can only ever persist something permanent, or persist nothing.
+
+**`_attach_subject_photos` is unchanged, deliberately.** It still resolves `photo_url` fresh
+on every read, so a row uploaded before a public base was configured — whose column is still
+`null` despite having a real, ready asset — keeps resolving correctly through the API. The
+persisted column and the read-time resolution now simply agree once a public base exists;
+neither replaces the other.
+
+**Verified end to end, not just at the string level.** Against a real bucket (moto) with a
+`put-bucket-policy` making it genuinely public: the row's `photo_url` column held the exact
+`{base}/{object_key}` shape with no filename in it; an unauthenticated `GET` to that literal
+persisted value returned the real uploaded bytes; a bucket *without* that policy answered the
+same URL shape with `403` — confirming the URL's correctness is orthogonal to whether the
+bucket is actually configured to serve it, which is deployment's responsibility, not this
+code's. **No endpoint in `apps/api` streams image bytes itself** — every memory route
+returns JSON carrying a URL field (`photo_url` or `view_url`); the bytes are always fetched
+by a second, separate request straight to the bucket, the same design D-32 and D-42 already
+established.
+
+**Would change it if:** the bucket ever needs to stop being public. Nothing here migrates
+existing persisted URLs back to `null` or to presigned ones — that would need its own pass
+over `memory_subjects`, and until then a stale permanent URL in the column would need
+`_attach_subject_photos`'s fresh resolution to actually still be trusted over it.

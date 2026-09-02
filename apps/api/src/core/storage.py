@@ -118,6 +118,21 @@ async def upload_object(object_key: str, content_type: str, body: bytes) -> str:
     return await anyio.to_thread.run_sync(_put)
 
 
+def public_url(object_key: str) -> str | None:
+    """
+    The object's permanent URL, or `None` when the bucket has no public base configured.
+
+    Unlike `view_url`, this never falls back to a presigned URL. A presigned GET expires —
+    writing one into a row meant to be read back next year, next month, or even next hour
+    would silently go dead, which is exactly the "column of dead links" `view_url`'s own
+    fallback exists to avoid. Something worth persisting has to be permanent or nothing.
+    """
+    if not settings.s3_memories_public_base_url:
+        return None
+    base = settings.s3_memories_public_base_url.rstrip("/")
+    return f"{base}/{object_key}"
+
+
 def view_url(object_key: str) -> str:
     """
     A URL that renders the object.
@@ -126,9 +141,9 @@ def view_url(object_key: str) -> str:
     Signed is the default deliberately — these are photographs of a named person living with
     dementia, and a public object URL is an unauthenticated one that never expires.
     """
-    if settings.s3_memories_public_base_url:
-        base = settings.s3_memories_public_base_url.rstrip("/")
-        return f"{base}/{object_key}"
+    permanent = public_url(object_key)
+    if permanent is not None:
+        return permanent
 
     return _client().generate_presigned_url(
         "get_object",
@@ -142,6 +157,7 @@ __all__ = [
     "build_object_key",
     "check_content_type",
     "memories_bucket",
+    "public_url",
     "upload_object",
     "view_url",
 ]

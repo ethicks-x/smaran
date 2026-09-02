@@ -19,6 +19,7 @@ from core.storage import (
     build_object_key,
     check_content_type,
     memories_bucket,
+    public_url,
     upload_object,
     view_url,
 )
@@ -641,6 +642,19 @@ async def upload_memory_asset(
     asset.status = "ready"
     asset.etag = etag or None
     asset.uploaded_at = _utcnow()
+
+    # Persisted only when the bucket has a public base configured — `public_url` returns
+    # `None` otherwise, and a signed URL that will expire has no business in a column meant
+    # to be read back long after this request ends (D-45). `list_memory_subjects` still
+    # resolves `photo_url` per read on top of this (`_attach_subject_photos` below), so an
+    # older row uploaded before a public base existed keeps working the same way it always
+    # has; this just means the column itself now agrees with what that resolution returns,
+    # for a caregiver who queries the table directly rather than through the API.
+    if subject_id is not None:
+        permanent = public_url(asset.object_key)
+        if permanent is not None:
+            subject.photo_url = permanent
+
     await session.commit()
     await session.refresh(asset)
 
