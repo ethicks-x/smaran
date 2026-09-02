@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { useApi } from "@/hooks/use-api";
+import { extract10Digits } from "@/lib/utils";
 import type { PatientProfileHeaderPatient } from "./PatientProfileHeader";
 
 interface EditPatientModalProps {
@@ -30,7 +31,7 @@ export function EditPatientModal({
   const [dob, setDob] = useState(patient.dob || "");
   const [relationship, setRelationship] = useState(initialRelationship || "");
   const [contactNumber, setContactNumber] = useState(
-    patient.contact_number || "",
+    extract10Digits(patient.contact_number),
   );
   const [address, setAddress] = useState(patient.address || "");
   const [preferredLanguage, setPreferredLanguage] = useState(
@@ -45,6 +46,11 @@ export function EditPatientModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (contactNumber.length > 0 && contactNumber.length !== 10) {
+      setError("Contact number must be exactly 10 digits");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -54,7 +60,7 @@ export function EditPatientModal({
         body: {
           dob: dob ? dob : null,
           relationship: relationship.trim() || null,
-          contact_number: contactNumber.trim() || null,
+          contact_number: contactNumber ? `+91${contactNumber}` : null,
           address: address.trim() || null,
           preferred_language: preferredLanguage || null,
         },
@@ -198,15 +204,27 @@ export function EditPatientModal({
             >
               Contact Number
             </label>
-            <input
-              id="contact_number"
-              type="tel"
-              value={contactNumber}
-              onChange={(e) => setContactNumber(e.target.value)}
-              placeholder="e.g. +91 98765 43210"
-              disabled={loading || deregistering}
-              className="mt-1.5 block w-full rounded-xl border border-black/10 dark:border-white/10 bg-surface px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-300 focus:border-indigo-400 focus:outline-none disabled:opacity-50"
-            />
+            <div className="mt-1.5 flex rounded-xl border border-black/10 dark:border-white/10 bg-surface focus-within:border-indigo-400">
+              <span className="flex items-center justify-center border-r border-black/10 dark:border-white/10 bg-black/[0.03] dark:bg-white/[0.03] px-3.5 py-2.5 text-sm font-semibold text-ink-500 select-none rounded-l-xl">
+                +91
+              </span>
+              <input
+                id="contact_number"
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={10}
+                value={contactNumber}
+                onChange={(e) =>
+                  setContactNumber(
+                    e.target.value.replace(/\D/g, "").slice(0, 10),
+                  )
+                }
+                placeholder="9876543210"
+                disabled={loading || deregistering}
+                className="w-full bg-transparent px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-300 focus:outline-none disabled:opacity-50"
+              />
+            </div>
           </div>
 
           <div>
@@ -238,7 +256,11 @@ export function EditPatientModal({
             </Button>
             <Button
               type="submit"
-              disabled={loading || deregistering}
+              disabled={
+                loading ||
+                deregistering ||
+                (contactNumber.length > 0 && contactNumber.length !== 10)
+              }
               className="gap-2"
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
