@@ -1,11 +1,11 @@
 import { sql } from "drizzle-orm";
 import {
-	index,
-	integer,
-	real,
-	sqliteTable,
-	text,
-	uniqueIndex,
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 /**
@@ -30,13 +30,13 @@ import {
 
 /** The person holding the phone. Exactly one row, written at enrollment. */
 export const patient = sqliteTable("patient", {
-	/** The server's patient id, handed over when the device is enrolled. */
-	id: text("id").primaryKey(),
-	/** What `recall` and the greeting on Today use. */
-	displayName: text("display_name").notNull(),
-	/** BCP-47. Drives i18n and, when it lands, the TTS voice. */
-	preferredLanguage: text("preferred_language").notNull(),
-	enrolledAt: integer("enrolled_at").notNull(),
+  /** The server's patient id, handed over when the device is enrolled. */
+  id: text("id").primaryKey(),
+  /** What `recall` and the greeting on Today use. */
+  displayName: text("display_name").notNull(),
+  /** BCP-47. Drives i18n and, when it lands, the TTS voice. */
+  preferredLanguage: text("preferred_language").notNull(),
+  enrolledAt: integer("enrolled_at").notNull(),
 });
 
 /**
@@ -48,19 +48,19 @@ export const patient = sqliteTable("patient", {
  * carried the first time or the retry stops being a no-op.
  */
 export const device = sqliteTable("device", {
-	/** Generated once with `expo-crypto` and never regenerated. */
-	id: text("id").primaryKey(),
-	nextSeq: integer("next_seq").notNull().default(1),
-	/** How far the server has acknowledged. Everything above it is still owed. */
-	lastSyncedSeq: integer("last_synced_seq").notNull().default(0),
-	lastSyncedAt: integer("last_synced_at"),
-	/**
-	 * The server's own clock at the last successful pull, echoed back as `since`
-	 * on the next one. The **server's** clock and not this phone's: a device whose
-	 * date is wrong by hours would otherwise ask for a window that has already
-	 * gone by, and never hear about the reminder it skipped.
-	 */
-	lastPulledAt: integer("last_pulled_at"),
+  /** Generated once with `expo-crypto` and never regenerated. */
+  id: text("id").primaryKey(),
+  nextSeq: integer("next_seq").notNull().default(1),
+  /** How far the server has acknowledged. Everything above it is still owed. */
+  lastSyncedSeq: integer("last_synced_seq").notNull().default(0),
+  lastSyncedAt: integer("last_synced_at"),
+  /**
+   * The server's own clock at the last successful pull, echoed back as `since`
+   * on the next one. The **server's** clock and not this phone's: a device whose
+   * date is wrong by hours would otherwise ask for a window that has already
+   * gone by, and never hear about the reminder it skipped.
+   */
+  lastPulledAt: integer("last_pulled_at"),
 });
 
 /**
@@ -81,42 +81,42 @@ export const device = sqliteTable("device", {
  * read against the same person's other rows.
  */
 export const gameSession = sqliteTable(
-	"game_session",
-	{
-		id: text("id").primaryKey(),
-		/** Taken from `device.next_seq` at insert. Unique for this device. */
-		seq: integer("seq").notNull(),
-		/** Stable across releases — the key history is grouped by. */
-		gameId: text("game_id").notNull(),
-		/** The rung of this game's own ladder that was played, counting from one. */
-		difficulty: integer("difficulty").notNull(),
-		startedAt: integer("started_at").notNull(),
-		endedAt: integer("ended_at").notNull(),
-		/** Wall clock, pauses included. */
-		durationMs: integer("duration_ms").notNull(),
-		/** The same round with the pauses taken out. */
-		timeOnTaskMs: integer("time_on_task_ms").notNull(),
-		attempts: integer("attempts").notNull(),
-		correct: integer("correct").notNull(),
-		total: integer("total").notNull(),
-		/** False for a board that was put down. Recorded the same, never penalised. */
-		completed: integer("completed", { mode: "boolean" }).notNull(),
-		accuracy: real("accuracy").notNull(),
-		/** Null when the game has no floor on attempts to measure against. */
-		precision: real("precision"),
-		completion: real("completion").notNull(),
-		avgResponseMs: integer("avg_response_ms").notNull(),
-		medianResponseMs: integer("median_response_ms").notNull(),
-		/** Null under two attempts, where there is no spread to measure. */
-		consistency: real("consistency"),
-		longestStreak: integer("longest_streak").notNull(),
-	},
-	(table) => [
-		uniqueIndex("game_session_seq_idx").on(table.seq),
-		// The one query the engine makes: this reader's last few rounds of one
-		// game, newest first.
-		index("game_session_game_ended_idx").on(table.gameId, table.endedAt),
-	],
+  "game_session",
+  {
+    id: text("id").primaryKey(),
+    /** Taken from `device.next_seq` at insert. Unique for this device. */
+    seq: integer("seq").notNull(),
+    /** Stable across releases — the key history is grouped by. */
+    gameId: text("game_id").notNull(),
+    /** The rung of this game's own ladder that was played, counting from one. */
+    difficulty: integer("difficulty").notNull(),
+    startedAt: integer("started_at").notNull(),
+    endedAt: integer("ended_at").notNull(),
+    /** Wall clock, pauses included. */
+    durationMs: integer("duration_ms").notNull(),
+    /** The same round with the pauses taken out. */
+    timeOnTaskMs: integer("time_on_task_ms").notNull(),
+    attempts: integer("attempts").notNull(),
+    correct: integer("correct").notNull(),
+    total: integer("total").notNull(),
+    /** False for a board that was put down. Recorded the same, never penalised. */
+    completed: integer("completed", { mode: "boolean" }).notNull(),
+    accuracy: real("accuracy").notNull(),
+    /** Null when the game has no floor on attempts to measure against. */
+    precision: real("precision"),
+    completion: real("completion").notNull(),
+    avgResponseMs: integer("avg_response_ms").notNull(),
+    medianResponseMs: integer("median_response_ms").notNull(),
+    /** Null under two attempts, where there is no spread to measure. */
+    consistency: real("consistency"),
+    longestStreak: integer("longest_streak").notNull(),
+  },
+  (table) => [
+    uniqueIndex("game_session_seq_idx").on(table.seq),
+    // The one query the engine makes: this reader's last few rounds of one
+    // game, newest first.
+    index("game_session_game_ended_idx").on(table.gameId, table.endedAt),
+  ],
 );
 
 /**
@@ -137,30 +137,30 @@ export const gameSession = sqliteTable(
  * time — nothing here is owed to anyone.
  */
 export const remoteSession = sqliteTable(
-	"remote_session",
-	{
-		id: text("id").primaryKey(),
-		gameId: text("game_id").notNull(),
-		difficulty: integer("difficulty").notNull(),
-		startedAt: integer("started_at").notNull(),
-		endedAt: integer("ended_at").notNull(),
-		durationMs: integer("duration_ms").notNull(),
-		timeOnTaskMs: integer("time_on_task_ms").notNull(),
-		attempts: integer("attempts").notNull(),
-		correct: integer("correct").notNull(),
-		total: integer("total").notNull(),
-		completed: integer("completed", { mode: "boolean" }).notNull(),
-		accuracy: real("accuracy").notNull(),
-		precision: real("precision"),
-		completion: real("completion").notNull(),
-		avgResponseMs: integer("avg_response_ms").notNull(),
-		medianResponseMs: integer("median_response_ms").notNull(),
-		consistency: real("consistency"),
-		longestStreak: integer("longest_streak").notNull(),
-	},
-	(table) => [
-		index("remote_session_game_ended_idx").on(table.gameId, table.endedAt),
-	],
+  "remote_session",
+  {
+    id: text("id").primaryKey(),
+    gameId: text("game_id").notNull(),
+    difficulty: integer("difficulty").notNull(),
+    startedAt: integer("started_at").notNull(),
+    endedAt: integer("ended_at").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    timeOnTaskMs: integer("time_on_task_ms").notNull(),
+    attempts: integer("attempts").notNull(),
+    correct: integer("correct").notNull(),
+    total: integer("total").notNull(),
+    completed: integer("completed", { mode: "boolean" }).notNull(),
+    accuracy: real("accuracy").notNull(),
+    precision: real("precision"),
+    completion: real("completion").notNull(),
+    avgResponseMs: integer("avg_response_ms").notNull(),
+    medianResponseMs: integer("median_response_ms").notNull(),
+    consistency: real("consistency"),
+    longestStreak: integer("longest_streak").notNull(),
+  },
+  (table) => [
+    index("remote_session_game_ended_idx").on(table.gameId, table.endedAt),
+  ],
 );
 
 /**
@@ -172,45 +172,45 @@ export const remoteSession = sqliteTable(
  * holds (`AGENTS.md` §2.5), and it earns its keep on-device or not at all.
  */
 export const sessionEvent = sqliteTable(
-	"session_event",
-	{
-		id: text("id").primaryKey(),
-		sessionId: text("session_id")
-			.notNull()
-			.references(() => gameSession.id, { onDelete: "cascade" }),
-		/** Position within the round, counting from zero. */
-		index: integer("index").notNull(),
-		prompt: text("prompt"),
-		response: text("response"),
-		correct: integer("correct", { mode: "boolean" }).notNull(),
-		responseMs: integer("response_ms").notNull(),
-	},
-	(table) => [index("session_event_session_idx").on(table.sessionId)],
+  "session_event",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => gameSession.id, { onDelete: "cascade" }),
+    /** Position within the round, counting from zero. */
+    index: integer("index").notNull(),
+    prompt: text("prompt"),
+    response: text("response"),
+    correct: integer("correct", { mode: "boolean" }).notNull(),
+    responseMs: integer("response_ms").notNull(),
+  },
+  (table) => [index("session_event_session_idx").on(table.sessionId)],
 );
 
 /** What a reminder is for. Shown and spoken the same way whichever it is. */
 export type ReminderKind =
-	| "medicine"
-	| "hydration"
-	| "activity"
-	| "appointment";
+  | "medicine"
+  | "hydration"
+  | "activity"
+  | "appointment";
 
 export const reminder = sqliteTable("reminder", {
-	id: text("id").primaryKey(),
-	kind: text("kind").$type<ReminderKind>().notNull(),
-	/** Both are shown and spoken, so both are already-translated copy. */
-	title: text("title").notNull(),
-	detail: text("detail"),
-	/** A time of day plus a days mask, or an rrule-ish string. */
-	schedule: text("schedule").notNull(),
-	active: integer("active", { mode: "boolean" }).notNull().default(true),
-	/**
-	 * The `expo-notifications` ids this reminder currently has scheduled, as a
-	 * JSON array. Kept so that editing or switching off a reminder can cancel
-	 * exactly what it booked, rather than tearing down every notification in the
-	 * app and rebuilding them.
-	 */
-	notificationIds: text("notification_ids").notNull().default("[]"),
+  id: text("id").primaryKey(),
+  kind: text("kind").$type<ReminderKind>().notNull(),
+  /** Both are shown and spoken, so both are already-translated copy. */
+  title: text("title").notNull(),
+  detail: text("detail"),
+  /** A time of day plus a days mask, or an rrule-ish string. */
+  schedule: text("schedule").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  /**
+   * The `expo-notifications` ids this reminder currently has scheduled, as a
+   * JSON array. Kept so that editing or switching off a reminder can cancel
+   * exactly what it booked, rather than tearing down every notification in the
+   * app and rebuilding them.
+   */
+  notificationIds: text("notification_ids").notNull().default("[]"),
 });
 
 /** What happened when a reminder came due. Adherence is computed from these. */
@@ -221,21 +221,21 @@ export type ReminderOutcome = "done" | "snoozed" | "missed";
  * cannot collide on the idempotency key.
  */
 export const reminderEvent = sqliteTable(
-	"reminder_event",
-	{
-		id: text("id").primaryKey(),
-		reminderId: text("reminder_id")
-			.notNull()
-			.references(() => reminder.id, { onDelete: "cascade" }),
-		seq: integer("seq").notNull(),
-		dueAt: integer("due_at").notNull(),
-		acknowledgedAt: integer("acknowledged_at"),
-		outcome: text("outcome").$type<ReminderOutcome>().notNull(),
-	},
-	(table) => [
-		uniqueIndex("reminder_event_seq_idx").on(table.seq),
-		index("reminder_event_due_idx").on(table.dueAt),
-	],
+  "reminder_event",
+  {
+    id: text("id").primaryKey(),
+    reminderId: text("reminder_id")
+      .notNull()
+      .references(() => reminder.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    dueAt: integer("due_at").notNull(),
+    acknowledgedAt: integer("acknowledged_at"),
+    outcome: text("outcome").$type<ReminderOutcome>().notNull(),
+  },
+  (table) => [
+    uniqueIndex("reminder_event_seq_idx").on(table.seq),
+    index("reminder_event_due_idx").on(table.dueAt),
+  ],
 );
 
 /**
@@ -246,40 +246,87 @@ export const reminderEvent = sqliteTable(
  * cache, never at a URL. The People tab has to draw with the radio off.
  */
 export const person = sqliteTable(
-	"person",
-	{
-		id: text("id").primaryKey(),
-		name: text("name").notNull(),
-		/** "Your daughter", "Your neighbour" — already translated, already warm. */
-		relationship: text("relationship").notNull(),
-		photoUri: text("photo_uri"),
-		phone: text("phone"),
-		/** The one the Help screen calls. */
-		isPrimaryContact: integer("is_primary_contact", { mode: "boolean" })
-			.notNull()
-			.default(false),
-		/** The order the family chose. Not alphabetical, not most-recent. */
-		sort: integer("sort").notNull().default(0),
-	},
-	(table) => [index("person_sort_idx").on(table.sort)],
+  "person",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    /** "Your daughter", "Your neighbour" — already translated, already warm. */
+    relationship: text("relationship").notNull(),
+    photoUri: text("photo_uri"),
+    phone: text("phone"),
+    /** The one the Help screen calls. */
+    isPrimaryContact: integer("is_primary_contact", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    /** The order the family chose. Not alphabetical, not most-recent. */
+    sort: integer("sort").notNull().default(0),
+  },
+  (table) => [index("person_sort_idx").on(table.sort)],
 );
 
 /** A photo, a recording or a written memory. Synced down; backs the Memories tab. */
 export type MemoryKind = "photo" | "audio" | "story";
 
 export const memoryItem = sqliteTable(
-	"memory_item",
-	{
-		id: text("id").primaryKey(),
-		kind: text("kind").$type<MemoryKind>().notNull(),
-		caption: text("caption").notNull(),
-		/** A filesystem path into the media cache, for the same reason as `photoUri`. */
-		mediaUri: text("media_uri"),
-		createdAt: integer("created_at").notNull(),
-		/** Who shared it, as a name to show — not an id to resolve. */
-		sharedBy: text("shared_by"),
-	},
-	(table) => [index("memory_item_created_idx").on(table.createdAt)],
+  "memory_item",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").$type<MemoryKind>().notNull(),
+    caption: text("caption").notNull(),
+    /** A filesystem path into the media cache, for the same reason as `photoUri`. */
+    mediaUri: text("media_uri"),
+    createdAt: integer("created_at").notNull(),
+    /** Who shared it, as a name to show — not an id to resolve. */
+    sharedBy: text("shared_by"),
+  },
+  (table) => [index("memory_item_created_idx").on(table.createdAt)],
+);
+
+/** What a memory subject is. The three groups the Memories tab is divided into. */
+export type MemorySubjectKind = "person" | "place" | "object";
+
+/**
+ * A person, a place or an object the family wants the reader to recognise.
+ * Synced **down**, read-only here, and the backing store for the Memories tab.
+ *
+ * Not the same thing as `memory_item`, which is a photo or a story shared as a
+ * moment. A subject is a standing fact about this reader's world — their
+ * daughter, their kitchen, their walking stick — and it is what the recognition
+ * games will eventually draw from. Kept apart so that adding a memory of a
+ * birthday cannot change who the reader is being asked to recognise.
+ *
+ * **The whole table is replaced on every pull.** The server has no `updated_at`
+ * on these and deletes them outright, so there is nothing incremental to send
+ * and the snapshot is the contract (`lib/memory-subjects.ts`). Nothing here is
+ * ever queued: the device never authors a subject and has nothing to send back.
+ */
+export const memorySubject = sqliteTable(
+  "memory_subject",
+  {
+    /** The server's id. This table is the only one whose ids are not ours. */
+    id: text("id").primaryKey(),
+    kind: text("kind").$type<MemorySubjectKind>().notNull(),
+    /** Null while a caregiver is part-way through adding one. */
+    name: text("name"),
+    /** "Your daughter", "Where you have tea" — already translated, already warm. */
+    relationship: text("relationship"),
+    /**
+     * A path into the media cache, never a URL — the tab has to draw with the
+     * radio off (`AGENTS.md` §2.1). Null until the photo has been fetched, or
+     * for a subject that has no picture at all.
+     */
+    photoUri: text("photo_uri"),
+    /**
+     * The stable identity of those bytes, as the server named them. The signed
+     * URL a photo arrives on expires and is different on every pull, so this is
+     * what says whether the picture actually changed — and therefore whether
+     * the cached file is still the right one.
+     */
+    photoKey: text("photo_key"),
+    /** The server's clock. Only ever used to order the tab. */
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [index("memory_subject_kind_idx").on(table.kind, table.createdAt)],
 );
 
 /**
@@ -305,16 +352,16 @@ export type SyncEntity = "game_session" | "reminder_event" | "reminder";
  * retry sends byte-for-byte what the first attempt sent.
  */
 export const syncQueue = sqliteTable("sync_queue", {
-	/** Autoincrement, and read in ascending order: this is the drain order. */
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	entity: text("entity").$type<SyncEntity>().notNull(),
-	entityId: text("entity_id").notNull(),
-	/** Copied from the row so a retry carries the same idempotency key. */
-	seq: integer("seq").notNull(),
-	payload: text("payload").notNull(),
-	/** How many times we have tried. The backoff reads it; nothing else does. */
-	attempts: integer("attempts").notNull().default(0),
-	createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  /** Autoincrement, and read in ascending order: this is the drain order. */
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  entity: text("entity").$type<SyncEntity>().notNull(),
+  entityId: text("entity_id").notNull(),
+  /** Copied from the row so a retry carries the same idempotency key. */
+  seq: integer("seq").notNull(),
+  payload: text("payload").notNull(),
+  /** How many times we have tried. The backoff reads it; nothing else does. */
+  attempts: integer("attempts").notNull().default(0),
+  createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
 });
 
 export type PatientRow = typeof patient.$inferSelect;
@@ -326,4 +373,5 @@ export type ReminderRow = typeof reminder.$inferSelect;
 export type ReminderEventRow = typeof reminderEvent.$inferSelect;
 export type PersonRow = typeof person.$inferSelect;
 export type MemoryItemRow = typeof memoryItem.$inferSelect;
+export type MemorySubjectRow = typeof memorySubject.$inferSelect;
 export type SyncQueueRow = typeof syncQueue.$inferSelect;

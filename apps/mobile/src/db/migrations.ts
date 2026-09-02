@@ -15,8 +15,8 @@
  * exists on disk.
  */
 export const MIGRATIONS: readonly string[] = [
-	// v1 — the device store as `data-model.md` §1 defines it.
-	`
+  // v1 — the device store as `data-model.md` §1 defines it.
+  `
 	CREATE TABLE patient (
 		id                 TEXT PRIMARY KEY NOT NULL,
 		display_name       TEXT NOT NULL,
@@ -126,9 +126,9 @@ export const MIGRATIONS: readonly string[] = [
 	CREATE INDEX sync_queue_entity_idx ON sync_queue (entity, entity_id);
 	`,
 
-	// v2 — what the device takes *down*: a place for history that is not its own, and a
-	// watermark for the pull that brings it (D-34).
-	`
+  // v2 — what the device takes *down*: a place for history that is not its own, and a
+  // watermark for the pull that brings it (D-34).
+  `
 	ALTER TABLE device ADD COLUMN last_pulled_at INTEGER;
 
 	CREATE TABLE remote_session (
@@ -153,5 +153,21 @@ export const MIGRATIONS: readonly string[] = [
 	);
 
 	CREATE INDEX remote_session_game_ended_idx ON remote_session (game_id, ended_at);
+	`,
+
+  // v3 — the people, places and objects the family wants the reader to recognise, and
+  // the cache path of the picture of each.
+  `
+	CREATE TABLE memory_subject (
+		id           TEXT PRIMARY KEY NOT NULL,
+		kind         TEXT NOT NULL,
+		name         TEXT,
+		relationship TEXT,
+		photo_uri    TEXT,
+		photo_key    TEXT,
+		created_at   INTEGER NOT NULL
+	);
+
+	CREATE INDEX memory_subject_kind_idx ON memory_subject (kind, created_at);
 	`,
 ];

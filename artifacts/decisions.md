@@ -2217,3 +2217,53 @@ established.
 existing persisted URLs back to `null` or to presigned ones — that would need its own pass
 over `memory_subjects`, and until then a stale permanent URL in the column would need
 `_attach_subject_photos`'s fresh resolution to actually still be trusted over it.
+## D-45 · 2026-09-02 · Memory subjects sync down as a full snapshot, and their photos are cached to the document directory
+
+The Memories tab now draws the people, places and objects the family keeps on the
+dashboard. `GET /sync/pull` carries them, `memory_subject` holds them, and their
+photographs are downloaded once into a filesystem cache the tab reads off local flash.
+
+**Why a snapshot and not a delta.** `memory_subjects` on the server has no `updated_at`
+and `DELETE .../memories/{id}` removes the row outright. There is nothing for a `since`
+watermark to compare and no tombstone a removal could arrive as — so an incremental pull
+would deliver a rename never and a deletion never, and the phone would go on drawing
+somebody the family took down months ago. The pull sends the complete active set every
+time and `applyMemorySubjects` replaces the table with it. That is affordable — a family
+keeps a handful — and it is the only shape that gets edits, additions and removals right
+without modelling any of them. Adding `updated_at` and a soft delete to the server table
+would let this become a delta later; nothing here would have to change but the query.
+
+**Why two photo fields.** `photo_url` from the server is a presigned GET minted fresh on
+every read (`core/storage.view_url`), so it is different on every pull and says nothing
+about whether the picture changed. `photo_key` — the newest asset's object key, or the
+caregiver's own URL where there is no upload — is stable, and it is what the device caches
+under and compares. A subject whose name was corrected keeps its photograph and costs no
+download. The URL is never stored: by the time anything could read it back it has expired,
+and a stored one would be a broken picture waiting to happen.
+
+**Why `expo-file-system` and not `expo-image`'s own disk cache.** `expo-image` keys its
+cache on the URL, which rotates, so it would re-fetch every photo on every sync. It also
+caches where the OS may reclaim, and an image cache the system can quietly empty is fine
+for an app that can re-fetch and wrong for one whose promise is that it works with the
+radio off. `lib/media-cache.ts` writes to the **document** directory instead, named by
+`photo_key`. This is a new native module: **the dev build must be rebuilt after pulling
+this**, exactly as it was for `expo-sqlite` (D-24).
+
+**The cache is scoped by owner.** `pruneMedia` deletes anything its scope no longer wants
+— that is how a removed subject's photograph leaves the phone, which is a §2.5 obligation
+rather than housekeeping — so `person.photo_uri` landing in the same folder later would
+mean one table's sync deleting the other's files. `MediaScope` is the guard; a second
+consumer adds a member, not a second convention.
+
+**Photos are fetched after the watermark moves, deliberately.** A subject without its
+picture still draws, with its name and how they are related. A fetch that never completes
+must not be the reason the same window is pulled down again tomorrow.
+
+**A missing `subjects` field is not an empty one.** An empty list is an instruction to
+forget every subject; an absent field is a phone talking to a server built before this
+existed. `takeDown` obeys the first and ignores the second — the one place in that file
+where `?? []` would have been a bug.
+
+**One-way, and it must stay that way.** Nothing in `lib/memory-subjects.ts` writes to
+`sync_queue`. A subject is the caregiver's record; the device takes what it is given
+(`data-model.md` §3 rule 2).

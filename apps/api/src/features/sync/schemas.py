@@ -200,6 +200,38 @@ class SessionPull(_Inbound):
     longest_streak: int
 
 
+class MemorySubjectPull(_Inbound):
+    """A person, place or object the family wants the reader to recognise. **Down only.**
+
+    The device never authors one and never sends one back — a subject is the caregiver's
+    record of who and what matters to this reader, and the phone's job is to draw it
+    (`data-model.md` §3 rule 2).
+
+    Two fields describe the picture, and they are not the same thing. `photo_url` is what
+    the phone fetches the bytes from, and unless the bucket is public it is a presigned GET
+    that expires — a fresh one is minted on every pull, so it is different every time and
+    useless as a way of telling whether the picture changed. `photo_key` is the stable
+    identity of those bytes: the object key of the newest upload, or the caregiver's own
+    URL for an externally hosted image. The device caches on the key and re-downloads only
+    when it moves, which is what stops every sync re-fetching a photo it already has over a
+    village 2G connection.
+    """
+
+    id: UUID
+    # "person" | "place" | "object". Sent as the server stores it; a phone that does not
+    # recognise a fifth kind groups it under nothing rather than guessing.
+    kind: str
+    # Nullable on the model, so nullable here. A subject with no name is a caregiver
+    # part-way through adding one, and the phone simply has nothing to caption it with.
+    name: str | None = None
+    relation: str | None = None
+    # Fetchable now, expiring soon. Null when the subject has no picture at all.
+    photo_url: str | None = None
+    # Stable across pulls. The device's cache key; null exactly when `photo_url` is.
+    photo_key: str | None = None
+    created_at: datetime
+
+
 class PullOut(BaseModel):
     """Everything that changed since the device last asked.
 
@@ -214,6 +246,13 @@ class PullOut(BaseModel):
     # would otherwise skip a window of changes or ask for the same ones forever.
     synced_at: datetime
     reminders: list[ReminderPull] = Field(default_factory=list)
+    # **The complete active set, every time — not a delta.** `memory_subjects` carries no
+    # `updated_at` and is deleted outright rather than retired, so there is nothing for a
+    # watermark to compare against and no tombstone to send: a renamed or removed subject
+    # is invisible to "what changed since Tuesday". A family keeps a handful of these, so
+    # a full snapshot costs a few hundred bytes and the device can simply replace what it
+    # holds — which is also the only shape that gets deletions right.
+    subjects: list[MemorySubjectPull] = Field(default_factory=list)
     # Only ever populated when the device asked to be restored. An established phone gets an
     # empty list, because it already holds every round it has played.
     sessions: list[SessionPull] = Field(default_factory=list)
@@ -262,6 +301,7 @@ class SyncAckOut(BaseModel):
 __all__ = [
     "MAX_BATCH",
     "RESTORE_LIMIT",
+    "MemorySubjectPull",
     "PullOut",
     "ReminderPull",
     "SessionPull",

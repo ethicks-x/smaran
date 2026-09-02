@@ -31,9 +31,19 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import DataError, IntegrityError
 
-from features.database.models import Device, Patient, Reminder, ReminderEvent, SessionEvent
+from core.storage import view_url
+from features.database.models import (
+    Device,
+    MemoryAsset,
+    MemorySubject,
+    Patient,
+    Reminder,
+    ReminderEvent,
+    SessionEvent,
+)
 from features.sync.schemas import (
     RESTORE_LIMIT,
+    MemorySubjectPull,
     PullOut,
     RejectedItem,
     ReminderPull,
@@ -316,11 +326,13 @@ async def pull(
     synced_at = datetime.now(UTC)
 
     reminders = await _changed_reminders(session, patient.id, since)
+    subjects = await _memory_subjects(session, patient.id)
     sessions = await _history(session, patient.id) if restore else []
 
     return PullOut(
         synced_at=synced_at,
         reminders=reminders,
+        subjects=subjects,
         sessions=sessions,
         sessions_truncated=len(sessions) >= RESTORE_LIMIT,
     )
@@ -354,6 +366,85 @@ async def _changed_reminders(
         )
         for row in rows
     ]
+
+
+async def _memory_subjects(session: AsyncSession, patient_id: UUID) -> list[MemorySubjectPull]:
+    """Every active person, place and object for this patient — the whole set, not a delta.
+
+    `since` is deliberately not consulted. `memory_subjects` has no `updated_at` and is
+    deleted outright rather than retired, so there is no column a watermark could compare
+    and no tombstone a removal could arrive as. Filtering by "changed since" would send a
+    rename never and a deletion never, and the phone would keep drawing a subject the
+    family took down months ago.
+
+    A full snapshot instead, which the phone replaces wholesale. That is affordable because
+    a family keeps a handful of these, and it is the only shape that is *correct* — a
+    replace gets edits, additions and removals right without any of them needing to be
+    modelled.
+
+    Each subject is paired with its newest ready upload, the same way the caregiver's own
+    list is: a re-upload wins by being newer, and nothing has to delete the row it
+    replaced. A subject with no upload keeps whatever `photo_url` was typed onto it, which
+    is how an externally hosted picture still reaches the phone.
+    """
+    subjects = (
+        await session.scalars(
+            select(MemorySubject)
+            .where(
+                MemorySubject.patient_id == patient_id,
+                MemorySubject.is_active.is_(True),
+            )
+            .order_by(MemorySubject.created_at.desc())
+        )
+    ).all()
+
+    if not subjects:
+        return []
+
+    assets = (
+        await session.scalars(
+            select(MemoryAsset)
+            .where(
+                MemoryAsset.subject_id.in_([subject.id for subject in subjects]),
+                MemoryAsset.status == "ready",
+                MemoryAsset.is_active.is_(True),
+            )
+            .order_by(MemoryAsset.created_at.desc())
+        )
+    ).all()
+
+    # Newest first, so the first one seen for a subject is the one that wins.
+    newest: dict[UUID, MemoryAsset] = {}
+    for asset in assets:
+        if asset.subject_id is not None:
+            newest.setdefault(asset.subject_id, asset)
+
+    pulled = []
+    for subject in subjects:
+        asset = newest.get(subject.id)
+
+        if asset is not None:
+            # The object key is the stable half and the signed URL the perishable one. Both
+            # go down: the phone fetches with the second and caches under the first.
+            photo_url, photo_key = view_url(asset.object_key), asset.object_key
+        else:
+            # No upload, so the caregiver's own URL is both — it is stable precisely
+            # because nothing here is signing it.
+            photo_url = photo_key = subject.photo_url
+
+        pulled.append(
+            MemorySubjectPull(
+                id=subject.id,
+                kind=subject.kind,
+                name=subject.name,
+                relation=subject.relation,
+                photo_url=photo_url,
+                photo_key=photo_key,
+                created_at=subject.created_at,
+            )
+        )
+
+    return pulled
 
 
 async def _history(session: AsyncSession, patient_id: UUID) -> list[SessionPull]:
