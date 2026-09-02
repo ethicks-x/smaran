@@ -139,7 +139,7 @@ export default function DashboardPage() {
                       </p>
                       <p className="text-sm text-ink-500">
                         {p.dob ? `${calculateAge(p.dob)} yrs` : "Age unknown"} ·{" "}
-                        {p.relationship ?? "caregiver"}
+                        patient
                       </p>
                     </div>
                   </div>

@@ -237,22 +237,24 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openUserProfile()}
-            >
-              Change Password
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openUserProfile()}
+              >
+                Change Password
+              </Button>
 
-            <Button
-              variant="danger"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => signOut({ redirectUrl: "/" })}
-            >
-              <LogOut size={14} /> Logout
-            </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => signOut({ redirectUrl: "/" })}
+              >
+                <LogOut size={14} /> Logout
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

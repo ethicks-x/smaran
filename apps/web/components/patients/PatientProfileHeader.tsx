@@ -51,8 +51,8 @@ export function PatientProfileHeader({
                 <Badge tone="mint">Active</Badge>
               </div>
               <p className="mt-1 text-sm text-ink-500">
-                {patient.dob ? calculateAge(patient.dob) : "—"} yrs · Cared for
-                by you ({relationship}) · {patient.address ?? "No address"}
+                {patient.dob ? calculateAge(patient.dob) : "—"} yrs ·{" "}
+                {patient.address ?? "No address"}
               </p>
             </div>
           </div>
