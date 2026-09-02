@@ -105,9 +105,22 @@ async def _link_out(session: AsyncSession, link: PatientCaregiver | None) -> Car
     if link is None:
         return CareLinkOut(status="none")
 
+    status_ = _status_of(link)
     smaran_id = await session.scalar(select(Role.smaran_id).where(Role.id == link.caregiver_id))
 
-    return CareLinkOut(status=_status_of(link), caregiver_smaran_id=smaran_id)
+    if status_ != LINK_ACTIVE:
+        # A pending request is a number somebody typed, not a relationship yet, and a
+        # revoked one is a relationship that ended. Neither one buys a phone number.
+        return CareLinkOut(status=status_, caregiver_smaran_id=smaran_id)
+
+    caregiver = await resolve_clerk_user(link.caregiver_id)
+
+    return CareLinkOut(
+        status=status_,
+        caregiver_smaran_id=smaran_id,
+        caregiver_name=caregiver.full_name if caregiver else None,
+        caregiver_phone=caregiver.phone if caregiver else None,
+    )
 
 
 async def _strongest_link(session: AsyncSession, patient_id: UUID) -> PatientCaregiver | None:

@@ -1,26 +1,27 @@
 import { Button } from "@expo/ui";
+import { tint } from "@expo/ui/swift-ui/modifiers";
 import { StyleSheet } from "react-native";
 
+import type { ActionButtonProps } from "@/components/ui/action-button-props";
 import { NativeHost } from "@/components/ui/native-host";
 import { useThemeColors } from "@/hooks/use-theme";
 import { Radius, TouchTarget } from "@/theme";
 
-export type ActionButtonProps = {
-  label: string;
-  onPress: () => void;
-  /** Visual weight. One `filled` button per screen keeps the choice obvious. */
-  variant?: "filled" | "outlined" | "text";
-  /** `danger` is reserved for calling for help. */
-  tone?: "primary" | "danger";
-  /** `large` is for the single most important action on a screen. */
-  size?: "comfortable" | "large";
-  disabled?: boolean;
-  accessibilityLabel?: string;
-};
+export type { ActionButtonProps };
 
 /**
  * A native platform button (SwiftUI / Jetpack Compose) sized for unsteady
  * hands: full width, never below 64pt tall, with a plain-language label.
+ *
+ * **The tone is a `tint`, not a background.** A `borderedProminent` button
+ * paints its own capsule, so a `backgroundColor` in the style lands *behind*
+ * that capsule and shows as a rim of the wrong colour around it — which is
+ * exactly what a filled danger button used to look like. `tint` is the colour
+ * SwiftUI actually fills the button with, and it is the same modifier for the
+ * other two variants, where it colours the label instead.
+ *
+ * Android replaces this file with `action-button.android.tsx`, where the same
+ * problem has a different answer (D-50).
  */
 export function ActionButton({
   label,
@@ -46,13 +47,8 @@ export function ActionButton({
         onPress={onPress}
         variant={variant}
         disabled={disabled}
-        style={{
-          height,
-          borderRadius: Radius.md,
-          ...(tone === "danger" && variant === "filled"
-            ? { backgroundColor: colors.danger }
-            : null),
-        }}
+        modifiers={[tint(tone === "danger" ? colors.danger : colors.primary)]}
+        style={{ height, borderRadius: Radius.md }}
       />
     </NativeHost>
   );

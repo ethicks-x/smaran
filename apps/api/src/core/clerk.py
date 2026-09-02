@@ -64,11 +64,23 @@ async def resolve_clerk_user(user_id: str | None) -> ClerkUserProfile | None:
             if not email and len(user.email_addresses) > 0:
                 email = user.email_addresses[0].email_address
 
+        # The app writes the number the person typed into their own profile screen to
+        # `unsafe_metadata`, so that is the one they expect to be reached on. A number
+        # Clerk verified at sign-up is the fallback — better a phone that rings than none.
         phone = None
         if user.unsafe_metadata and isinstance(user.unsafe_metadata, dict):
             raw_phone = user.unsafe_metadata.get("phone")
-            if isinstance(raw_phone, str):
-                phone = raw_phone
+            if isinstance(raw_phone, str) and raw_phone.strip():
+                phone = raw_phone.strip()
+
+        if not phone and user.phone_numbers:
+            primary_phone_id = user.primary_phone_number_id
+            for number in user.phone_numbers:
+                if number.id == primary_phone_id:
+                    phone = number.phone_number
+                    break
+            if not phone:
+                phone = user.phone_numbers[0].phone_number
 
         return ClerkUserProfile(
             user_id=user.id,

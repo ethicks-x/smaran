@@ -437,12 +437,15 @@
     "callSection": "Call for help",
     "call": "Call for help",
     "callNamed": "Call {{name}}",
-    "callHint": "Call your emergency contact now",
-    "callNote": "This calls your emergency contact and lets your family know.",
-    "noContactNote": "No emergency contact set yet. Your family can add one from the caregiver dashboard.",
+    "callHint": "Call the person who looks after you",
+    "caregiverLabel": "The person who looks after you",
+    "callNote": "Press the green button and their phone will ring.",
+    "noContactTitle": "No number to call yet",
+    "noContactMessage": "The person who looks after you has not added their phone number. Once they add it to their Smaran account, it will show up here.",
     "otherContacts": "Other contacts",
     "otherContactsDescription": "People who can help when your first contact is busy.",
-    "backupPlaceholder": "Backup contacts will be listed here."
+    "backupTitle": "No other contacts yet",
+    "backupMessage": "Your family can add more people to call from the caregiver dashboard."
   },
   "account": {
     "title": "Account",

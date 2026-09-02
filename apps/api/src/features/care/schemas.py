@@ -5,9 +5,11 @@ patient, and whether that has been agreed to yet. The link starts as a claim the
 makes — they read a Smaran id off a piece of paper and type it in — so it arrives
 `pending` and grants nothing until the caregiver says yes (`AGENTS.md` §2.5).
 
-Nothing here carries a name, a photo or a contact detail. A patient asking to be looked
-after learns only whether the number they typed belongs to somebody; a caregiver reading
-their requests learns a patient id and no more.
+A patient asking to be looked after learns only whether the number they typed belongs to
+somebody. Once a caregiver has *accepted* them, and only then, the link carries that
+caregiver's name and phone number back the other way — the patient's Help screen has to be
+able to call the person who agreed to answer, and there is nowhere else that number lives.
+A caregiver reading their pending requests still learns a patient id and no more.
 """
 
 from __future__ import annotations
@@ -56,6 +58,12 @@ class CareLinkOut(BaseModel):
     # The caregiver the reported status belongs to, so a phone can show which number it is
     # waiting on. Null when the status is `none`.
     caregiver_smaran_id: int | None = None
+    # Who to call for help, resolved from Clerk and sent **only** on an `active` link. A
+    # request that has not been accepted yet is a number the patient typed, not a
+    # relationship, and it buys no contact details (§2.5). The device caches whatever comes
+    # back, because the Help screen has to work with the radio off (§2.1).
+    caregiver_name: str | None = None
+    caregiver_phone: str | None = None
 
 
 class CareRequestOut(BaseModel):

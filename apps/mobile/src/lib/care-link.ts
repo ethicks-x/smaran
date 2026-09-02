@@ -23,9 +23,24 @@ import { ApiError, ApiUnreachableError, apiFetch, type GetToken } from "./api";
 export type CareLinkStatus = "none" | "pending" | "active" | "revoked";
 
 export type CareLink = {
-	status: CareLinkStatus;
-	/** The caregiver this status belongs to. Null when the status is `none`. */
-	caregiverSmaranId: number | null;
+  status: CareLinkStatus;
+  /** The caregiver this status belongs to. Null when the status is `none`. */
+  caregiverSmaranId: number | null;
+  /**
+   * The person who accepted this reader, as the Help screen calls them.
+   *
+   * Sent only on an `active` link and cached with the rest of it, so the one
+   * number on the phone that matters is readable with the radio off (§2.1).
+   * Any of these may be null — a caregiver who never filled a number in is a
+   * screen that says so, not a screen that fails.
+   */
+  caregiver: Caregiver | null;
+};
+
+/** Who looks after this reader, resolved from their account. */
+export type Caregiver = {
+  name: string | null;
+  phone: string | null;
 };
 
 /**
@@ -34,14 +49,15 @@ export type CareLink = {
  * missing signal is worth waiting out, and anything else is worth trying again.
  */
 export type CareLinkFailure =
-	| "unknown-number"
-	| "offline"
-	| "failed"
-	| "deregistered";
+  | "unknown-number"
+  | "offline"
+  | "failed"
+  | "deregistered";
 
 export const UnknownLink: CareLink = {
-	status: "none",
-	caregiverSmaranId: null,
+  status: "none",
+  caregiverSmaranId: null,
+  caregiver: null,
 };
 
 /** How many digits a Smaran number has. Never fewer, never more. */
@@ -53,8 +69,10 @@ const LINK_PATH = "/care/link";
 
 /** The wire shape. Snake case, like everything else the API sends. */
 type CareLinkWire = {
-	status: CareLinkStatus;
-	caregiver_smaran_id: number | null;
+  status: CareLinkStatus;
+  caregiver_smaran_id: number | null;
+  caregiver_name?: string | null;
+  caregiver_phone?: string | null;
 };
 
 /**
@@ -79,47 +97,48 @@ export const isLinked = (link: CareLink): boolean => link.status === "active";
  * behind it is not.
  */
 export async function readCachedLink(userId: string): Promise<CareLink | null> {
-	try {
-		const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+  try {
+    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
 
-		if (!raw) {
-			return null;
-		}
+    if (!raw) {
+      return null;
+    }
 
-		const cached = JSON.parse(raw) as CachedCareLink;
+    const cached = JSON.parse(raw) as CachedCareLink;
 
-		if (cached.userId !== userId || !isStatus(cached.status)) {
-			return null;
-		}
+    if (cached.userId !== userId || !isStatus(cached.status)) {
+      return null;
+    }
 
-		return {
-			status: cached.status,
-			caregiverSmaranId: cached.caregiverSmaranId ?? null,
-		};
-	} catch {
-		// A store that will not read, or a value written by an older build that
-		// does not parse. Either way there is nothing here to trust.
-		return null;
-	}
+    return {
+      status: cached.status,
+      caregiverSmaranId: cached.caregiverSmaranId ?? null,
+      caregiver: cached.caregiver ?? null,
+    };
+  } catch {
+    // A store that will not read, or a value written by an older build that
+    // does not parse. Either way there is nothing here to trust.
+    return null;
+  }
 }
 
 /** Remember what the server said, so the next launch does not have to ask. */
 export async function writeCachedLink(
-	userId: string,
-	link: CareLink,
+  userId: string,
+  link: CareLink,
 ): Promise<void> {
-	const cached: CachedCareLink = { ...link, userId };
+  const cached: CachedCareLink = { ...link, userId };
 
-	await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(cached)).catch(
-		() => {
-			// One repeated call on the next launch, and the reader is told nothing.
-		},
-	);
+  await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(cached)).catch(
+    () => {
+      // One repeated call on the next launch, and the reader is told nothing.
+    },
+  );
 }
 
 /** Where the server says this reader's link stands. */
 export async function fetchLink(getToken: GetToken): Promise<CareLink> {
-	return fromWire(await apiFetch<CareLinkWire>(LINK_PATH, getToken));
+  return fromWire(await apiFetch<CareLinkWire>(LINK_PATH, getToken));
 }
 
 /**
@@ -130,15 +149,15 @@ export async function fetchLink(getToken: GetToken): Promise<CareLink> {
  * second one for somebody to answer.
  */
 export async function requestLink(
-	getToken: GetToken,
-	smaranId: number,
+  getToken: GetToken,
+  smaranId: number,
 ): Promise<CareLink> {
-	return fromWire(
-		await apiFetch<CareLinkWire>(LINK_PATH, getToken, {
-			method: "POST",
-			body: JSON.stringify({ smaran_id: smaranId }),
-		}),
-	);
+  return fromWire(
+    await apiFetch<CareLinkWire>(LINK_PATH, getToken, {
+      method: "POST",
+      body: JSON.stringify({ smaran_id: smaranId }),
+    }),
+  );
 }
 
 /**
@@ -149,43 +168,51 @@ export async function requestLink(
  * A 422 means the digits were not a Smaran number at all.
  */
 export function failureOf(error: unknown): CareLinkFailure {
-	if (error instanceof ApiUnreachableError) {
-		return "offline";
-	}
+  if (error instanceof ApiUnreachableError) {
+    return "offline";
+  }
 
-	if (error instanceof ApiError) {
-		if (error.status === 403) {
-			return "deregistered";
-		}
-		if (error.status === 404 || error.status === 422) {
-			return "unknown-number";
-		}
-	}
+  if (error instanceof ApiError) {
+    if (error.status === 403) {
+      return "deregistered";
+    }
+    if (error.status === 404 || error.status === 422) {
+      return "unknown-number";
+    }
+  }
 
-	return "failed";
+  return "failed";
 }
 
 /** Digits as typed, as a number — or null if that is not a Smaran number. */
 export function parseSmaranId(digits: string): number | null {
-	if (!new RegExp(`^[0-9]{${SmaranIdLength}}$`).test(digits)) {
-		return null;
-	}
+  if (!new RegExp(`^[0-9]{${SmaranIdLength}}$`).test(digits)) {
+    return null;
+  }
 
-	const value = Number(digits);
+  const value = Number(digits);
 
-	// The sequence starts at 100,000,000, so a nine-digit string always lands
-	// above it — this rules out a leading zero rather than a real id.
-	return Number.isSafeInteger(value) ? value : null;
+  // The sequence starts at 100,000,000, so a nine-digit string always lands
+  // above it — this rules out a leading zero rather than a real id.
+  return Number.isSafeInteger(value) ? value : null;
 }
 
 const STATUSES: CareLinkStatus[] = ["none", "pending", "active", "revoked"];
 
 const isStatus = (value: unknown): value is CareLinkStatus =>
-	typeof value === "string" && STATUSES.includes(value as CareLinkStatus);
+  typeof value === "string" && STATUSES.includes(value as CareLinkStatus);
 
 function fromWire(wire: CareLinkWire): CareLink {
-	return {
-		status: isStatus(wire.status) ? wire.status : "none",
-		caregiverSmaranId: wire.caregiver_smaran_id ?? null,
-	};
+  const caregiver: Caregiver = {
+    name: wire.caregiver_name ?? null,
+    phone: wire.caregiver_phone ?? null,
+  };
+
+  return {
+    status: isStatus(wire.status) ? wire.status : "none",
+    caregiverSmaranId: wire.caregiver_smaran_id ?? null,
+    // An older server sends neither. A caregiver with nothing known about them
+    // is `null` rather than a card with two blanks in it.
+    caregiver: caregiver.name || caregiver.phone ? caregiver : null,
+  };
 }

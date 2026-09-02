@@ -2429,3 +2429,69 @@ time that game is opened (D-46) rather than fetched here.
 
 `clearMedia()` is the one call in `media-cache.ts` allowed to ignore the scope partition,
 because it is the only one that means *all of it*.
+
+## D-49 · 2026-09-02 · The Help screen calls the caregiver, and their number rides on the care link
+
+**`GET /care/link` now carries the caregiver's name and phone number, resolved from Clerk,
+and only on an `active` link.** The Help screen had a hardcoded `usePrimaryContact()` that
+returned `null` for ever, so the one screen in the app that exists to reach a human could not
+reach anybody. The number the reader needs is the number of the person who already agreed to
+look after them, and identity lives in Clerk rather than in our tables (D-13, D-20) — so the
+link is where it belongs, and `core/clerk.py` reads it from the profile the person filled in
+on their own account screen, falling back to a number Clerk verified at sign-up.
+
+**Only an `active` link is told anything.** A `pending` request is a nine-digit number
+somebody typed off a piece of paper; treating it as a relationship would let anyone quoting
+an id read a stranger's phone number back out (§2.5). Access is something a caregiver agreed
+to, and contact details travel with the agreement.
+
+**It rides on the link because the link is already cached.** `writeCachedLink` puts the whole
+row in SecureStore and the app reads the cache and lets the network correct it, so the number
+is on the device before it is ever needed and the screen draws with the radio off (§2.1). No
+new table, no new endpoint, no fetch on a screen a frightened person is looking at.
+
+**With no number, there is no button.** The old screen rendered the filled danger button
+`disabled` — a dark red rectangle with an unreadable label that did nothing when pressed. A
+reader with dementia learning that the Help screen does not answer is worse than a reader
+seeing a plain sentence saying the number has not been added yet, which is also the truth and
+is also not something they can fix. So the button appears only when there is somebody to
+call, and the empty case is an `EmptyState` (§2.3).
+
+**The `person` table is still the long-term answer and is still empty.** Backup contacts,
+photos and "your daughter" relationships belong there, and it has no down-sync and no
+dashboard screen behind it yet. The caregiver's own number is the one contact that can be
+known without any of that, and it is the one that matters most.
+
+## D-50 · 2026-09-02 · `ActionButton` splits per platform, because a native button's fill is not a background
+
+**The filled danger button was drawing a red rim around a green pill.** `ActionButton`
+passed `backgroundColor: colors.danger` in the universal `Button`'s `style`, and `@expo/ui`
+turns that into a Compose `background` **modifier** — a box painted *behind* the button.
+The button itself is a Material 3 `Button`, which fills from the theme the host seeds, and
+`NativeHost` seeds every host with the reader's highlight colour (green, for that reader).
+So the reader saw the highlight's pill with the danger colour leaking out around its edges,
+on the one screen in the app where the button being unmistakably red is the entire point.
+
+**Android now gets its own file, like `SelectField` did (D-43, D-44).**
+`action-button.android.tsx` builds the same three variants out of Compose's own
+`Button` / `OutlinedButton` / `TextButton` and passes `colors` — `containerColor`,
+`contentColor` and both disabled halves — straight from the palette, with the label as a
+Compose `Text` sized by the reader's own text-size and bold preferences. The seam Material
+gives you for "this button is this colour" is `colors`, and nothing about a modifier stack
+was ever going to substitute for it.
+
+**iOS keeps the shared file and switches to `tint`.** A `borderedProminent` button paints
+its own capsule too, so `backgroundColor` had the same shape of bug there; `tint` is the
+colour SwiftUI actually fills with, and on the other two variants it colours the label.
+
+**The disabled pair is given explicitly** rather than left to Compose's 38%-opacity default,
+which lands under 3:1 on every fill we have. A button that cannot be pressed is still
+telling the reader something (§2.3) — though on Help, the right answer turned out to be not
+rendering one at all (D-49).
+
+**The props moved to `action-button-props.ts`**, for the reason `select-field-props.ts`
+exists: Metro swaps the whole module on Android and a file cannot import a type from itself.
+
+One consequence worth knowing: `tone="danger"` now reaches the `outlined` and `text`
+variants, which it never did before — Settings' destructive buttons are red-labelled rather
+than blue-labelled from here on. That is what the prop always claimed to mean.
