@@ -5,12 +5,12 @@ import { useApi } from "@/hooks/use-api";
 import type { MemorySubjectApi } from "@/lib/types";
 
 interface UsePatientMemoriesResult {
-	memories: MemorySubjectApi[];
-	loading: boolean;
-	error: string | null;
-	refetch: () => Promise<void>;
-	deleteMemory: (subjectId: string) => Promise<void>;
-	isDeleting: boolean;
+  memories: MemorySubjectApi[];
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+  deleteMemory: (subjectId: string) => Promise<void>;
+  isDeleting: boolean;
 }
 
 /**
@@ -23,53 +23,53 @@ interface UsePatientMemoriesResult {
  * `EditPatientModal` already use. `refetch` is how this hook picks up what they changed.
  */
 export function usePatientMemories(
-	patientId: string,
+  patientId: string,
 ): UsePatientMemoriesResult {
-	const api = useApi();
-	const [memories, setMemories] = useState<MemorySubjectApi[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [isDeleting, setIsDeleting] = useState(false);
+  const api = useApi();
+  const [memories, setMemories] = useState<MemorySubjectApi[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-	const fetchMemories = useCallback(async () => {
-		try {
-			setLoading(true);
-			const res = await api<MemorySubjectApi[]>(
-				`/dashboard/patients/${patientId}/memories`,
-			);
-			setMemories(res);
-			setError(null);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to load memories");
-		} finally {
-			setLoading(false);
-		}
-	}, [api, patientId]);
+  const fetchMemories = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api<MemorySubjectApi[]>(
+        `/dashboard/patients/${patientId}/memories`,
+      );
+      setMemories(res);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load memories");
+    } finally {
+      setLoading(false);
+    }
+  }, [api, patientId]);
 
-	const refetch = useCallback(async () => {
-		await fetchMemories();
-	}, [fetchMemories]);
+  const refetch = useCallback(async () => {
+    await fetchMemories();
+  }, [fetchMemories]);
 
-	const deleteMemory = useCallback(
-		async (subjectId: string): Promise<void> => {
-			try {
-				setIsDeleting(true);
-				await api(`/dashboard/patients/${patientId}/memories/${subjectId}`, {
-					method: "DELETE",
-				});
-				setMemories((prev) => prev.filter((m) => m.id !== subjectId));
-			} finally {
-				setIsDeleting(false);
-			}
-		},
-		[api, patientId],
-	);
+  const deleteMemory = useCallback(
+    async (subjectId: string): Promise<void> => {
+      try {
+        setIsDeleting(true);
+        await api(`/dashboard/patients/${patientId}/memories/${subjectId}`, {
+          method: "DELETE",
+        });
+        setMemories((prev) => prev.filter((m) => m.id !== subjectId));
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    [api, patientId],
+  );
 
-	useEffect(() => {
-		if (patientId) {
-			fetchMemories();
-		}
-	}, [patientId, fetchMemories]);
+  useEffect(() => {
+    if (patientId) {
+      fetchMemories();
+    }
+  }, [patientId, fetchMemories]);
 
-	return { memories, loading, error, refetch, deleteMemory, isDeleting };
+  return { memories, loading, error, refetch, deleteMemory, isDeleting };
 }

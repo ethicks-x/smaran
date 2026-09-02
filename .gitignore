@@ -1,5 +1,8 @@
 node_modules/
 .ruff_cache/
+.next/
+.out/
+.vercel/
 
 *.env
 .env.*

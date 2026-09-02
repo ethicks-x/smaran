@@ -23,10 +23,10 @@ import { type ApiRequestInit, apiFetch } from "@/lib/api";
  * `ApiUnreachableError` when it could not be reached at all.
  */
 export async function api<T>(
-	path: string,
-	init: ApiRequestInit = {},
+  path: string,
+  init: ApiRequestInit = {},
 ): Promise<T> {
-	const { getToken } = await auth();
+  const { getToken } = await auth();
 
-	return apiFetch<T>(path, getToken, init);
+  return apiFetch<T>(path, getToken, init);
 }
