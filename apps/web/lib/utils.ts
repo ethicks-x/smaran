@@ -38,4 +38,3 @@ export function extract10Digits(val?: string | null): string {
   }
   return digits;
 }
-
