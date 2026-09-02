@@ -62,6 +62,7 @@ export default function MemoryCategoryScreen() {
       <SubjectGrid
         subjects={subjects}
         missingPhotoLabel={t("memories.noPhoto")}
+        closeLabel={t("memories.photoClose")}
       />
     </Screen>
   );

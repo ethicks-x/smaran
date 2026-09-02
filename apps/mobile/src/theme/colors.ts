@@ -50,7 +50,7 @@ export const Colors = {
     dangerMuted: "#FBE3E1",
 
     /** Scrims behind sheets and dialogs. */
-    overlay: "rgba(22, 24, 28, 0.45)",
+    overlay: "rgba(22, 24, 28, 0.75)",
     /** Cast by raised surfaces. Never painted as a fill. */
     shadow: "#1B2028",
   },

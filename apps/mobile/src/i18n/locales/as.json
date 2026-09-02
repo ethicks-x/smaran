@@ -420,6 +420,7 @@
     "places": "ঠাই",
     "objects": "বস্তু",
     "noPhoto": "এতিয়ালৈকে ফটো নাই",
+    "photoClose": "ফটোখন বন্ধ কৰক",
     "seeAll": "সকলো চাওক",
     "more_one": "আৰু {{count}}টা",
     "more_other": "আৰু {{count}}টা",

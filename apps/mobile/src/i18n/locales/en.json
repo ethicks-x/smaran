@@ -420,6 +420,7 @@
     "places": "Places",
     "objects": "Things",
     "noPhoto": "No photo yet",
+    "photoClose": "Close the photo",
     "seeAll": "See all",
     "more_one": "{{count}} more",
     "more_other": "{{count}} more",

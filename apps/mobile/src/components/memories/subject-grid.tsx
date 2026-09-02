@@ -21,6 +21,8 @@ const FILLER_KEYS = ["filler-a", "filler-b"] as const;
 export type SubjectGridProps = {
   subjects: readonly MemorySubjectRow[];
   missingPhotoLabel: string;
+  /** The way out of an enlarged photograph. Omit it, and the cards are not tappable. */
+  closeLabel?: string;
   /**
    * Drawn in the cell after the last subject — on the Memories tab, the way
    * through to the whole category. Left out on the category's own page, where
@@ -47,6 +49,7 @@ export type SubjectGridProps = {
 export function SubjectGrid({
   subjects,
   missingPhotoLabel,
+  closeLabel,
   trailing,
 }: SubjectGridProps) {
   const rows = rowsOf(subjects);
@@ -72,6 +75,7 @@ export function SubjectGrid({
                 key={subject.id}
                 subject={subject}
                 missingPhotoLabel={missingPhotoLabel}
+                closeLabel={closeLabel}
               />
             ))}
 

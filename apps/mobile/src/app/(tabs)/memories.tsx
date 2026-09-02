@@ -80,6 +80,7 @@ export default function MemoriesScreen() {
                   hidden > 0 ? group.subjects.slice(0, PREVIEW) : group.subjects
                 }
                 missingPhotoLabel={t("memories.noPhoto")}
+                closeLabel={t("memories.photoClose")}
                 trailing={
                   // Only when something is actually behind it: a tile that
                   // opens a page showing the same faces is a tap that led

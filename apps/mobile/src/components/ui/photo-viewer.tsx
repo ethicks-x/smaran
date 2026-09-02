@@ -1,7 +1,13 @@
 import { Icon } from "@expo/ui";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useState } from "react";
-import { Modal, Pressable, StyleSheet } from "react-native";
+import {
+  type LayoutRectangle,
+  Modal,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import Animated, {
   Easing,
   runOnJS,
@@ -70,6 +76,13 @@ export function PhotoViewer({
   // The modal outlives `visible` by the length of the closing animation: a modal torn down
   // the moment it is hidden takes the picture with it and there is nothing left to animate.
   const [mounted, setMounted] = useState(visible);
+
+  // The photograph is drawn at its own size rather than filling the screen and letter-boxing
+  // itself, so the frame around it is the picture's own edge — which is the only way a
+  // rounded corner or a border is on the photograph rather than on empty space beside it.
+  const [area, setArea] = useState<LayoutRectangle | null>(null);
+  const [ratio, setRatio] = useState<number | null>(null);
+
   const progress = useSharedValue(visible ? 1 : 0);
 
   useEffect(() => {
@@ -136,23 +149,49 @@ export function PhotoViewer({
       <AnimatedPressable
         accessible={false}
         onPress={onRequestClose}
-        style={[styles.scrim, { backgroundColor: colors.overlay }, scrimStyle]}
+        style={[
+          styles.scrim,
+          {
+            backgroundColor: colors.overlay,
+            // The modal is drawn under the status and gesture bars. Now that the frame is
+            // the picture's own edge, it has to stop short of both or a corner is rounded
+            // underneath something the reader cannot move.
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
+          },
+          scrimStyle,
+        ]}
       >
-        <Animated.View style={[styles.stage, photoStyle]}>
-          {photoUri ? (
-            <Image
-              source={{ uri: photoUri }}
-              style={styles.photo}
-              // The whole picture, uncropped and as large as the screen will draw it —
-              // being able to see all of it is the only reason this screen exists.
-              contentFit="contain"
-              transition={0}
-              accessible
-              accessibilityRole="image"
-              accessibilityLabel={label}
-            />
-          ) : null}
-        </Animated.View>
+        {/* Everything the photograph is allowed to fill. Measured rather than assumed:
+            what is left after the scrim's padding and the safe areas is the only thing the
+            picture can be fitted to. */}
+        <View
+          style={styles.area}
+          onLayout={({ nativeEvent }) => setArea(nativeEvent.layout)}
+        >
+          <Animated.View
+            style={[styles.stage, fitted(area, ratio), photoStyle]}
+          >
+            {photoUri ? (
+              <Image
+                source={{ uri: photoUri }}
+                style={styles.photo}
+                // The whole picture, uncropped and as large as the screen will draw it —
+                // being able to see all of it is the only reason this screen exists.
+                contentFit="contain"
+                transition={0}
+                onLoad={({ source }) =>
+                  setRatio(
+                    source.height > 0 ? source.width / source.height : null,
+                  )
+                }
+                accessible
+                accessibilityRole="image"
+                accessibilityLabel={label}
+              />
+            ) : null}
+          </Animated.View>
+        </View>
 
         <Pressable
           onPress={onRequestClose}
@@ -179,15 +218,43 @@ export function PhotoViewer({
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+/**
+ * The largest the photograph goes inside the space it is given, at its own shape.
+ *
+ * Until it has been measured the frame fills that space: `contain` keeps the picture the
+ * right shape in the meantime, so the only thing settling in is the frame drawn around it.
+ */
+function fitted(area: LayoutRectangle | null, ratio: number | null) {
+  if (!area || !ratio || area.width <= 0 || area.height <= 0) {
+    return styles.stageUnmeasured;
+  }
+
+  return {
+    width: Math.min(area.width, area.height * ratio),
+    height: Math.min(area.height, area.width / ratio),
+  };
+}
+
 const styles = StyleSheet.create({
   scrim: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingInline: Spacing["2xl"],
   },
-  // No width cap and no margin: on this screen the photograph is the whole point, so it
-  // takes the whole screen and keeps its own shape inside it.
+  area: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // No width cap: on this screen the photograph is the whole point, so it takes everything
+  // the screen has and keeps its own shape doing it.
   stage: {
+    borderRadius: Radius.xl,
+    overflow: "hidden",
+  },
+  stageUnmeasured: {
     width: "100%",
     height: "100%",
   },

@@ -420,6 +420,7 @@
     "places": "জায়গা",
     "objects": "জিনিস",
     "noPhoto": "এখনও কোনও ছবি নেই",
+    "photoClose": "ছবিটি বন্ধ করুন",
     "seeAll": "সব দেখুন",
     "more_one": "আরও {{count}}টি",
     "more_other": "আরও {{count}}টি",
