@@ -485,6 +485,21 @@
         "body": "Smaran is made to be read easily and used slowly: large type, big buttons, and never more than a few choices at once.",
         "version": "Version"
       },
+      "refresh": {
+        "label": "Refresh this phone",
+        "description": "Get everything again from your family",
+        "body": "This clears the reminders, photographs and games kept on this phone, then fetches them again from your family. Nothing you have done is lost — it is sent on first, and comes straight back.",
+        "action": "Refresh this phone",
+        "hint": "Clear this phone and get everything again",
+        "confirmTitle": "Refresh this phone?",
+        "confirmMessage": "Smaran will clear what is kept here and get it all again from your family. This needs the internet, and takes a moment.",
+        "confirmAction": "Yes, refresh",
+        "confirmCancel": "Not now",
+        "working": "Getting everything again. Please wait a moment.",
+        "done": "Done. Everything on this phone is up to date.",
+        "offline": "Smaran could not reach your family just now, so nothing was changed. Please try again later.",
+        "unavailable": "Smaran could not do that just now, so nothing was changed. Please try again later."
+      },
       "signOut": {
         "label": "Sign out",
         "description": "Leave this account on this phone",

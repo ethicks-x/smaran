@@ -161,6 +161,10 @@ export const AppIcons = {
     ios: "arrow.up.left.and.arrow.down.right",
     android: require("@expo/material-symbols/zoom_out_map.xml"),
   }),
+  refresh: Icon.select({
+    ios: "arrow.clockwise",
+    android: require("@expo/material-symbols/refresh.xml"),
+  }),
   celebrate: Icon.select({
     ios: "sparkles",
     android: require("@expo/material-symbols/celebration.xml"),

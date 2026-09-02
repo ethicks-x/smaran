@@ -136,3 +136,30 @@ function ensureFolder(scope: MediaScope): void {
   // whose first ever sync is this one, neither level exists yet.
   folderFor(scope).create({ idempotent: true, intermediates: true });
 }
+
+/**
+ * Delete every cached file, in every scope.
+ *
+ * The one call that is allowed to ignore the scope partition, because it is the
+ * only one that means *all of it*: the reader has asked for this phone to forget
+ * what it holds and take it down again (`lib/reset.ts`). The folder itself goes
+ * with the files — {@link cacheMedia} recreates it on the first photograph of
+ * the next pull.
+ *
+ * Failing to remove a file is not worth reporting. The rows that pointed at it
+ * are already gone, so nothing will draw it; the next reset tries again.
+ */
+export function clearMedia(): void {
+  const root = new Directory(Paths.document, FOLDER);
+
+  if (!root.exists) {
+    return;
+  }
+
+  try {
+    root.delete();
+  } catch {
+    // Nothing is logged: the path names a patient's own storage (§2.5), and
+    // there is nothing anyone could do with the message anyway.
+  }
+}

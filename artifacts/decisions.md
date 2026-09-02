@@ -2395,3 +2395,37 @@ and TypeScript budgets instantiations per file; `missing.tsx` was already at the
 copy added anywhere in the app tipped it over. Paying the cost once, in the file that owns
 the symbols, keeps the screens clear of it. Inlining the template literal back into a screen
 brings the failure back, and it will land somewhere unrelated again.
+
+---
+
+## D-48 · 2026-09-02 · Refreshing the phone pushes first, and refuses if it cannot
+
+**"Refresh this phone" in Settings clears everything the device holds and takes it all down
+again.** Every content table in `src/db` is emptied — sessions and their events, restored
+history, reminders and their events, memory subjects and the questions written about them,
+shared memories, people, the patient row and the whole sync queue — and the media cache goes
+with them. Then a pull brings the set back from the server.
+
+**The order is push, wipe, pull, and if the push does not land nothing happens at all.** A
+phone in a valley with no signal is holding the only copy of last week's rounds; "clear this
+and fetch it again" is a promise nobody could keep there. So `resetLocalData` drains the
+outbox first and returns `offline` — untouched, nothing cleared — unless the server answered.
+That makes this the second thing in the patient app that needs a network, alongside writing
+quiz questions, and it does not break §2.1: nothing a reader does *with* the app passes
+through here. It is a repair for a phone showing something stale, reached from Settings, and
+refusing it leaves them exactly where they were.
+
+**The `device` row survives the wipe, and only `last_pulled_at` is cleared.** Its id and
+`next_seq` are the two halves of the `(device_id, seq)` key the server upserts on (D-09): a
+device that reset its counter would number tomorrow's rounds over last month's and have them
+silently taken as duplicates. A null watermark, meanwhile, is exactly the state a fresh
+install is in, so the next pull asks for a restore and this reader's whole history comes back
+down — the restore path in `takeDown` already existed and needed nothing added to it (D-34).
+
+**What is deliberately kept:** the Clerk session, so nobody is asked to sign in again (§5);
+the reader's language and appearance, which are their own choices rather than the family's
+data; and the recognition game's questions, which are not kept but are rewritten the next
+time that game is opened (D-46) rather than fetched here.
+
+`clearMedia()` is the one call in `media-cache.ts` allowed to ignore the scope partition,
+because it is the only one that means *all of it*.
