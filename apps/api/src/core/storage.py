@@ -161,3 +161,32 @@ __all__ = [
     "upload_object",
     "view_url",
 ]
+
+
+async def download_object(object_key: str) -> tuple[bytes, str] | None:
+    """
+    Read an object back out of the bucket, as bytes and the content type it was stored with.
+
+    The one read path that pulls the bytes through this API rather than handing out a URL, and
+    it exists for exactly one caller: question generation needs the photograph *itself* to send
+    to the model, and a presigned URL is not something a model can follow.
+
+    `None` rather than an exception for an object that is not there or cannot be read. A
+    missing picture costs one subject its questions and must not cost the other subjects
+    theirs — the caller skips it and carries on.
+    """
+
+    # Outside the guard below on purpose: an unconfigured bucket is a 503 the caller should
+    # see, not one subject quietly missing its questions.
+    bucket = memories_bucket()
+
+    def _get() -> tuple[bytes, str] | None:
+        try:
+            response = _client().get_object(Bucket=bucket, Key=object_key)
+        except Exception:
+            # Nothing is logged. The key names a patient's photograph, which does not belong
+            # in a log line (`AGENTS.md` §2.5), and the outcome is the same either way.
+            return None
+        return response["Body"].read(), response.get("ContentType", "image/jpeg")
+
+    return await anyio.to_thread.run_sync(_get)

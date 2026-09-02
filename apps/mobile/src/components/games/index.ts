@@ -15,11 +15,21 @@ export { MemoryBoard } from "./memory-board";
 export type { MemoryCardProps, MemoryCardState } from "./memory-card";
 export { MemoryCard } from "./memory-card";
 export type {
-	MissingOption,
-	MissingOptionState,
-	MissingOptionsProps,
-	OptionMode,
+  MissingOption,
+  MissingOptionState,
+  MissingOptionsProps,
+  OptionMode,
 } from "./missing-options";
 export { MissingOptions } from "./missing-options";
+export type {
+  PhotoOption,
+  PhotoOptionState,
+  PhotoOptionsProps,
+} from "./photo-options";
+export { PhotoOptions } from "./photo-options";
+export type { PhotoPromptProps } from "./photo-prompt";
+export { PhotoPrompt } from "./photo-prompt";
+export type { PreparingBoardProps } from "./preparing-board";
+export { PreparingBoard } from "./preparing-board";
 export type { SymbolId, SymbolPool } from "./symbols";
 export { SymbolPools, Symbols } from "./symbols";

@@ -349,6 +349,64 @@
       },
       "again": "Play this board again",
       "finish": "I have finished"
+    },
+    "recognise": {
+      "name": "People and places you know",
+      "shortDescription": "Photographs your family shared, and a gentle question about each.",
+      "levels": {
+        "four": {
+          "name": "Four photographs",
+          "phrase": "four photographs"
+        },
+        "five": {
+          "name": "Five photographs",
+          "phrase": "five photographs"
+        },
+        "six": {
+          "name": "Six photographs",
+          "phrase": "six photographs"
+        },
+        "faces": {
+          "name": "Finding the picture",
+          "phrase": "finding the picture"
+        }
+      },
+      "close": "Close the game",
+      "settings": "Settings",
+      "preparingTitle": "Getting your photographs ready",
+      "preparingBody": "This takes a moment. There is nothing to do just now.",
+      "preparingAsking": "We are writing some new questions about your photographs. This takes a moment, and the game works just as well without them.",
+      "preparingLabel": "How much longer the game takes to get ready",
+      "progressLabel": "How many questions you have answered",
+      "photoLabel": "The photograph this question is about",
+      "unnamedPhoto": "A photograph your family shared",
+      "wordOptionsLabel": "Choose the answer",
+      "photoOptionsLabel": "Choose the photograph",
+      "wrongOption": "{{name}}, not the one",
+      "asking": "Question {{asked}} of {{total}}",
+      "rightOne": "Yes, that is the one.",
+      "notThatOne": "Not that one. Have another look — there is no hurry.",
+      "emptyTitle": "There are no photographs here yet",
+      "emptyMessage": "When your family adds people, places and things you know, this game will ask you about them. Nothing is missing on your side.",
+      "emptyAction": "Go back",
+      "doneTitle": "You answered every one",
+      "doneMessage_one": "You answered the question on this board.",
+      "doneMessage_other": "You answered all {{count}} questions on this board.",
+      "foundLabel": "Questions answered",
+      "offer": {
+        "up": "Try the {{board}} board",
+        "down": "Play the {{board}} board"
+      },
+      "reason": {
+        "firstBoard": "A gentle board to begin with.",
+        "easy": "That went quicker than your own last few rounds, so there is a bigger board ready if you would like it.",
+        "steady": "That went much like your own last few rounds — this board suits you nicely.",
+        "hard": "That board asked a lot this time, so here is a gentler one. There is no hurry at all.",
+        "topBoard": "That went quicker than your own last few rounds, and this is the biggest board there is.",
+        "gentlest": "This is the gentlest board there is, and it is a good one to stay with."
+      },
+      "again": "Play this board again",
+      "finish": "I have finished"
     }
   },
   "memories": {

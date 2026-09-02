@@ -17,6 +17,8 @@ contract**; this file is the design intent and the queue of what to build.
 | GET | `/dashboard/health` | `{"feature": "dashboard", "status": "ok"}` |
 | GET | `/dashboard/summary` | `DashboardSummaryOut` — high-level stats cards & patient overviews |
 | GET | `/dashboard/patients` | `list[PatientCardOut]` — patients linked to current caregiver |
+| GET | `/quiz/health` | `{"feature": "quiz", "status": "ok"}` |
+| POST | `/quiz/generate` | `GenerateOut` — recognition questions written from this patient's own memory subjects. **Authenticated**, patient device |
 | POST | `/dashboard/patients` | `PatientCardOut` — register and link a new patient |
 | GET | `/dashboard/patients/{id}` | `PatientDetailOut` — patient profile and summary stats |
 | PATCH | `/dashboard/patients/{id}` | `PatientDetailOut` — update patient metadata or relationship |
@@ -194,6 +196,57 @@ Rules:
 - **`restore=true` is the reinstall case**, asked once (when the device has no `last_pulled_at`).
   It returns up to 200 rounds across every device the patient has used, newest first, **without
   `seq`** — they are not this device's facts and are never sent back up.
+
+### `features/quiz`
+
+| Method | Path | Purpose | State |
+|---|---|---|---|
+| POST | `/quiz/generate` | Show this patient's memory-subject photographs to Gemini and get back gentle recognition questions | ✅ D-46 |
+
+**Optional by contract, like nothing else the phone calls.** The recognition game opens,
+plays and records itself on the questions already in `memory_question`; this call is only
+what puts a better set there for next time. A phone that never reaches it plays exactly the
+same game (`AGENTS.md` §2.1).
+
+```jsonc
+// POST /quiz/generate     { "language": "as" }
+{
+  "generated_at": "2026-09-02T11:04:00Z",
+  "language": "as",
+  "subjects_used": 6,
+  "questions": [
+    {
+      "id": "…",                     // uuid5 of subject + form + language, so a
+      "subject_id": "…",             // regeneration replaces rather than duplicates
+      "form": "about_photo",         // photo shown, words offered
+      "language": "as",
+      "prompt": "এওঁ কোন?",
+      "answer": "মীৰা, আপোনাৰ জীয়ৰী",
+      "options": ["মীৰা, আপোনাৰ জীয়ৰী", "…", "…"]
+    },
+    {
+      "id": "…",
+      "subject_id": "…",
+      "form": "find_photo",          // words shown, photos offered — and the photos
+      "language": "as",              // are chosen on the device, so both are empty
+      "prompt": "কোনখন আপোনাৰ জীয়ৰী মীৰা?",
+      "answer": null,
+      "options": []
+    }
+  ]
+}
+```
+
+- **The key is the server's and stays there.** An app binary carrying a Gemini key is a key
+  anyone can unzip out of an APK (§2.5).
+- **The model is told three things per subject**: kind, name, relationship — and shown the
+  photograph. No session history, no scores, nothing about how this reader has been doing.
+- **An empty `questions` list is not an instruction to forget.** Unlike `PullOut.subjects`,
+  it only ever means the model wrote nothing usable this time; the phone keeps the set it
+  has.
+- Rejected server-side and never sent: a question pointing at a subject that was not
+  submitted, an `about_photo` question with fewer than two options, or one whose right
+  answer is missing. A question nobody can get right is worse than one question fewer.
 
 ### `features/dashboard`
 

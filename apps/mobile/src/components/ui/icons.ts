@@ -153,6 +153,10 @@ export const AppIcons = {
     ios: "shippingbox.fill",
     android: require("@expo/material-symbols/category.xml"),
   }),
+  recognise: Icon.select({
+    ios: "person.crop.rectangle.fill",
+    android: require("@expo/material-symbols/face.xml"),
+  }),
   celebrate: Icon.select({
     ios: "sparkles",
     android: require("@expo/material-symbols/celebration.xml"),

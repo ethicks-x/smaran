@@ -170,4 +170,22 @@ export const MIGRATIONS: readonly string[] = [
 
 	CREATE INDEX memory_subject_kind_idx ON memory_subject (kind, created_at);
 	`,
+
+  // v4 — the questions written about those subjects, one set per language, asked offline
+  // ever after (D-46).
+  `
+	CREATE TABLE memory_question (
+		id         TEXT PRIMARY KEY NOT NULL,
+		subject_id TEXT NOT NULL REFERENCES memory_subject (id) ON DELETE CASCADE,
+		form       TEXT NOT NULL,
+		language   TEXT NOT NULL,
+		prompt     TEXT NOT NULL,
+		answer     TEXT,
+		options    TEXT NOT NULL DEFAULT '[]',
+		created_at INTEGER NOT NULL
+	);
+
+	CREATE INDEX memory_question_language_idx ON memory_question (language);
+	CREATE INDEX memory_question_subject_idx ON memory_question (subject_id);
+	`,
 ];

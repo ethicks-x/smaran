@@ -2267,3 +2267,87 @@ where `?? []` would have been a bug.
 **One-way, and it must stay that way.** Nothing in `lib/memory-subjects.ts` writes to
 `sync_queue`. A subject is the caregiver's record; the device takes what it is given
 (`data-model.md` §3 rule 2).
+
+---
+
+## D-46 · 2026-09-02 · The recognition game: questions written online once, asked offline for ever
+
+**Context.** The problem statement's centrepiece is recognition — people, places and objects
+from the patient's own life. The family already puts those on the dashboard and they already
+sync down with their photographs (D-45). What was missing was the *question*: a photograph on
+its own is not a game, and a sentence about somebody's daughter is not something the app can
+write from a template without sounding like a form.
+
+**Decision.** A third game, `/games/recognise`, whose content is a model's work and whose
+play is entirely local. On the way in it shows a preparing board and — only when the answer
+would actually be different — asks `POST /quiz/generate`, which shows the family's own
+photographs to Gemini and gets back a few gentle questions per subject. Those go into
+`memory_question` and are the game's material from then on: dealt, shuffled and asked with
+the radio off.
+
+**Two forms, and they are the ladder.** `about_photo` shows the photograph and offers words;
+`find_photo` gives the words and offers photographs. They are different tasks rather than one
+task at two sizes — recognising a face in front of you against holding a name in mind while
+looking through several people — so the rungs walk from the first to the second rather than
+simply adding tiles.
+
+**Why the call is on the server and not the phone.** The key. An app binary carrying a Gemini
+key is a key anybody can unzip out of an APK (§2.5). The device holds no credential for
+Google and never learns one; it asks our own API with the Clerk session it already has.
+
+**Why the wait is bounded and never load-bearing.** The preparing board has a floor of about
+a second and a half — below that it reads as a flicker rather than as the game getting ready
+— and a ceiling of nine seconds. When the ceiling is hit the request is *not* abandoned:
+whatever it eventually writes is there for next time, and the game starts now on what it
+already holds. A phone that has been offline for a month reaches the board in the same second
+and a half as one that has just written a fresh set (§2.1). This is the only screen in the
+app that waits on the network at all, and it is allowed to because nothing downstream of the
+wait depends on how it went.
+
+**Why generation is throttled rather than run on every open.** It costs a model call and a
+photograph's worth of upload over a connection that may be 2G. `needsQuestions` asks for one
+only when the answer would differ: no questions in this language at all, somebody added to
+the family's list since the last set, or a set a fortnight old. A subject *removed* needs no
+rule — the questions go with them on the foreign key's cascade the moment the subject
+snapshot is applied.
+
+**Why questions are keyed by language.** A question is a sentence. A set written in Assamese
+is no use to a reader who has just switched to Hindi, so a generation replaces one language's
+rows and leaves the others alone — switching back does not mean generating again (D-12).
+
+**Why an empty generation does not clear the table, when an empty subject pull does.** The
+subject snapshot is authoritative: the server knows the whole set, so an empty one means the
+family took everybody down. An empty generation only ever means the model wrote nothing
+usable this time — a photograph that would not download, a response off-schema — and throwing
+away a working set of questions over that would take the game away from a reader for no
+reason at all. This is the one place the two sync shapes deliberately differ.
+
+**Why the photographs for a `find_photo` question are chosen on the device.** The server does
+not know which pictures finished downloading onto this particular phone. A question whose
+right answer never arrived is one the reader cannot get right, so the decoys are picked from
+the subjects the device actually holds — same kind first, other kinds as a fallback, because
+a round of three faces and a kitchen is still worth playing and no round at all is not.
+
+**What the model is told, and what it is not.** Kind, name, relationship, and the photograph.
+No session history, no scores, no telemetry, nothing about how this reader has been doing. It
+is being asked to phrase a question about a picture, not to form a view about a person — and
+§2.4 does not bend for a model any more than it bends for a chart.
+
+**What is rejected server-side.** A question pointing at a subject that was not submitted, an
+`about_photo` question with fewer than two options, or one whose right answer is not in its
+own option list. All three are questions nobody could get right, and one question fewer is
+always the better board.
+
+**Alternative rejected, for now: templated questions with no model at all.** "Who is this?"
+over every photograph, four times a round, for ever. It needs no network and no key — but it
+cannot use the *relationship* the family typed, cannot vary its phrasing across a fortnight
+of play, and cannot write a plausible wrong answer, which is most of what makes a recognition
+question a question.
+
+**The open consequence of that choice.** A device that has *never once* reached
+`/quiz/generate` has no questions, and the game says so plainly — "there are no photographs
+here yet", worded as something the family has not done rather than something the reader got
+wrong. That is honest and it is not good enough: enrolment happens with connectivity, so a
+first generation could be done there, and a template is still the right floor underneath a
+device that has been offline since the day it was handed over. Both are worth building and
+neither is built.

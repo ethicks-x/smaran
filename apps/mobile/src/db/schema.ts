@@ -329,6 +329,61 @@ export const memorySubject = sqliteTable(
   (table) => [index("memory_subject_kind_idx").on(table.kind, table.createdAt)],
 );
 
+/** Which way round a question is asked. */
+export type MemoryQuestionForm = "about_photo" | "find_photo";
+
+/**
+ * A question about one memory subject, written once and asked from then on offline.
+ *
+ * These arrive from `/quiz/generate`, which shows the family's photographs to a model and
+ * asks it to write a few gentle questions about each. That is the only network call the
+ * recognition game has, it happens on a screen that says it is happening, and the game
+ * plays perfectly well without it — on whatever this table already holds
+ * (`AGENTS.md` §2.1).
+ *
+ * **Rows are keyed by language as well as by subject.** A question is a sentence, and a
+ * sentence written in Assamese is no use to a reader who has just switched to Hindi. The
+ * whole set for one language is replaced when a fresh one arrives; the other languages'
+ * rows are left alone, so switching back does not mean generating again.
+ *
+ * `options` is a JSON array of the written answers for an `about_photo` question, the right
+ * one included and no order implied — the game shuffles them every round. It is empty for a
+ * `find_photo` question, where the answers are photographs the device picks from the
+ * subjects it actually holds. The server cannot choose those: it does not know which
+ * pictures finished downloading onto this phone, and a question whose answer never arrived
+ * is one the reader cannot get right.
+ *
+ * The foreign key cascades, which is what keeps this table honest without any code of its
+ * own: `applyMemorySubjects` deletes a subject the family took down, and that subject's
+ * questions go with it in the same statement.
+ */
+export const memoryQuestion = sqliteTable(
+  "memory_question",
+  {
+    /** The server's id, derived from the subject, the form and the language. */
+    id: text("id").primaryKey(),
+    subjectId: text("subject_id")
+      .notNull()
+      .references(() => memorySubject.id, { onDelete: "cascade" }),
+    form: text("form").$type<MemoryQuestionForm>().notNull(),
+    /** BCP-47, matching the reader's language when the question was written. */
+    language: text("language").notNull(),
+    /** The question itself, already in that language. Shown and, later, spoken. */
+    prompt: text("prompt").notNull(),
+    /** The right written answer. Null for `find_photo`, where the answer is a face. */
+    answer: text("answer"),
+    /** Every written answer offered, as a JSON array. Empty for `find_photo`. */
+    options: text("options").notNull().default("[]"),
+    /** The server's clock at generation. Only ever used to tell one set from an older one. */
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    // The one query the game makes: every question in this reader's language.
+    index("memory_question_language_idx").on(table.language),
+    index("memory_question_subject_idx").on(table.subjectId),
+  ],
+);
+
 /**
  * The entities that sync **up**.
  *
@@ -374,4 +429,5 @@ export type ReminderEventRow = typeof reminderEvent.$inferSelect;
 export type PersonRow = typeof person.$inferSelect;
 export type MemoryItemRow = typeof memoryItem.$inferSelect;
 export type MemorySubjectRow = typeof memorySubject.$inferSelect;
+export type MemoryQuestionRow = typeof memoryQuestion.$inferSelect;
 export type SyncQueueRow = typeof syncQueue.$inferSelect;

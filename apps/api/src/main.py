@@ -16,6 +16,7 @@ from features.auth.router import router as auth_router
 from features.care.router import router as care_router
 from features.dashboard.router import router as dashboard_router
 from features.database.db import init_db
+from features.quiz.router import router as quiz_router
 from features.sync.router import router as sync_router
 from features.user.router import router as user_router
 
@@ -73,6 +74,12 @@ app.include_router(
     sync_router,
     prefix="/sync",
     tags=["Sync"],
+)
+
+app.include_router(
+    quiz_router,
+    prefix="/quiz",
+    tags=["Quiz"],
 )
 
 

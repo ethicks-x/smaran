@@ -14,31 +14,38 @@ import type { AppIconName } from "@/components/ui";
  * first.
  */
 export type GameEntry = {
-	id: string;
-	icon: AppIconName;
-	/** Where the game lives. Typed routes check this against the file tree. */
-	route: "/games/matching" | "/games/missing";
-	/** Catalogue key for the game's name, in the reader's language. */
-	nameKey: ParseKeys;
-	/** Catalogue key for the one line saying what playing it is like. */
-	descriptionKey: ParseKeys;
+  id: string;
+  icon: AppIconName;
+  /** Where the game lives. Typed routes check this against the file tree. */
+  route: "/games/matching" | "/games/missing" | "/games/recognise";
+  /** Catalogue key for the game's name, in the reader's language. */
+  nameKey: ParseKeys;
+  /** Catalogue key for the one line saying what playing it is like. */
+  descriptionKey: ParseKeys;
 };
 
 export const GameCatalogue: readonly GameEntry[] = [
-	{
-		id: "matching",
-		icon: "matching",
-		route: "/games/matching",
-		nameKey: "games.matching.name",
-		descriptionKey: "games.matching.shortDescription",
-	},
-	{
-		id: "missing",
-		icon: "missing",
-		route: "/games/missing",
-		nameKey: "games.missing.name",
-		descriptionKey: "games.missing.shortDescription",
-	},
+  {
+    id: "matching",
+    icon: "matching",
+    route: "/games/matching",
+    nameKey: "games.matching.name",
+    descriptionKey: "games.matching.shortDescription",
+  },
+  {
+    id: "missing",
+    icon: "missing",
+    route: "/games/missing",
+    nameKey: "games.missing.name",
+    descriptionKey: "games.missing.shortDescription",
+  },
+  {
+    id: "recognise",
+    icon: "recognise",
+    route: "/games/recognise",
+    nameKey: "games.recognise.name",
+    descriptionKey: "games.recognise.shortDescription",
+  },
 ];
 
 /** How many games Today has room for beside the way into the full list. */

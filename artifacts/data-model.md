@@ -130,6 +130,29 @@ Synced down. Backs the Memories tab.
 |---|---|
 | `id` text PK · `kind` text (`photo`/`audio`/`story`) · `caption` text · `media_uri` text · `created_at` integer · `shared_by` text |
 
+### `memory_question` ✅
+Written by `/quiz/generate` and asked offline for ever after. One set per **language**, keyed
+to a `memory_subject` — a table this document has not caught up with yet; see D-45 and
+`src/db/schema.ts` for its shape.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | the server's, derived from subject + form + language |
+| `subject_id` | text | FK → `memory_subject`, `ON DELETE CASCADE` |
+| `form` | text | `about_photo` (photo shown, words offered) · `find_photo` (words shown, photos offered) |
+| `language` | text | BCP-47. The prompt is a sentence, so it belongs to one language |
+| `prompt` | text | already translated, already warm |
+| `answer` | text | the right written answer; null for `find_photo` |
+| `options` | text | JSON array of written answers; empty for `find_photo` |
+| `created_at` | integer | |
+
+Synced **down** only, and never queued — the device authors nothing here. A `find_photo`
+question's photo options are chosen **on the device**, from the subjects it actually holds:
+the server does not know which pictures finished downloading onto this phone, and a question
+whose right answer never arrived is one the reader cannot get right. The cascade is what
+retires a question — `applyMemorySubjects` deleting a subject takes its questions with it in
+the same statement (D-46).
+
 ### `sync_queue` ✅
 | Column | Type | Notes |
 |---|---|---|
