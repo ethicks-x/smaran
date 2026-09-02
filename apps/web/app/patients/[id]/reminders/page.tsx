@@ -34,9 +34,11 @@ export default function RemindersPage() {
     null,
   );
 
-  const handleCreate = async (data: Record<string, unknown>) => {
+  const handleCreate = async (
+    data: ReminderCreateInput | ReminderUpdateInput,
+  ) => {
     try {
-      await createReminder(data as ReminderCreateInput);
+      await createReminder(data as unknown as ReminderCreateInput);
       showToast("Reminder created successfully");
       setShowForm(false);
     } catch (_err) {
@@ -44,7 +46,9 @@ export default function RemindersPage() {
     }
   };
 
-  const handleUpdate = async (data: Record<string, unknown>) => {
+  const handleUpdate = async (
+    data: ReminderCreateInput | ReminderUpdateInput,
+  ) => {
     if (!editingReminder) return;
     try {
       await updateReminder(editingReminder.id, data as ReminderUpdateInput);

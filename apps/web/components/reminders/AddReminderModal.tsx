@@ -4,7 +4,11 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { useApi } from "@/hooks/use-api";
-import type { ReminderApi, ReminderCreateInput } from "@/lib/types";
+import type {
+  ReminderApi,
+  ReminderCreateInput,
+  ReminderUpdateInput,
+} from "@/lib/types";
 import { ReminderForm } from "./ReminderForm";
 
 interface AddReminderModalProps {
@@ -26,12 +30,14 @@ export function AddReminderModal({
 
   if (!isOpen) return null;
 
-  const handleCreate = async (data: Record<string, unknown>) => {
+  const handleCreate = async (
+    data: ReminderCreateInput | ReminderUpdateInput,
+  ) => {
     setLoading(true);
     try {
       await api<ReminderApi>(`/dashboard/patients/${patientId}/reminders`, {
         method: "POST",
-        body: data as ReminderCreateInput,
+        body: data as unknown as ReminderCreateInput,
       });
 
       showToast("Reminder created and synced to patient device");

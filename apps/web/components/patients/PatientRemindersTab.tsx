@@ -10,7 +10,11 @@ import {
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { usePatientReminders } from "@/lib/api/usePatientReminders";
-import type { ReminderApi, ReminderUpdateInput } from "@/lib/types";
+import type {
+  ReminderApi,
+  ReminderCreateInput,
+  ReminderUpdateInput,
+} from "@/lib/types";
 
 export function PatientRemindersTab({ patientId }: { patientId: string }) {
   const { showToast } = useToast();
@@ -30,7 +34,9 @@ export function PatientRemindersTab({ patientId }: { patientId: string }) {
     null,
   );
 
-  const handleUpdate = async (data: Record<string, unknown>) => {
+  const handleUpdate = async (
+    data: ReminderCreateInput | ReminderUpdateInput,
+  ) => {
     if (!editingReminder) return;
     try {
       await updateReminder(editingReminder.id, data as ReminderUpdateInput);

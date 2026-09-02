@@ -15,7 +15,8 @@
   },
   "lint-staged": {
     "apps/web/**/*.{ts,tsx,js,jsx,json}": [
-      "bunx biome check --write --config-path apps/web"
+      "bun run --cwd apps/web lint:fix",
+      "bun run --cwd apps/web format"
     ],
     "apps/mobile/**/*.{ts,tsx,js,jsx,json,css}": [
       "bun run --cwd apps/mobile lint:fix",

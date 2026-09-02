@@ -10,7 +10,7 @@ import type {
 } from "@/lib/types";
 
 interface ReminderFormProps {
-  onSubmit: (data: Record<string, unknown>) => Promise<void>;
+  onSubmit: (data: ReminderCreateInput | ReminderUpdateInput) => Promise<void>;
   onCancel?: () => void;
   initialData?: ReminderApi;
   isLoading?: boolean;
