@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { GameCard, GameCatalogue } from "@/components/games";
-import { EmptyState, Screen, Section } from "@/components/ui";
+import { Screen, Section } from "@/components/ui";
 
 /**
  * The games list — one card per game, and a plain word about the ones that are
@@ -19,29 +19,29 @@ import { EmptyState, Screen, Section } from "@/components/ui";
  * and the tiles on Today never disagree about which game comes first.
  */
 export default function GamesScreen() {
-	const { t } = useTranslation();
+  const { t } = useTranslation();
 
-	return (
-		<Screen title={t("games.title")} subtitle={t("games.subtitle")}>
-			<Section title={t("games.ready")}>
-				{GameCatalogue.map((game) => (
-					<GameCard
-						key={game.id}
-						icon={game.icon}
-						title={t(game.nameKey)}
-						description={t(game.descriptionKey)}
-						onPress={() => router.push(game.route)}
-					/>
-				))}
-			</Section>
+  return (
+    <Screen title={t("games.title")} subtitle={t("games.subtitle")}>
+      <Section title={t("games.ready")}>
+        {GameCatalogue.map((game) => (
+          <GameCard
+            key={game.id}
+            icon={game.icon}
+            title={t(game.nameKey)}
+            description={t(game.descriptionKey)}
+            onPress={() => router.push(game.route)}
+          />
+        ))}
+      </Section>
 
-			<Section title={t("games.more")}>
+      {/* <Section title={t("games.more")}>
 				<EmptyState
 					icon="games"
 					title={t("games.moreTitle")}
 					message={t("games.moreMessage")}
 				/>
-			</Section>
-		</Screen>
-	);
+			</Section> */}
+    </Screen>
+  );
 }

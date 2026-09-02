@@ -418,7 +418,16 @@
     "people": "People",
     "places": "Places",
     "objects": "Things",
-    "noPhoto": "No photo yet"
+    "noPhoto": "No photo yet",
+    "seeAll": "See all",
+    "more_one": "{{count}} more",
+    "more_other": "{{count}} more",
+    "seeAllPeople": "See all people",
+    "seeAllPlaces": "See all places",
+    "seeAllObjects": "See all things",
+    "peopleSubtitle": "Everyone your family added, newest first.",
+    "placesSubtitle": "The places your family added, newest first.",
+    "objectsSubtitle": "The things your family added, newest first."
   },
   "help": {
     "title": "Help",

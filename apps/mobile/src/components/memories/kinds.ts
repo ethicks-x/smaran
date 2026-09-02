@@ -31,3 +31,29 @@ export const KIND_TITLE = {
   // are a typed union, and widening these to `string` would put a key that does
   // not exist past the compiler.
 } as const satisfies Record<MemorySubjectKind, string>;
+
+/**
+ * The one line under each category's own page heading, as a catalogue key.
+ *
+ * A whole key per category for the same reason {@link KIND_TITLE} is: these are
+ * sentences, and a sentence assembled from a stem and a category name only ever
+ * comes out right in English (`decisions.md` §D-12).
+ */
+export const KIND_SUBTITLE = {
+  person: "memories.peopleSubtitle",
+  place: "memories.placesSubtitle",
+  object: "memories.objectsSubtitle",
+} as const satisfies Record<MemorySubjectKind, string>;
+
+/**
+ * What the "See all" tile says when a screen reader reads it out.
+ *
+ * The tile itself has room for two words, and "See all" on its own is
+ * meaningless once the heading above it has scrolled past or was never read —
+ * so the accessible name says the category too.
+ */
+export const KIND_SEE_ALL = {
+  person: "memories.seeAllPeople",
+  place: "memories.seeAllPlaces",
+  object: "memories.seeAllObjects",
+} as const satisfies Record<MemorySubjectKind, string>;

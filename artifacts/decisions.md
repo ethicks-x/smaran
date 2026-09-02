@@ -2363,3 +2363,35 @@ wrong. That is honest and it is not good enough: enrolment happens with connecti
 first generation could be done there, and a template is still the right floor underneath a
 device that has been offline since the day it was handed over. Both are worth building and
 neither is built.
+
+---
+
+## D-47 · 2026-09-02 · A category on Memories is two rows and a way through, and symbol names are looked up in one place
+
+**Memories shows six cells per category and never more.** Three cards to a row, two rows:
+five subjects, newest first, and a **See all** tile in the sixth cell that pushes
+`app/memories/[kind]` — the same grid and the same cards, with the whole category in it —
+on top of the tabs. It was two cards to a row and every subject on the tab, which meant a
+family with twenty photographs of people buried Places and Things below anything a reader
+would ever scroll to. A block of a fixed size keeps the tab in the same shape whatever the
+family has added, which is the point of the page (§2.3).
+
+**The tile is only drawn when something is genuinely behind it.** With five subjects or
+fewer the category is complete on the tab and there is no tile at all. A tap that opens a
+page showing the same faces teaches someone with dementia that this app does not go
+anywhere, and that lesson is expensive to undo.
+
+The category page reads the same rows through `useMemorySubjects`, so it opens with the
+radio off like everything else on this tab. A deep link naming a category that does not
+exist gets the same empty state as an empty tab, in the reader's own words, rather than an
+error.
+
+**Unrelated in subject, caused by the same change: `symbolName(t, id)` in
+`components/games/symbols.ts` replaces `t(\`games.symbols.${id}\`)` at five call sites.**
+Adding nine keys to the locale catalogue made `missing.tsx` fail to compile with TS2589 —
+"type instantiation is excessively deep" — on a line nobody had touched. The catalogue's
+key union is resolved against that template literal once per call, eighty-six symbols wide,
+and TypeScript budgets instantiations per file; `missing.tsx` was already at the edge, so
+copy added anywhere in the app tipped it over. Paying the cost once, in the file that owns
+the symbols, keeps the screens clear of it. Inlining the template literal back into a screen
+brings the failure back, and it will land somewhere unrelated again.

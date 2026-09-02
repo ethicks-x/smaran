@@ -418,7 +418,16 @@
     "people": "लोग",
     "places": "जगहें",
     "objects": "चीज़ें",
-    "noPhoto": "अभी कोई फ़ोटो नहीं"
+    "noPhoto": "अभी कोई फ़ोटो नहीं",
+    "seeAll": "सब देखें",
+    "more_one": "{{count}} और",
+    "more_other": "{{count}} और",
+    "seeAllPeople": "सब लोग देखें",
+    "seeAllPlaces": "सब जगहें देखें",
+    "seeAllObjects": "सब चीज़ें देखें",
+    "peopleSubtitle": "आपके परिवार ने जिन्हें जोड़ा है, सबसे नए सबसे ऊपर।",
+    "placesSubtitle": "आपके परिवार ने जो जगहें जोड़ी हैं, सबसे नई सबसे ऊपर।",
+    "objectsSubtitle": "आपके परिवार ने जो चीज़ें जोड़ी हैं, सबसे नई सबसे ऊपर।"
   },
   "help": {
     "title": "मदद",

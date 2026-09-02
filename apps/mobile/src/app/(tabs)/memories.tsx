@@ -1,8 +1,27 @@
+import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { KIND_TITLE, SubjectGrid } from "@/components/memories";
+import {
+  COLUMNS,
+  KIND_SEE_ALL,
+  KIND_TITLE,
+  SeeAllCard,
+  SubjectGrid,
+} from "@/components/memories";
 import { EmptyState, Screen, Section } from "@/components/ui";
+import type { MemorySubjectKind } from "@/db/schema";
 import { useMemorySubjects } from "@/hooks/use-memory-subjects";
+
+/**
+ * How many subjects a category shows here before the rest move behind a tile.
+ *
+ * Two rows of {@link COLUMNS}, with the last cell spent on the way through to
+ * the whole category. A block of a fixed size is the point: every category is
+ * the same shape whether the family has added four people or forty, so the tab
+ * is one screenful a reader can take in rather than a column of faces that
+ * pushes Places and Things somewhere they will never be scrolled to.
+ */
+const PREVIEW = COLUMNS * 2 - 1;
 
 /**
  * Memories — the people, places and objects the family wants the reader to
@@ -20,7 +39,8 @@ import { useMemorySubjects } from "@/hooks/use-memory-subjects";
  *
  * Everything drawn here came off local flash. The rows and the photographs are
  * synced down and cached (`lib/memory-subjects.ts`), so the tab opens exactly
- * the same with the radio off.
+ * the same with the radio off — including the category pages, which read the
+ * same rows.
  *
  * TODO: read each name and relationship aloud on tap, once there is TTS.
  */
@@ -50,14 +70,38 @@ export default function MemoriesScreen() {
     >
       {groups
         .filter((group) => group.subjects.length > 0)
-        .map((group) => (
-          <Section key={group.kind} title={t(KIND_TITLE[group.kind])}>
-            <SubjectGrid
-              subjects={group.subjects}
-              missingPhotoLabel={t("memories.noPhoto")}
-            />
-          </Section>
-        ))}
+        .map((group) => {
+          const hidden = group.subjects.length - PREVIEW;
+
+          return (
+            <Section key={group.kind} title={t(KIND_TITLE[group.kind])}>
+              <SubjectGrid
+                subjects={
+                  hidden > 0 ? group.subjects.slice(0, PREVIEW) : group.subjects
+                }
+                missingPhotoLabel={t("memories.noPhoto")}
+                trailing={
+                  // Only when something is actually behind it: a tile that
+                  // opens a page showing the same faces is a tap that led
+                  // nowhere, and nowhere is a hard place to come back from.
+                  hidden > 0 ? (
+                    <SeeAllCard
+                      label={t("memories.seeAll")}
+                      remaining={t("memories.more", { count: hidden })}
+                      accessibilityLabel={t(KIND_SEE_ALL[group.kind])}
+                      onPress={() => open(group.kind)}
+                    />
+                  ) : undefined
+                }
+              />
+            </Section>
+          );
+        })}
     </Screen>
   );
+}
+
+/** Push the category's own page, on top of the tabs. */
+function open(kind: MemorySubjectKind) {
+  router.push({ pathname: "/memories/[kind]", params: { kind } });
 }

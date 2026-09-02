@@ -4,27 +4,28 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
 import type {
-	GridItem,
-	MissingOption,
-	OptionMode,
-	SymbolId,
-	SymbolPool,
+  GridItem,
+  MissingOption,
+  OptionMode,
+  SymbolId,
+  SymbolPool,
 } from "@/components/games";
 import {
-	GameFrame,
-	GameStatsDetail,
-	GameSummary,
-	ItemGrid,
-	MissingOptions,
-	SymbolPools,
-	Symbols,
+  GameFrame,
+  GameStatsDetail,
+  GameSummary,
+  ItemGrid,
+  MissingOptions,
+  SymbolPools,
+  Symbols,
+  symbolName,
 } from "@/components/games";
 import {
-	ActionButton,
-	Confetti,
-	Dialog,
-	ProgressBar,
-	Text,
+  ActionButton,
+  Confetti,
+  Dialog,
+  ProgressBar,
+  Text,
 } from "@/components/ui";
 import { useGameSession } from "@/hooks/use-game-session";
 import { adjustDifficulty, type DifficultyAdvice } from "@/lib/adaptive";
@@ -51,54 +52,54 @@ const GAME_ID = "missing";
  * 18 and 24 against pools of 24, 24, 24 and 86.
  */
 const LEVELS = [
-	{
-		id: "six",
-		items: 6,
-		columns: 3,
-		missing: 1,
-		options: 3,
-		mode: "picture",
-		pool: "plain",
-	},
-	{
-		id: "nine",
-		items: 9,
-		columns: 3,
-		missing: 1,
-		options: 4,
-		mode: "picture",
-		pool: "plain",
-	},
-	{
-		id: "twelve",
-		items: 12,
-		columns: 4,
-		missing: 2,
-		options: 4,
-		mode: "word",
-		pool: "plain",
-	},
-	{
-		id: "sixteen",
-		items: 16,
-		columns: 4,
-		missing: 2,
-		options: 5,
-		mode: "word",
-		pool: "wide",
-	},
+  {
+    id: "six",
+    items: 6,
+    columns: 3,
+    missing: 1,
+    options: 3,
+    mode: "picture",
+    pool: "plain",
+  },
+  {
+    id: "nine",
+    items: 9,
+    columns: 3,
+    missing: 1,
+    options: 4,
+    mode: "picture",
+    pool: "plain",
+  },
+  {
+    id: "twelve",
+    items: 12,
+    columns: 4,
+    missing: 2,
+    options: 4,
+    mode: "word",
+    pool: "plain",
+  },
+  {
+    id: "sixteen",
+    items: 16,
+    columns: 4,
+    missing: 2,
+    options: 5,
+    mode: "word",
+    pool: "wide",
+  },
 ] as const satisfies readonly {
-	id: string;
-	/** How many things are shown to begin with. */
-	items: number;
-	/** Tiles to a row. */
-	columns: number;
-	/** How many of them go away. */
-	missing: number;
-	/** How many answers are offered per question, the right one included. */
-	options: number;
-	mode: OptionMode;
-	pool: SymbolPool;
+  id: string;
+  /** How many things are shown to begin with. */
+  items: number;
+  /** Tiles to a row. */
+  columns: number;
+  /** How many of them go away. */
+  missing: number;
+  /** How many answers are offered per question, the right one included. */
+  options: number;
+  mode: OptionMode;
+  pool: SymbolPool;
 }[];
 
 type Level = (typeof LEVELS)[number];
@@ -123,23 +124,23 @@ const FOUND_HELD_MS = 1100;
  * into the hole it left.
  */
 type Slot = {
-	id: string;
-	/** Null for a gap. */
-	item: SymbolId | null;
-	/** Which question fills this gap, counting from zero. Null for a thing that
-	 * never left. */
-	question: number | null;
+  id: string;
+  /** Null for a gap. */
+  item: SymbolId | null;
+  /** Which question fills this gap, counting from zero. Null for a thing that
+   * never left. */
+  question: number | null;
 };
 
 /** One board: what was shown, what came back, and the questions to ask. */
 type Board = {
-	/** Everything, in the order it is studied. */
-	shown: readonly SymbolId[];
-	/** The answer board — the same things in a fresh order, with a gap in place
-	 * of each one that went. */
-	slots: readonly Slot[];
-	/** One question per thing that went, asked in order. */
-	questions: readonly { answer: SymbolId; options: readonly SymbolId[] }[];
+  /** Everything, in the order it is studied. */
+  shown: readonly SymbolId[];
+  /** The answer board — the same things in a fresh order, with a gap in place
+   * of each one that went. */
+  slots: readonly Slot[];
+  /** One question per thing that went, asked in order. */
+  questions: readonly { answer: SymbolId; options: readonly SymbolId[] }[];
 };
 
 type Phase = "study" | "asking" | "settling" | "won";
@@ -184,372 +185,372 @@ type Phase = "study" | "asking" | "settling" | "won";
  * about being comfortable with a list of names.
  */
 export default function MissingScreen() {
-	const { t } = useTranslation();
+  const { t } = useTranslation();
 
-	const session = useGameSession({ gameId: GAME_ID });
+  const session = useGameSession({ gameId: GAME_ID });
 
-	// Where this reader starts is their own recent rounds' business (§2.4). Read
-	// once, on the first render: nothing changes the history while the screen is
-	// open except this screen finishing a board, and that is handled where it
-	// happens.
-	const [levelIndex, setLevelIndex] = useState(openingIndex);
-	const level = LEVELS[levelIndex] ?? LEVELS[0];
+  // Where this reader starts is their own recent rounds' business (§2.4). Read
+  // once, on the first render: nothing changes the history while the screen is
+  // open except this screen finishing a board, and that is handled where it
+  // happens.
+  const [levelIndex, setLevelIndex] = useState(openingIndex);
+  const level = LEVELS[levelIndex] ?? LEVELS[0];
 
-	/** Counts the boards dealt this sitting. Nothing reads it as a score — it is
-	 * what tells the draining bar and the confetti that this is a new board and
-	 * not the last one still running. */
-	const [round, setRound] = useState(0);
+  /** Counts the boards dealt this sitting. Nothing reads it as a score — it is
+   * what tells the draining bar and the confetti that this is a new board and
+   * not the last one still running. */
+  const [round, setRound] = useState(0);
 
-	const [board, setBoard] = useState<Board>(() =>
-		deal(LEVELS[levelIndex] ?? LEVELS[0]),
-	);
-	const [phase, setPhase] = useState<Phase>("study");
-	const [studyLeft, setStudyLeft] = useState(1);
+  const [board, setBoard] = useState<Board>(() =>
+    deal(LEVELS[levelIndex] ?? LEVELS[0]),
+  );
+  const [phase, setPhase] = useState<Phase>("study");
+  const [studyLeft, setStudyLeft] = useState(1);
 
-	/** Which question is being asked, counting from zero. */
-	const [askIndex, setAskIndex] = useState(0);
+  /** Which question is being asked, counting from zero. */
+  const [askIndex, setAskIndex] = useState(0);
 
-	/** Options tried on the current question and found not to have been there.
-	 * Cleared with each new question. */
-	const [wrong, setWrong] = useState<SymbolId[]>([]);
+  /** Options tried on the current question and found not to have been there.
+   * Cleared with each new question. */
+  const [wrong, setWrong] = useState<SymbolId[]>([]);
 
-	/** The things that have been named and put back. Grows across the whole
-	 * board and is never cleared until the next deal. */
-	const [found, setFound] = useState<SymbolId[]>([]);
+  /** The things that have been named and put back. Grows across the whole
+   * board and is never cleared until the next deal. */
+  const [found, setFound] = useState<SymbolId[]>([]);
 
-	/** The finished board's own numbers, kept so the dialog can show what just
-	 * happened. Null until a board is cleared, and cleared again with the next
-	 * deal — the card is about this board and no other. */
-	const [summary, setSummary] = useState<SessionStats | null>(null);
+  /** The finished board's own numbers, kept so the dialog can show what just
+   * happened. Null until a board is cleared, and cleared again with the next
+   * deal — the card is about this board and no other. */
+  const [summary, setSummary] = useState<SessionStats | null>(null);
 
-	/** What the engine made of the board that was just finished — which board to
-	 * offer next, and the reason the dialog says out loud. */
-	const [advice, setAdvice] = useState<DifficultyAdvice | null>(null);
+  /** What the engine made of the board that was just finished — which board to
+   * offer next, and the reason the dialog says out loud. */
+  const [advice, setAdvice] = useState<DifficultyAdvice | null>(null);
 
-	const toFind = board.questions.length;
-	const question = board.questions[askIndex];
+  const toFind = board.questions.length;
+  const question = board.questions[askIndex];
 
-	const studyMs = Math.min(
-		STUDY_BASE_MS + STUDY_PER_ITEM_MS * level.items,
-		STUDY_MAX_MS,
-	);
+  const studyMs = Math.min(
+    STUDY_BASE_MS + STUDY_PER_ITEM_MS * level.items,
+    STUDY_MAX_MS,
+  );
 
-	// The look at the board is the only thing in the game that happens on a
-	// clock. There is no button to end it early and nothing else on screen while
-	// it runs: the one thing to do here is look, and the bar draining above says
-	// how much longer there is to do it for.
-	useEffect(() => {
-		if (phase !== "study") {
-			return;
-		}
+  // The look at the board is the only thing in the game that happens on a
+  // clock. There is no button to end it early and nothing else on screen while
+  // it runs: the one thing to do here is look, and the bar draining above says
+  // how much longer there is to do it for.
+  useEffect(() => {
+    if (phase !== "study") {
+      return;
+    }
 
-		// Emptying the bar is a state change like any other; the long duration
-		// handed to it below is what turns the travel into the countdown itself,
-		// so the bar and the timer cannot drift apart.
-		setStudyLeft(0);
+    // Emptying the bar is a state change like any other; the long duration
+    // handed to it below is what turns the travel into the countdown itself,
+    // so the bar and the timer cannot drift apart.
+    setStudyLeft(0);
 
-		const timer = setTimeout(() => {
-			// The session's clock starts when the things go away, not when the board
-			// is dealt. The study is something shown to the reader rather than
-			// something they are doing, and counting it would make a long, careful
-			// look read afterwards as a slow start.
-			session.begin({
-				difficulty: levelIndex + 1,
-				total: toFind,
-				// One tap per missing thing is the fewest this board could take. That
-				// perfect run is what this run is measured against — never another
-				// person's (§2.4).
-				idealAttempts: toFind,
-			});
-			setPhase("asking");
-		}, studyMs);
+    const timer = setTimeout(() => {
+      // The session's clock starts when the things go away, not when the board
+      // is dealt. The study is something shown to the reader rather than
+      // something they are doing, and counting it would make a long, careful
+      // look read afterwards as a slow start.
+      session.begin({
+        difficulty: levelIndex + 1,
+        total: toFind,
+        // One tap per missing thing is the fewest this board could take. That
+        // perfect run is what this run is measured against — never another
+        // person's (§2.4).
+        idealAttempts: toFind,
+      });
+      setPhase("asking");
+    }, studyMs);
 
-		return () => clearTimeout(timer);
-	}, [phase, studyMs, session, levelIndex, toFind]);
+    return () => clearTimeout(timer);
+  }, [phase, studyMs, session, levelIndex, toFind]);
 
-	// A thing has just been named and is back on the board. Hold it there long
-	// enough to be seen arriving, then ask the next question — or, if that was
-	// the last one, close the board.
-	useEffect(() => {
-		if (phase !== "settling") {
-			return;
-		}
+  // A thing has just been named and is back on the board. Hold it there long
+  // enough to be seen arriving, then ask the next question — or, if that was
+  // the last one, close the board.
+  useEffect(() => {
+    if (phase !== "settling") {
+      return;
+    }
 
-		const timer = setTimeout(() => {
-			if (askIndex + 1 < toFind) {
-				setAskIndex((asked) => asked + 1);
-				setWrong([]);
-				setPhase("asking");
+    const timer = setTimeout(() => {
+      if (askIndex + 1 < toFind) {
+        setAskIndex((asked) => asked + 1);
+        setWrong([]);
+        setPhase("asking");
 
-				return;
-			}
+        return;
+      }
 
-			const stats = session.finish();
+      const stats = session.finish();
 
-			setPhase("won");
+      setPhase("won");
 
-			// Only the call that actually closed the board has numbers; a second
-			// pass through here would get null, and letting that through would empty
-			// the card the reader is looking at.
-			if (stats) {
-				setSummary(stats);
+      // Only the call that actually closed the board has numbers; a second
+      // pass through here would get null, and letting that through would empty
+      // the card the reader is looking at.
+      if (stats) {
+        setSummary(stats);
 
-				// `finish` has already written the row, so the board just played is
-				// the newest thing in the history the engine is about to read — which
-				// is what makes the offer about the round the reader is looking at.
-				setAdvice(
-					adjustDifficulty(recentSessions({ gameId: GAME_ID }), {
-						current: stats.difficulty,
-						rungs: LEVELS.length,
-					}),
-				);
-			}
-		}, FOUND_HELD_MS);
+        // `finish` has already written the row, so the board just played is
+        // the newest thing in the history the engine is about to read — which
+        // is what makes the offer about the round the reader is looking at.
+        setAdvice(
+          adjustDifficulty(recentSessions({ gameId: GAME_ID }), {
+            current: stats.difficulty,
+            rungs: LEVELS.length,
+          }),
+        );
+      }
+    }, FOUND_HELD_MS);
 
-		return () => clearTimeout(timer);
-	}, [phase, askIndex, toFind, session]);
+    return () => clearTimeout(timer);
+  }, [phase, askIndex, toFind, session]);
 
-	const start = (index: number) => {
-		const next = LEVELS[index] ?? LEVELS[0];
+  const start = (index: number) => {
+    const next = LEVELS[index] ?? LEVELS[0];
 
-		// A board still in play when the next one is dealt was put down, and it is
-		// written down as one rather than lost. Nothing about an unfinished board
-		// counts against the reader — `data-model.md` keeps it precisely because
-		// walking away half way through is ordinary and worth knowing about.
-		session.abandon();
+    // A board still in play when the next one is dealt was put down, and it is
+    // written down as one rather than lost. Nothing about an unfinished board
+    // counts against the reader — `data-model.md` keeps it precisely because
+    // walking away half way through is ordinary and worth knowing about.
+    session.abandon();
 
-		setLevelIndex(index);
-		setRound((dealt) => dealt + 1);
-		setBoard(deal(next));
-		setAskIndex(0);
-		setWrong([]);
-		setFound([]);
-		setStudyLeft(1);
-		setPhase("study");
-		setSummary(null);
-		setAdvice(null);
-	};
+    setLevelIndex(index);
+    setRound((dealt) => dealt + 1);
+    setBoard(deal(next));
+    setAskIndex(0);
+    setWrong([]);
+    setFound([]);
+    setStudyLeft(1);
+    setPhase("study");
+    setSummary(null);
+    setAdvice(null);
+  };
 
-	const choose = (id: string) => {
-		// Only while a question is actually open: a tap landing during the hold
-		// after a right answer belongs to nothing, and counting it would put an
-		// attempt against a question that was already over.
-		if (phase !== "asking" || !question) {
-			return;
-		}
+  const choose = (id: string) => {
+    // Only while a question is actually open: a tap landing during the hold
+    // after a right answer belongs to nothing, and counting it would put an
+    // attempt against a question that was already over.
+    if (phase !== "asking" || !question) {
+      return;
+    }
 
-		// The tapped id is read back out of the question's own options rather than
-		// asserted to be a symbol, which is what keeps the rest of this function
-		// typed without a cast.
-		const picked = question.options.find((option) => option === id);
+    // The tapped id is read back out of the question's own options rather than
+    // asserted to be a symbol, which is what keeps the rest of this function
+    // typed without a cast.
+    const picked = question.options.find((option) => option === id);
 
-		if (!picked || wrong.includes(picked)) {
-			return;
-		}
+    if (!picked || wrong.includes(picked)) {
+      return;
+    }
 
-		const right = picked === question.answer;
+    const right = picked === question.answer;
 
-		// One tap is one attempt, whichever way it went. This is the only place the
-		// game learns anything about how the board is going, so it is the only
-		// place that counts.
-		session.record(right);
+    // One tap is one attempt, whichever way it went. This is the only place the
+    // game learns anything about how the board is going, so it is the only
+    // place that counts.
+    session.record(right);
 
-		if (!right) {
-			setWrong((tried) => [...tried, picked]);
+    if (!right) {
+      setWrong((tried) => [...tried, picked]);
 
-			return;
-		}
+      return;
+    }
 
-		setFound((named) => [...named, question.answer]);
-		setPhase("settling");
-	};
+    setFound((named) => [...named, question.answer]);
+    setPhase("settling");
+  };
 
-	// While the things are being studied the whole board is on screen. After that
-	// it is the same grid with a gap in place of each thing that went, and a gap
-	// is filled the moment its question is answered — in place, so the board the
-	// reader has been looking at never shuffles underneath them.
-	const items: GridItem[] =
-		phase === "study"
-			? board.shown.map((symbol) => ({
-					id: symbol,
-					symbol: Symbols[symbol],
-					label: t(`games.symbols.${symbol}`),
-					state: "shown" as const,
-				}))
-			: board.slots.map((slot) => {
-					// Answers arrive in question order, so the nth answer is the thing
-					// that belongs in the gap the nth question is about.
-					const restored =
-						slot.question === null ? undefined : found[slot.question];
-					const symbol = slot.item ?? restored;
+  // While the things are being studied the whole board is on screen. After that
+  // it is the same grid with a gap in place of each thing that went, and a gap
+  // is filled the moment its question is answered — in place, so the board the
+  // reader has been looking at never shuffles underneath them.
+  const items: GridItem[] =
+    phase === "study"
+      ? board.shown.map((symbol) => ({
+          id: symbol,
+          symbol: Symbols[symbol],
+          label: symbolName(t, symbol),
+          state: "shown" as const,
+        }))
+      : board.slots.map((slot) => {
+          // Answers arrive in question order, so the nth answer is the thing
+          // that belongs in the gap the nth question is about.
+          const restored =
+            slot.question === null ? undefined : found[slot.question];
+          const symbol = slot.item ?? restored;
 
-					if (!symbol) {
-						return {
-							id: slot.id,
-							symbol: "",
-							label: t("games.missing.gapItem"),
-							state: "gap" as const,
-						};
-					}
+          if (!symbol) {
+            return {
+              id: slot.id,
+              symbol: "",
+              label: t("games.missing.gapItem"),
+              state: "gap" as const,
+            };
+          }
 
-					const name = t(`games.symbols.${symbol}`);
+          const name = symbolName(t, symbol);
 
-					return {
-						id: slot.id,
-						symbol: Symbols[symbol],
-						label: slot.item ? name : t("games.missing.restoredItem", { name }),
-						state: slot.item ? ("shown" as const) : ("restored" as const),
-					};
-				});
+          return {
+            id: slot.id,
+            symbol: Symbols[symbol],
+            label: slot.item ? name : t("games.missing.restoredItem", { name }),
+            state: slot.item ? ("shown" as const) : ("restored" as const),
+          };
+        });
 
-	const options: MissingOption[] = (question?.options ?? []).map((symbol) => ({
-		id: symbol,
-		symbol: Symbols[symbol],
-		name: t(`games.symbols.${symbol}`),
-		state: wrong.includes(symbol)
-			? "wrong"
-			: found.includes(symbol)
-				? "correct"
-				: "idle",
-	}));
+  const options: MissingOption[] = (question?.options ?? []).map((symbol) => ({
+    id: symbol,
+    symbol: Symbols[symbol],
+    name: symbolName(t, symbol),
+    state: wrong.includes(symbol)
+      ? "wrong"
+      : found.includes(symbol)
+        ? "correct"
+        : "idle",
+  }));
 
-	// The rung the engine offered, and whether taking it means a different board
-	// at all — at the top of the ladder, or on a run that read as ordinary, the
-	// honest offer is this board again.
-	const offeredIndex = advice ? advice.difficulty - 1 : levelIndex;
-	const offered = LEVELS[offeredIndex] ?? level;
-	const offersAnotherBoard = advice !== null && offeredIndex !== levelIndex;
+  // The rung the engine offered, and whether taking it means a different board
+  // at all — at the top of the ladder, or on a run that read as ordinary, the
+  // honest offer is this board again.
+  const offeredIndex = advice ? advice.difficulty - 1 : levelIndex;
+  const offered = LEVELS[offeredIndex] ?? level;
+  const offersAnotherBoard = advice !== null && offeredIndex !== levelIndex;
 
-	return (
-		<GameFrame
-			title={t(`games.missing.levels.${level.id}.name`)}
-			onClose={() => router.back()}
-			onSettings={() => router.push("/account/appearance")}
-			closeLabel={t("games.missing.close")}
-			settingsLabel={t("games.missing.settings")}
-		>
-			<View style={styles.meter}>
-				{/* Two different bars, never the same one relabelled: one is the time
+  return (
+    <GameFrame
+      title={t(`games.missing.levels.${level.id}.name`)}
+      onClose={() => router.back()}
+      onSettings={() => router.push("/account/appearance")}
+      closeLabel={t("games.missing.close")}
+      settingsLabel={t("games.missing.settings")}
+    >
+      <View style={styles.meter}>
+        {/* Two different bars, never the same one relabelled: one is the time
             left to look, the other is how much of the board has been put back.
             The key remounts the countdown full for each new board, so it only
             ever drains. */}
-				{phase === "study" ? (
-					<ProgressBar
-						key={`study-${round}`}
-						value={studyLeft}
-						tone="accent"
-						durationMs={studyMs}
-						accessibilityLabel={t("games.missing.studyLabel")}
-					/>
-				) : (
-					<ProgressBar
-						value={toFind > 0 ? found.length / toFind : 0}
-						tone={phase === "won" ? "success" : "primary"}
-						accessibilityLabel={t("games.missing.progressLabel")}
-					/>
-				)}
+        {phase === "study" ? (
+          <ProgressBar
+            key={`study-${round}`}
+            value={studyLeft}
+            tone="accent"
+            durationMs={studyMs}
+            accessibilityLabel={t("games.missing.studyLabel")}
+          />
+        ) : (
+          <ProgressBar
+            value={toFind > 0 ? found.length / toFind : 0}
+            tone={phase === "won" ? "success" : "primary"}
+            accessibilityLabel={t("games.missing.progressLabel")}
+          />
+        )}
 
-				{/* The one line of words on the board, and the only thing anyone who
+        {/* The one line of words on the board, and the only thing anyone who
             cannot see it has to go on: it always says what just happened, and
             is read out whenever it changes. */}
-				<Text
-					variant="bodyLarge"
-					color={
-						phase === "settling" || phase === "won"
-							? "success"
-							: "textSecondary"
-					}
-					center
-					accessibilityLiveRegion="polite"
-				>
-					{statusOf({ t, phase, level, board, found, wrong })}
-				</Text>
-			</View>
+        <Text
+          variant="bodyLarge"
+          color={
+            phase === "settling" || phase === "won"
+              ? "success"
+              : "textSecondary"
+          }
+          center
+          accessibilityLiveRegion="polite"
+        >
+          {statusOf({ t, phase, level, board, found, wrong })}
+        </Text>
+      </View>
 
-			<View style={styles.container}>
-				<ItemGrid items={items} columns={level.columns} />
+      <View style={styles.container}>
+        <ItemGrid items={items} columns={level.columns} />
 
-				{/* Only ever on screen when there is a question open or one just
+        {/* Only ever on screen when there is a question open or one just
             answered. During the study there is nothing to answer yet, and once
             the board is done the dialog is what to read. */}
-				{phase === "asking" || phase === "settling" ? (
-					<MissingOptions
-						options={options}
-						mode={level.mode}
-						label={t("games.missing.optionsLabel")}
-						wrongLabel={(name) => t("games.missing.wrongOption", { name })}
-						onPress={choose}
-					/>
-				) : null}
-			</View>
+        {phase === "asking" || phase === "settling" ? (
+          <MissingOptions
+            options={options}
+            mode={level.mode}
+            label={t("games.missing.optionsLabel")}
+            wrongLabel={(name) => t("games.missing.wrongOption", { name })}
+            onPress={choose}
+          />
+        ) : null}
+      </View>
 
-			{/* The board stays behind the dialog exactly as it was finished. Coming
+      {/* The board stays behind the dialog exactly as it was finished. Coming
           back to a cleared screen would take away the thing the reader just
           did — the green tiles are the record of it. */}
-			<Dialog
-				visible={phase === "won"}
-				icon="celebrate"
-				title={t("games.missing.doneTitle")}
-				message={t("games.missing.doneMessage", { count: toFind })}
-				celebration={<Confetti run={round} />}
-				details={
-					summary ? (
-						<>
-							<GameSummary
-								stats={summary}
-								foundLabel={t("games.missing.foundLabel")}
-							/>
+      <Dialog
+        visible={phase === "won"}
+        icon="celebrate"
+        title={t("games.missing.doneTitle")}
+        message={t("games.missing.doneMessage", { count: toFind })}
+        celebration={<Confetti run={round} />}
+        details={
+          summary ? (
+            <>
+              <GameSummary
+                stats={summary}
+                foundLabel={t("games.missing.foundLabel")}
+              />
 
-							{/* Why the buttons below say what they say, in one sentence, in
+              {/* Why the buttons below say what they say, in one sentence, in
                   their language. It compares this board against this reader's
                   own last few rounds of this game and never against anybody
                   else's (§2.4), and if it did that silently there would be
                   nothing here to see. Sits directly above the buttons on
                   purpose — it is the reason for the choice, so it is read
                   immediately before the choice is made. */}
-							{advice ? (
-								<Text variant="bodyLarge" center>
-									{t(`games.missing.reason.${advice.reason}`)}
-								</Text>
-							) : null}
+              {advice ? (
+                <Text variant="bodyLarge" center>
+                  {t(`games.missing.reason.${advice.reason}`)}
+                </Text>
+              ) : null}
 
-							{/* Stripped from a release build, so the reader never meets it —
+              {/* Stripped from a release build, so the reader never meets it —
                   see `GameStatsDetail`. */}
-							{__DEV__ ? <GameStatsDetail stats={summary} /> : null}
-						</>
-					) : null
-				}
-				onRequestClose={() => router.back()}
-			>
-				{/* The one filled button, and it names the board rather than a
+              {__DEV__ ? <GameStatsDetail stats={summary} /> : null}
+            </>
+          ) : null
+        }
+        onRequestClose={() => router.back()}
+      >
+        {/* The one filled button, and it names the board rather than a
             direction: "the board with nine things" is a thing you can picture,
             "a harder board" is a thing you have to work out. */}
-				{offersAnotherBoard ? (
-					<ActionButton
-						label={t(
-							offeredIndex > levelIndex
-								? "games.missing.offer.up"
-								: "games.missing.offer.down",
-							{ board: t(`games.missing.levels.${offered.id}.phrase`) },
-						)}
-						size="large"
-						onPress={() => start(offeredIndex)}
-					/>
-				) : null}
-				<ActionButton
-					label={t("games.missing.again")}
-					variant={offersAnotherBoard ? "outlined" : "filled"}
-					size={offersAnotherBoard ? "comfortable" : "large"}
-					onPress={() => start(levelIndex)}
-				/>
-				<ActionButton
-					label={t("games.missing.finish")}
-					variant="text"
-					onPress={() => router.back()}
-				/>
-			</Dialog>
-		</GameFrame>
-	);
+        {offersAnotherBoard ? (
+          <ActionButton
+            label={t(
+              offeredIndex > levelIndex
+                ? "games.missing.offer.up"
+                : "games.missing.offer.down",
+              { board: t(`games.missing.levels.${offered.id}.phrase`) },
+            )}
+            size="large"
+            onPress={() => start(offeredIndex)}
+          />
+        ) : null}
+        <ActionButton
+          label={t("games.missing.again")}
+          variant={offersAnotherBoard ? "outlined" : "filled"}
+          size={offersAnotherBoard ? "comfortable" : "large"}
+          onPress={() => start(levelIndex)}
+        />
+        <ActionButton
+          label={t("games.missing.finish")}
+          variant="text"
+          onPress={() => router.back()}
+        />
+      </Dialog>
+    </GameFrame>
+  );
 }
 
 /**
@@ -558,51 +559,51 @@ export default function MissingScreen() {
  * language says it (D-12).
  */
 function statusOf({
-	t,
-	phase,
-	level,
-	board,
-	found,
-	wrong,
+  t,
+  phase,
+  level,
+  board,
+  found,
+  wrong,
 }: {
-	t: ReturnType<typeof useTranslation>["t"];
-	phase: Phase;
-	level: Level;
-	board: Board;
-	found: readonly SymbolId[];
-	wrong: readonly SymbolId[];
+  t: ReturnType<typeof useTranslation>["t"];
+  phase: Phase;
+  level: Level;
+  board: Board;
+  found: readonly SymbolId[];
+  wrong: readonly SymbolId[];
 }) {
-	if (phase === "study") {
-		return t("games.missing.studyBody", { count: level.missing });
-	}
+  if (phase === "study") {
+    return t("games.missing.studyBody", { count: level.missing });
+  }
 
-	if (phase === "won") {
-		return t("games.missing.doneTitle");
-	}
+  if (phase === "won") {
+    return t("games.missing.doneTitle");
+  }
 
-	if (phase === "settling") {
-		const justFound = found[found.length - 1];
+  if (phase === "settling") {
+    const justFound = found[found.length - 1];
 
-		return justFound
-			? t("games.missing.found", { name: t(`games.symbols.${justFound}`) })
-			: t("games.missing.doneTitle");
-	}
+    return justFound
+      ? t("games.missing.found", { name: symbolName(t, justFound) })
+      : t("games.missing.doneTitle");
+  }
 
-	// A wrong answer says what is true about the thing tapped — that it was never
-	// one of them — rather than that the reader got it wrong. Only the most
-	// recent one, because the line is read out on every change and a growing list
-	// would be read out from the beginning each time.
-	const lastWrong = wrong[wrong.length - 1];
+  // A wrong answer says what is true about the thing tapped — that it was never
+  // one of them — rather than that the reader got it wrong. Only the most
+  // recent one, because the line is read out on every change and a growing list
+  // would be read out from the beginning each time.
+  const lastWrong = wrong[wrong.length - 1];
 
-	if (lastWrong) {
-		return t("games.missing.notThatOne", {
-			name: t(`games.symbols.${lastWrong}`),
-		});
-	}
+  if (lastWrong) {
+    return t("games.missing.notThatOne", {
+      name: symbolName(t, lastWrong),
+    });
+  }
 
-	return t("games.missing.ask", {
-		count: board.questions.length - found.length,
-	});
+  return t("games.missing.ask", {
+    count: board.questions.length - found.length,
+  });
 }
 
 /**
@@ -613,16 +614,16 @@ function statusOf({
  * only the ordinary answer to an ordinary question.
  */
 function openingIndex(): number {
-	const history = recentSessions({ gameId: GAME_ID });
+  const history = recentSessions({ gameId: GAME_ID });
 
-	const { difficulty } = adjustDifficulty(history, {
-		// The rung they last played is where the ladder is for them. On a device
-		// with no history the engine ignores this and starts at the bottom.
-		current: history[0]?.difficulty ?? 1,
-		rungs: LEVELS.length,
-	});
+  const { difficulty } = adjustDifficulty(history, {
+    // The rung they last played is where the ladder is for them. On a device
+    // with no history the engine ignores this and starts at the bottom.
+    current: history[0]?.difficulty ?? 1,
+    rungs: LEVELS.length,
+  });
 
-	return difficulty - 1;
+  return difficulty - 1;
 }
 
 /**
@@ -649,40 +650,40 @@ function openingIndex(): number {
  * same thing and mean different answers by it.
  */
 function deal(level: Level): Board {
-	// Read out through one narrow binding: `SymbolPools[level.pool]` is a union
-	// of two differently-shaped readonly tuples, which nothing can be filtered
-	// out of without this.
-	const pool: readonly SymbolId[] = SymbolPools[level.pool];
+  // Read out through one narrow binding: `SymbolPools[level.pool]` is a union
+  // of two differently-shaped readonly tuples, which nothing can be filtered
+  // out of without this.
+  const pool: readonly SymbolId[] = SymbolPools[level.pool];
 
-	const items = shuffled(pool).slice(0, level.items);
-	const gone = items.slice(0, level.missing);
-	const left = items.slice(level.missing);
+  const items = shuffled(pool).slice(0, level.items);
+  const gone = items.slice(0, level.missing);
+  const left = items.slice(level.missing);
 
-	const decoys = shuffled(pool.filter((symbol) => !items.includes(symbol)));
-	const perQuestion = level.options - 1;
+  const decoys = shuffled(pool.filter((symbol) => !items.includes(symbol)));
+  const perQuestion = level.options - 1;
 
-	return {
-		shown: shuffled(items),
-		slots: shuffled([
-			...left.map((item, index) => ({
-				id: `slot-${index}`,
-				item,
-				question: null,
-			})),
-			...gone.map((_, index) => ({
-				id: `gap-${index}`,
-				item: null,
-				question: index,
-			})),
-		]),
-		questions: gone.map((answer, index) => ({
-			answer,
-			options: shuffled([
-				answer,
-				...decoys.slice(index * perQuestion, (index + 1) * perQuestion),
-			]),
-		})),
-	};
+  return {
+    shown: shuffled(items),
+    slots: shuffled([
+      ...left.map((item, index) => ({
+        id: `slot-${index}`,
+        item,
+        question: null,
+      })),
+      ...gone.map((_, index) => ({
+        id: `gap-${index}`,
+        item: null,
+        question: index,
+      })),
+    ]),
+    questions: gone.map((answer, index) => ({
+      answer,
+      options: shuffled([
+        answer,
+        ...decoys.slice(index * perQuestion, (index + 1) * perQuestion),
+      ]),
+    })),
+  };
 }
 
 /**
@@ -691,20 +692,20 @@ function deal(level: Level): Board {
  * hand-written shuffle always hides.
  */
 function shuffled<T>(items: readonly T[]): T[] {
-	return items
-		.map((item) => ({ item, order: Math.random() }))
-		.sort((left, right) => left.order - right.order)
-		.map(({ item }) => item);
+  return items
+    .map((item) => ({ item, order: Math.random() }))
+    .sort((left, right) => left.order - right.order)
+    .map(({ item }) => item);
 }
 
 const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		padding: Spacing.md,
-		gap: Spacing.xl,
-		justifyContent: "center",
-	},
-	meter: {
-		gap: Spacing.md,
-	},
+  container: {
+    flex: 1,
+    padding: Spacing.md,
+    gap: Spacing.xl,
+    justifyContent: "center",
+  },
+  meter: {
+    gap: Spacing.md,
+  },
 });

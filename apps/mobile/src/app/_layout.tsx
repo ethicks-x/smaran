@@ -19,15 +19,15 @@ import { useTheme } from "@/hooks/use-theme";
 import type { ThemeColors } from "@/theme";
 
 function requirePublishableKey(): string {
-	const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-	if (!key) {
-		throw new Error(
-			"Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Copy .env.example to .env and add your Clerk publishable key.",
-		);
-	}
+  if (!key) {
+    throw new Error(
+      "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Copy .env.example to .env and add your Clerk publishable key.",
+    );
+  }
 
-	return key;
+  return key;
 }
 
 const publishableKey = requirePublishableKey();
@@ -35,28 +35,28 @@ const publishableKey = requirePublishableKey();
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-	return (
-		// Without a resource cache Clerk can only finish loading by reaching its
-		// API, so with the radio off `isLoaded` never flips and the splash below
-		// never lifts — the app simply does not open (§2.1). The cache lets it
-		// restore the last known session and environment from the device instead,
-		// and it refreshes them in the background once there is a network again.
-		<ClerkProvider
-			publishableKey={publishableKey}
-			tokenCache={tokenCache}
-			__experimental_resourceCache={resourceCache}
-		>
-			<LanguageProvider>
-				<AppearanceProvider>
-					<CareLinkProvider>
-						<RecallProvider>
-							<RootNavigator />
-						</RecallProvider>
-					</CareLinkProvider>
-				</AppearanceProvider>
-			</LanguageProvider>
-		</ClerkProvider>
-	);
+  return (
+    // Without a resource cache Clerk can only finish loading by reaching its
+    // API, so with the radio off `isLoaded` never flips and the splash below
+    // never lifts — the app simply does not open (§2.1). The cache lets it
+    // restore the last known session and environment from the device instead,
+    // and it refreshes them in the background once there is a network again.
+    <ClerkProvider
+      publishableKey={publishableKey}
+      tokenCache={tokenCache}
+      __experimental_resourceCache={resourceCache}
+    >
+      <LanguageProvider>
+        <AppearanceProvider>
+          <CareLinkProvider>
+            <RecallProvider>
+              <RootNavigator />
+            </RecallProvider>
+          </CareLinkProvider>
+        </AppearanceProvider>
+      </LanguageProvider>
+    </ClerkProvider>
+  );
 }
 
 /**
@@ -72,85 +72,86 @@ export default function RootLayout() {
  * phone that was set up in March opens in a house with no signal in June.
  */
 function RootNavigator() {
-	const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
-	const { isLoaded: isAppearanceLoaded } = useAppearance();
-	const { isLoaded: isLanguageLoaded } = useLanguage();
-	const { isRecalled } = useRecall();
-	const { isLoaded: isCareLinkLoaded, isLinked } = useCareLink();
-	const { isDark, colors } = useTheme();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const { isLoaded: isAppearanceLoaded } = useAppearance();
+  const { isLoaded: isLanguageLoaded } = useLanguage();
+  const { isRecalled } = useRecall();
+  const { isLoaded: isCareLinkLoaded, isLinked } = useCareLink();
+  const { isDark, colors } = useTheme();
 
-	// Fires on the first session this account has on this phone, and is awaited by
-	// nothing — the splash below lifts on Clerk and the stored preferences, never
-	// on a network call.
-	useRoleEnrolment();
+  // Fires on the first session this account has on this phone, and is awaited by
+  // nothing — the splash below lifts on Clerk and the stored preferences, never
+  // on a network call.
+  useRoleEnrolment();
 
-	// The outbox, drained on the way in and whenever the reader comes back. Also
-	// awaited by nothing: what the phone has recorded is already on the phone, and
-	// sending it is the only part that is allowed to fail (§2.1).
-	useSync();
+  // The outbox, drained on the way in and whenever the reader comes back. Also
+  // awaited by nothing: what the phone has recorded is already on the phone, and
+  // sending it is the only part that is allowed to fail (§2.1).
+  useSync();
 
-	const isLoaded =
-		isAuthLoaded && isAppearanceLoaded && isLanguageLoaded && isCareLinkLoaded;
+  const isLoaded =
+    isAuthLoaded && isAppearanceLoaded && isLanguageLoaded && isCareLinkLoaded;
 
-	const navigationTheme = useMemo(
-		() => toNavigationTheme(colors, isDark),
-		[colors, isDark],
-	);
+  const navigationTheme = useMemo(
+    () => toNavigationTheme(colors, isDark),
+    [colors, isDark],
+  );
 
-	useEffect(() => {
-		if (isLoaded) {
-			SplashScreen.hideAsync();
-		}
-	}, [isLoaded]);
+  useEffect(() => {
+    if (isLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoaded]);
 
-	// The layer underneath every screen. Left at its platform default it is pure
-	// white, which is what shows through for a frame whenever a screen is being
-	// attached or detached — the flash people see on the way back from a pushed
-	// screen. Painting it the app canvas makes that frame invisible.
-	useEffect(() => {
-		SystemUI.setBackgroundColorAsync(colors.background);
-	}, [colors.background]);
+  // The layer underneath every screen. Left at its platform default it is pure
+  // white, which is what shows through for a frame whenever a screen is being
+  // attached or detached — the flash people see on the way back from a pushed
+  // screen. Painting it the app canvas makes that frame invisible.
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.background);
+  }, [colors.background]);
 
-	if (!isLoaded) {
-		return null;
-	}
+  if (!isLoaded) {
+    return null;
+  }
 
-	return (
-		<ThemeProvider value={navigationTheme}>
-			<StatusBar style={isDark ? "light" : "dark"} />
-			<Stack
-				screenOptions={{
-					headerShown: false,
-					contentStyle: { backgroundColor: colors.background },
-				}}
-			>
-				{/* Before anything else a signed-in reader can see: a phone
+  return (
+    <ThemeProvider value={navigationTheme}>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
+        {/* Before anything else a signed-in reader can see: a phone
             nobody has connected to a family has no reminders to show and
             nowhere for what it records to go. Setup is the only screen that
             needs a signal, and it needs it once. */}
-				<Stack.Protected guard={isSignedIn && !isLinked}>
-					<Stack.Screen name="setup" />
-				</Stack.Protected>
+        <Stack.Protected guard={isSignedIn && !isLinked}>
+          <Stack.Screen name="setup" />
+        </Stack.Protected>
 
-				<Stack.Protected guard={isSignedIn && isLinked && !isRecalled}>
-					<Stack.Screen name="recall" />
-				</Stack.Protected>
+        <Stack.Protected guard={isSignedIn && isLinked && !isRecalled}>
+          <Stack.Screen name="recall" />
+        </Stack.Protected>
 
-				<Stack.Protected guard={isSignedIn && isLinked && isRecalled}>
-					<Stack.Screen name="(tabs)" />
-					{/* No `animation` override: each platform already knows what a
+        <Stack.Protected guard={isSignedIn && isLinked && isRecalled}>
+          <Stack.Screen name="(tabs)" />
+          {/* No `animation` override: each platform already knows what a
               pushed screen should do, and a phone's own transition is the one
               its owner has already learnt. */}
-					<Stack.Screen name="account" />
-					<Stack.Screen name="games" />
-				</Stack.Protected>
+          <Stack.Screen name="account" />
+          <Stack.Screen name="games" />
+          <Stack.Screen name="memories" />
+        </Stack.Protected>
 
-				<Stack.Protected guard={!isSignedIn}>
-					<Stack.Screen name="landing" />
-				</Stack.Protected>
-			</Stack>
-		</ThemeProvider>
-	);
+        <Stack.Protected guard={!isSignedIn}>
+          <Stack.Screen name="landing" />
+        </Stack.Protected>
+      </Stack>
+    </ThemeProvider>
+  );
 }
 
 /**
@@ -159,18 +160,18 @@ function RootNavigator() {
  * tokens means every surface it draws is one we chose.
  */
 function toNavigationTheme(colors: ThemeColors, isDark: boolean) {
-	const base = isDark ? DarkTheme : DefaultTheme;
+  const base = isDark ? DarkTheme : DefaultTheme;
 
-	return {
-		...base,
-		colors: {
-			...base.colors,
-			primary: colors.primary,
-			background: colors.background,
-			card: colors.surface,
-			text: colors.text,
-			border: colors.border,
-			notification: colors.danger,
-		},
-	};
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.danger,
+    },
+  };
 }

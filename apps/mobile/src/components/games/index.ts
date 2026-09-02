@@ -32,4 +32,4 @@ export { PhotoPrompt } from "./photo-prompt";
 export type { PreparingBoardProps } from "./preparing-board";
 export { PreparingBoard } from "./preparing-board";
 export type { SymbolId, SymbolPool } from "./symbols";
-export { SymbolPools, Symbols } from "./symbols";
+export { SymbolPools, Symbols, symbolName } from "./symbols";
