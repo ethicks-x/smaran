@@ -2344,6 +2344,18 @@ cannot use the *relationship* the family typed, cannot vary its phrasing across 
 of play, and cannot write a plausible wrong answer, which is most of what makes a recognition
 question a question.
 
+**Every run of the preparing effect re-arms its own timers, and nothing latches.** This is
+written down because the obvious optimisation is wrong and cost a stuck screen. The first
+version guarded `useQuestionSupply`'s effect with a `prepared` ref so a re-run could not
+spend a second model call. A re-run's *cleanup* fires before its body, so it cleared both
+the floor and the ceiling, and the latched body then returned without arming new ones — the
+reader sat on the preparing board for ever, with the nine-second rescue already cancelled.
+Dependencies do move here after mount: `useLanguage` corrects `language` once it has read
+the stored choice back off the device. The correct shape is to hold the **request** across
+runs, keyed to its language, and re-arm the timers unconditionally. `getToken` is read
+through a ref rather than depended on for the same reason — it is stable today, and a
+dependency that only has to move once to strand a reader should not be one.
+
 **The open consequence of that choice.** A device that has *never once* reached
 `/quiz/generate` has no questions, and the game says so plainly — "there are no photographs
 here yet", worded as something the family has not done rather than something the reader got

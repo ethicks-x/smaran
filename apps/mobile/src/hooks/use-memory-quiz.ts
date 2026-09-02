@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useLanguage } from "@/hooks/use-language";
 import {
+  type FetchOutcome,
   fetchQuestions,
   needsQuestions,
   questionCount,
@@ -37,33 +38,63 @@ export type QuestionSupply = {
  * different and honest — the family has not shared any photographs yet, so there is
  * genuinely nothing to ask about.
  *
+ * **Every run of the effect must leave a live timer behind it.** The first version of this
+ * hook latched on a ref so that a re-run could not ask twice — and a re-run's *cleanup*
+ * fires before its body, so the cleanup cleared both timers and the latched body then
+ * returned without arming new ones. That stranded the reader on the preparing screen for
+ * ever, with the very ceiling that was meant to rescue them already cancelled. Dependencies
+ * do move here after mount: `useLanguage` corrects `language` once it has read the stored
+ * choice back off the device. So nothing may latch, and the timers are re-armed on every
+ * run.
+ *
+ * The **request** is what is held across runs instead, keyed to the language it was made
+ * for. Asking twice would spend a second model call to reach the same answer, and a second
+ * run that simply skipped the call would settle on what was on disk *before* the first
+ * call's rows landed. `getToken` is read through a ref for the same reason — it is stable
+ * today, and a dependency that only has to move once to break something should not be one.
+ *
  * Guarded throughout, like `useMemorySubjects`: `src/db` is a native module, and a
  * development build made before it was installed cannot open the file at all
  * (`decisions.md` D-24). A store that will not open costs this game and nothing else.
  */
 export function useQuestionSupply(): QuestionSupply {
   const { getToken } = useAuth();
-  const { language } = useLanguage();
+  const { language, isLoaded } = useLanguage();
 
   const [supply, setSupply] = useState<QuestionSupply>({
     status: "preparing",
     asked: false,
   });
 
-  // Prepares once per visit to the screen. A second pass would spend another model call to
-  // reach the same answer, and the effect below is deliberately not re-run when its
-  // dependencies settle a moment after mount.
-  const prepared = useRef(false);
+  // Kept in step through an effect rather than assigned while rendering, the same way
+  // `useGameSession` holds its options. The call below only ever runs from another effect.
+  const token = useRef(getToken);
 
   useEffect(() => {
-    if (prepared.current) {
+    token.current = getToken;
+  });
+
+  /** The generation this screen has already started, and for which language. Held so a
+   * re-run joins the call in flight instead of starting a second one or ignoring it. */
+  const request = useRef<{
+    language: string;
+    call: Promise<FetchOutcome>;
+  } | null>(null);
+
+  /** When the reader first arrived. The floor is measured from here rather than from this
+   * run, so a re-run cannot restart the wait under them. */
+  const arrived = useRef(Date.now());
+
+  useEffect(() => {
+    let live = true;
+    let floor: ReturnType<typeof setTimeout> | undefined;
+
+    // Nothing is asked for until the reader's own language is known. Generating against the
+    // opening guess would spend a call writing questions in a language they do not read,
+    // and then need a second one the moment the stored choice arrived.
+    if (!isLoaded) {
       return;
     }
-
-    prepared.current = true;
-
-    let live = true;
-    const started = Date.now();
 
     const settle = (asked: boolean) => {
       if (!live) {
@@ -75,42 +106,63 @@ export function useQuestionSupply(): QuestionSupply {
       setSupply({ status: count > 0 ? "ready" : "empty", asked });
     };
 
-    const worthAsking = attempt(() => needsQuestions(language)) ?? false;
+    const held =
+      request.current?.language === language ? request.current.call : null;
+
+    const worthAsking =
+      held !== null || (attempt(() => needsQuestions(language)) ?? false);
 
     // Said now rather than at the end, because it is what the screen is telling the reader
     // *while* they wait: a line about writing new questions is only honest during the wait
     // it is explaining.
     setSupply({ status: "preparing", asked: worthAsking });
 
-    // The floor and the ceiling of the wait. The first keeps the screen from flickering
-    // past; the second keeps a reader on a 2G connection in a valley from sitting here.
-    const rest = setTimeout(
+    // The ceiling. Re-armed on every run, which is the whole point — a run whose cleanup
+    // cleared the last one must leave a live timer behind it.
+    const ceiling = setTimeout(
       () => settle(worthAsking),
       worthAsking ? PREPARE_MS : MINIMUM_MS,
     );
 
-    if (worthAsking) {
-      fetchQuestions(language, getToken)
+    const call =
+      held ??
+      (worthAsking ? fetchQuestions(language, () => token.current()) : null);
+
+    if (call !== null && held === null) {
+      request.current = { language, call };
+    }
+
+    if (call !== null) {
+      call
         .then(() => {
           // Whatever arrived is on disk now, so there is nothing left to wait for — the
-          // reader gets the shorter wait rather than the budgeted one.
-          clearTimeout(rest);
+          // reader gets the floor rather than the whole budget.
+          clearTimeout(ceiling);
 
-          const spent = Date.now() - started;
-
-          setTimeout(() => settle(true), Math.max(0, MINIMUM_MS - spent));
+          floor = setTimeout(
+            () => settle(true),
+            Math.max(0, MINIMUM_MS - (Date.now() - arrived.current)),
+          );
         })
-        .catch(() => {
-          // `fetchQuestions` reports its failures as outcomes rather than throwing, so this
-          // is only ever the store refusing the write. The timeout above still settles.
+        .catch((error: unknown) => {
+          // `fetchQuestions` reports every network failure as an outcome rather than
+          // throwing, so reaching here means the store refused the write. The ceiling above
+          // still settles, so this costs the reader a longer wait and nothing else — but it
+          // is invisible without a word, and it is the one failure here worth debugging.
+          if (__DEV__) {
+            console.warn(
+              `Questions arrived but could not be stored: ${error instanceof Error ? error.message : "unknown"}`,
+            );
+          }
         });
     }
 
     return () => {
       live = false;
-      clearTimeout(rest);
+      clearTimeout(ceiling);
+      clearTimeout(floor);
     };
-  }, [language, getToken]);
+  }, [language, isLoaded]);
 
   return supply;
 }
