@@ -19,6 +19,8 @@ export { FieldTrigger } from "./field-trigger";
 export type { AppIconName } from "./icons";
 export { AppIcons } from "./icons";
 export { NativeHost } from "./native-host";
+export type { PhotoViewerProps } from "./photo-viewer";
+export { PhotoViewer } from "./photo-viewer";
 export type { PreviewChoiceProps, PreviewOption } from "./preview-choice";
 export { PreviewChoice } from "./preview-choice";
 export type { ProgressBarProps } from "./progress-bar";
@@ -34,22 +36,22 @@ export { Section } from "./section";
 export type { SelectFieldProps, SelectOption } from "./select-field";
 export { SelectField } from "./select-field";
 export type {
-	SettingCardProps,
-	SettingFieldProps,
+  SettingCardProps,
+  SettingFieldProps,
 } from "./setting-card";
 export { SettingCard, SettingField } from "./setting-card";
 export type {
-	SettingsGroupProps,
-	SettingsLinkProps,
-	SettingsRowProps,
-	SettingsTint,
+  SettingsGroupProps,
+  SettingsLinkProps,
+  SettingsRowProps,
+  SettingsTint,
 } from "./settings-list";
 export {
-	Detail,
-	SettingsAccordion,
-	SettingsGroup,
-	SettingsLink,
-	SettingsRow,
+  Detail,
+  SettingsAccordion,
+  SettingsGroup,
+  SettingsLink,
+  SettingsRow,
 } from "./settings-list";
 export type { StepSliderProps } from "./step-slider";
 export { StepSlider } from "./step-slider";

@@ -157,6 +157,10 @@ export const AppIcons = {
     ios: "person.crop.rectangle.fill",
     android: require("@expo/material-symbols/face.xml"),
   }),
+  enlarge: Icon.select({
+    ios: "arrow.up.left.and.arrow.down.right",
+    android: require("@expo/material-symbols/zoom_out_map.xml"),
+  }),
   celebrate: Icon.select({
     ios: "sparkles",
     android: require("@expo/material-symbols/celebration.xml"),

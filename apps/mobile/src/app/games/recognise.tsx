@@ -352,6 +352,7 @@ export default function RecogniseScreen() {
                   photoUri={question.photoUri}
                   kind={question.kind}
                   label={t("games.recognise.photoLabel")}
+                  closeLabel={t("games.recognise.photoClose")}
                 />
               ) : null}
 

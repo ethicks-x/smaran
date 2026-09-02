@@ -8,8 +8,14 @@ import type { MemorySubjectKind } from "@/db/schema";
 import { useThemeColors } from "@/hooks/use-theme";
 import { Radius, Spacing, scale, TouchTarget } from "@/theme";
 
-/** Two to a row at the narrowest. A photograph any smaller stops being a face you can
- * recognise, and recognising it is the entire task. */
+/** Two to a row, always. A photograph any smaller stops being a face you can recognise, and
+ * recognising it is the entire task.
+ *
+ * Every tile is this wide whatever the round holds, so an odd one left over on the last row
+ * is the same picture at the same size as the two above it rather than a wide one stretched
+ * across the whole board. A photograph twice the size of its neighbours reads as the
+ * important one, and on a board where they are all equally the question that would be a
+ * hint the game never meant to give. */
 const TILE_BASIS = "44%";
 const MIN_TILE = Math.max(scale(132), TouchTarget.large);
 const PLACEHOLDER_ICON = scale(40);
@@ -120,7 +126,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   option: {
-    flexGrow: 1,
     flexBasis: TILE_BASIS,
     minHeight: MIN_TILE,
     aspectRatio: 1,
