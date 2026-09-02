@@ -69,6 +69,7 @@ the recognition game for a device that has never once had signal (D-46), and mor
 | Native bridging | `NativeHost` wraps `@expo/ui` with our scheme + the chosen highlight as seed colour |
 | Localisation | `i18next` + `react-i18next`, four bundled catalogues, `src/i18n/` |
 | Tailwind via Uniwind | `uniwind@1.11` + `tailwindcss@4`, Metro plugin only — `metro.config.js`, `src/global.css`. Tokens generated from `src/theme/*.ts` into `src/theme/tokens.css` by `bun run --cwd apps/mobile theme:css`; `use-uniwind-appearance.ts` pushes the highlight and text size over them at runtime. Nothing migrated yet — screens still use `StyleSheet`. D-17 |
+| Launcher & splash art | ✅ generated from `assets/branding/logo.svg` / `logo-dark.svg` — iOS icon, Android adaptive foreground/background/monochrome, light and dark splash marks, favicon, and the `assets/smaran.icon` Icon Composer bundle. D-51 |
 | Biome lint/format | `bun run --cwd apps/mobile lint` |
 
 ### Navigation & auth ✅
