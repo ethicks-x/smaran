@@ -10,6 +10,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
@@ -53,8 +54,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             >
               <div className="mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-lavender-500 text-white">
-                    <Brain size={18} />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl text-white">
+                    <Image
+                      src="/logo-dark.svg"
+                      alt="Smaran"
+                      width={160}
+                      height={160}
+                      priority
+                    />
                   </div>
                   <span className="font-display text-lg font-bold text-ink-900">
                     Smaran

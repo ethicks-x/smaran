@@ -13,6 +13,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 
@@ -32,8 +33,14 @@ export default function LandingPage() {
       <header className="sticky top-0 z-40 border-b border-black/5 dark:border-white/[0.08] bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-indigo-500 to-lavender-500 text-white shadow-lg shadow-indigo-500/20">
-              <Brain size={18} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl text-white">
+              <Image
+                src="/logo-dark.svg"
+                alt="Smaran"
+                width={160}
+                height={160}
+                priority
+              />
             </div>
             <span className="font-display text-xl font-bold">Smaran</span>
           </div>
@@ -105,7 +112,10 @@ export default function LandingPage() {
               </Button>
             </Link>
             {/* APK link is a placeholder until the patient app build is published. */}
-            <Link href="#">
+            <Link
+              href="https://github.com/ethicks-x/smaran/releases/download/1.0.0/smaran-v1.0.0-stable.apk"
+              download
+            >
               <Button size="lg" variant="glow" className="gap-2">
                 <Smartphone size={18} /> Patients APK
               </Button>

@@ -3,11 +3,11 @@
 import {
   BarChart3,
   Bell,
-  Brain,
   LayoutDashboard,
   Settings,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -26,8 +26,14 @@ export function Sidebar() {
   return (
     <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col border-r border-black/[0.06] dark:border-white/[0.08] bg-surface/80 backdrop-blur-xl lg:flex">
       <div className="flex items-center gap-2.5 px-6 py-6">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-lavender-500 text-white">
-          <Brain size={20} />
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl text-white">
+          <Image
+            src="/logo-dark.svg"
+            alt="Smaran"
+            width={160}
+            height={160}
+            priority
+          />
         </div>
         <div>
           <p className="font-display text-lg font-bold leading-none text-ink-900">
