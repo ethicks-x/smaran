@@ -8,7 +8,7 @@ import {
   Heart,
   MapPin,
   Package,
-  Phone,
+  Smartphone,
   Sparkles,
   UserPlus,
   Users,
@@ -38,12 +38,6 @@ export default function LandingPage() {
             <span className="font-display text-xl font-bold">Smaran</span>
           </div>
           <div className="flex items-center gap-3">
-            {/* APK link is a placeholder until the patient app build is published. */}
-            <Link href="#">
-              <Button size="sm" variant="glow" className="gap-1.5">
-                <Phone size={15} /> Patients APK
-              </Button>
-            </Link>
             <Link href="/signup">
               <Button size="sm">Get Started</Button>
             </Link>
@@ -110,9 +104,10 @@ export default function LandingPage() {
                 Get Started <ArrowRight size={18} />
               </Button>
             </Link>
-            <Link href="/login">
-              <Button size="lg" variant="outline">
-                Log In
+            {/* APK link is a placeholder until the patient app build is published. */}
+            <Link href="#">
+              <Button size="lg" variant="glow" className="gap-2">
+                <Smartphone size={18} /> Patients APK
               </Button>
             </Link>
           </motion.div>
