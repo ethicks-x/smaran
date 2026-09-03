@@ -53,6 +53,7 @@
   --shadow-lifted: 0 12px 40px rgba(44, 31, 88, 0.12);
 
   --animate-float: float 6s ease-in-out infinite;
+  --animate-glow-pulse: glow-pulse 2.4s ease-in-out infinite;
 
   @keyframes float {
     0%,
@@ -62,6 +63,23 @@
 
     50% {
       transform: translateY(-10px);
+    }
+  }
+
+  @keyframes glow-pulse {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 1px rgba(108, 79, 203, 0.45),
+        0 0 10px rgba(108, 79, 203, 0.3),
+        0 0 22px rgba(108, 79, 203, 0.18);
+    }
+
+    50% {
+      box-shadow:
+        0 0 0 1px rgba(108, 79, 203, 0.8),
+        0 0 18px rgba(108, 79, 203, 0.55),
+        0 0 36px rgba(108, 79, 203, 0.32);
     }
   }
 }
