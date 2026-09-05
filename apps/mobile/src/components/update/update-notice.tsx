@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 
 import { ActionButton, Dialog, ProgressBar, Text } from "@/components/ui";
+import { UpdateDetails } from "@/components/update/update-details";
 import { useLocale } from "@/hooks/use-language";
 import {
   type UpdateFailure,
@@ -18,6 +19,11 @@ import { Spacing } from "@/theme";
  * that is not a choice would only be a chance to get it wrong. Everything else
  * gets "Update now" filled and "Not now" plain, in that order, so a reader
  * tapping without reading lands on the harmless answer rather than past it.
+ *
+ * Under all of it, in every state, is the short card of facts behind the
+ * sentence — what is installed, what is being offered, how big it is. The
+ * reader is not expected to read it; it is there so that whoever they ask about
+ * this dialog has an answer.
  *
  * While it is working there are no buttons at all. A download of this size on a
  * village connection is minutes long, so the card says what is happening in one
@@ -49,19 +55,26 @@ export function UpdateNotice() {
       }
       message={t(messageKey(stage, failure), { version })}
       details={
-        stage === "downloading" ? (
-          <View style={styles.progress}>
-            <ProgressBar
-              value={progress}
-              accessibilityLabel={t("update.progressLabel")}
-            />
-            <Text variant="body" color="textSecondary" center>
-              {t("update.progress", {
-                percent: percent(progress, locale),
-              })}
-            </Text>
-          </View>
-        ) : null
+        <View style={styles.details}>
+          {stage === "downloading" ? (
+            <View style={styles.progress}>
+              <ProgressBar
+                value={progress}
+                accessibilityLabel={t("update.progressLabel")}
+              />
+              <Text variant="body" color="textSecondary" center>
+                {t("update.progress", {
+                  percent: percent(progress, locale),
+                })}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Under the bar rather than over it: while the download runs the
+              thing to watch is the one that moves, and the numbers behind it
+              are for whoever wants them. */}
+          <UpdateDetails update={update} stage={stage} progress={progress} />
+        </View>
       }
       // Android's back gesture lands here. A required update is the one place in
       // the app where it is allowed to do nothing — everywhere else that would
@@ -146,6 +159,11 @@ const percent = (fraction: number, locale: string) =>
 const noop = () => {};
 
 const styles = StyleSheet.create({
+  details: {
+    alignSelf: "stretch",
+    gap: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
   progress: {
     alignSelf: "stretch",
     gap: Spacing.sm,

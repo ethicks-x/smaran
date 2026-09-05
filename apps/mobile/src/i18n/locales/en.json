@@ -655,6 +655,15 @@
     "installing": "Almost there. Your phone will ask you to install Smaran — please say yes.",
     "progress": "{{percent}} done",
     "progressLabel": "How much of the update has arrived",
+    "details": {
+      "installed": "On this phone",
+      "latest": "New version",
+      "unknownVersion": "Not known",
+      "size": "Download size",
+      "downloaded": "Arrived so far",
+      "downloadedValue": "{{done}} of {{total}}",
+      "megabytes": "{{size}} MB"
+    },
     "failed": {
       "unavailable": "Smaran could not finish getting the update just now. Nothing on this phone has changed.",
       "corrupt": "The update did not arrive properly, so Smaran did not install it. Nothing on this phone has changed.",
