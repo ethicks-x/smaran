@@ -1,0 +1,217 @@
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { AppState, type AppStateStatus } from "react-native";
+
+import {
+  type AvailableUpdate,
+  checkForUpdate,
+  type FetchStage,
+  fetchAndInstall,
+} from "@/lib/updates";
+
+/**
+ * How long after a check before another one is worth making.
+ *
+ * Coming back to the app is not news. A release happens every few weeks at
+ * best, and the reader switching between Smaran and a phone call generates a
+ * handful of `active` events a minute — asking GitHub about each of them would
+ * spend somebody's data to be told the same thing over and over. A fresh launch
+ * always checks, because the ref below starts empty with the process.
+ */
+const MIN_INTERVAL_MS = 4 * 60 * 60 * 1000;
+
+/** What the reader is being shown, if anything. */
+export type UpdateStage =
+  /** Nothing to say. Either there is no update or it has been put off. */
+  | "idle"
+  /** There is one, and the reader has not answered yet. */
+  | "offered"
+  | FetchStage
+  /** It did not work. What went wrong is in `failure`. */
+  | "failed";
+
+/** Why the last attempt stopped, in the only terms the app can act on. */
+export type UpdateFailure = "unavailable" | "corrupt" | "refused";
+
+export type UpdateValue = {
+  update: AvailableUpdate | null;
+  stage: UpdateStage;
+  /** True while the reader has no way to put this one off. */
+  isRequired: boolean;
+  /** How far the download has come, 0–1. Meaningless outside `downloading`. */
+  progress: number;
+  failure: UpdateFailure | null;
+  /** Say yes. Downloading, checking and installing follow on their own. */
+  install: () => void;
+  /** Not now — until the next launch. */
+  dismiss: () => void;
+};
+
+const UpdateContext = createContext<UpdateValue | null>(null);
+
+/**
+ * Finds out whether this phone is running the newest Smaran, and sees the new
+ * one onto it.
+ *
+ * **Awaited by nothing, and it has to stay that way.** It sits at the root
+ * beside `useSync`, next to a splash screen that lifts on Clerk and the stored
+ * preferences and on nothing else (§2.1). A phone with no signal never learns
+ * there is an update and opens exactly as fast as one that does.
+ *
+ * A major release, or falling five minor releases behind, is decided in
+ * `lib/version.ts` to be the app's business rather than the reader's — that
+ * one is announced instead of offered, and the download starts by itself.
+ * Everything else is a question with a "Not now" on it, and putting it off
+ * lasts for this launch only.
+ *
+ * A reader with dementia will not be reasoning about version numbers, so beyond
+ * the first yes there is nothing further to shepherd: downloading, checking the
+ * bytes and opening the installer all happen without asking again.
+ */
+export function UpdateProvider({ children }: { children: ReactNode }) {
+  const [update, setUpdate] = useState<AvailableUpdate | null>(null);
+  const [stage, setStage] = useState<UpdateStage>("idle");
+  const [progress, setProgress] = useState(0);
+  const [failure, setFailure] = useState<UpdateFailure | null>(null);
+
+  const lastCheckedAt = useRef(0);
+  const busy = useRef(false);
+
+  const install = useCallback((wanted: AvailableUpdate) => {
+    // One at a time. The check runs again whenever the reader comes back to the
+    // app, and a second run would race the first for the same file on disk.
+    if (busy.current) {
+      return;
+    }
+
+    busy.current = true;
+    setFailure(null);
+    setProgress(0);
+
+    void (async () => {
+      // `fetchAndInstall` never rejects — every outcome it has is a returned
+      // value — so there is nothing here to catch.
+      const result = await fetchAndInstall(wanted, {
+        onStage: setStage,
+        onProgress: setProgress,
+      });
+
+      busy.current = false;
+
+      if (result === "handed-off") {
+        // Android has the file and the reader is looking at the installer. What
+        // happens next is theirs, and if they finish it this screen goes away
+        // with the process it is running in.
+        return;
+      }
+
+      setFailure(result);
+      setStage("failed");
+    })();
+  }, []);
+
+  useEffect(() => {
+    const check = () => {
+      const now = Date.now();
+
+      if (busy.current || now - lastCheckedAt.current < MIN_INTERVAL_MS) {
+        return;
+      }
+
+      // Set before the call rather than after: the point is to stop a second
+      // trigger starting a second check, and a check takes as long as a slow
+      // connection does.
+      lastCheckedAt.current = now;
+
+      void (async () => {
+        const result = await checkForUpdate();
+
+        if (result.status !== "available") {
+          // Nothing to say, and — importantly — nothing taken away either. A
+          // check that could not reach GitHub leaves an offer already on screen
+          // exactly where it was.
+          return;
+        }
+
+        setUpdate(result.update);
+
+        if (result.update.urgency === "required") {
+          setStage("downloading");
+          install(result.update);
+        } else {
+          setStage("offered");
+        }
+      })();
+    };
+
+    check();
+
+    const subscription = AppState.addEventListener(
+      "change",
+      (state: AppStateStatus) => {
+        if (state === "active") {
+          check();
+        }
+      },
+    );
+
+    return () => subscription.remove();
+  }, [install]);
+
+  const value = useMemo<UpdateValue>(
+    () => ({
+      update,
+      stage,
+      // A required update that has actually failed stops being required.
+      // Insisting means the app does not offer a way out of installing; it
+      // cannot mean an elderly person is locked out of their reminders because
+      // GitHub was down or the phone was full. The next launch asks again, and
+      // by then the thing that stopped it may well have passed.
+      isRequired: update?.urgency === "required" && stage !== "failed",
+      progress,
+      failure,
+      install: () => {
+        if (update) {
+          install(update);
+        }
+      },
+      dismiss: () => {
+        setStage("idle");
+        setFailure(null);
+      },
+    }),
+    [update, stage, progress, failure, install],
+  );
+
+  return (
+    <UpdateContext.Provider value={value}>{children}</UpdateContext.Provider>
+  );
+}
+
+/** Where this phone stands against the newest release. */
+export function useUpdate(): UpdateValue {
+  return useContext(UpdateContext) ?? FALLBACK;
+}
+
+/**
+ * Outside the provider there is no update and no way to start one — the same
+ * way `useCareLink` reports an unblocked link. A screen rendered on its own must
+ * never be interrupted by a dialog it has no provider to answer.
+ */
+const FALLBACK: UpdateValue = {
+  update: null,
+  stage: "idle",
+  isRequired: false,
+  progress: 0,
+  failure: null,
+  install: () => {},
+  dismiss: () => {},
+};

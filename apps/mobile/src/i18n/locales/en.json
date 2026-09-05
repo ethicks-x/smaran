@@ -638,5 +638,28 @@
     "title": "Page not found",
     "body": "That page does not exist. Let's get you back to your day.",
     "action": "Go to Today"
+  },
+  "update": {
+    "required": {
+      "title": "Smaran is updating"
+    },
+    "offered": {
+      "title": "A newer Smaran is ready",
+      "message": "There is a newer Smaran for this phone. Getting it takes a few minutes, and everything you have stays exactly as it is.",
+      "action": "Update now",
+      "later": "Not now"
+    },
+    "downloading": "Smaran is getting version {{version}}. You can wait here, or come back to this later.",
+    "verifying": "Smaran is checking that everything arrived safely.",
+    "installing": "Almost there. Your phone will ask you to install Smaran — please say yes.",
+    "progress": "{{percent}} done",
+    "progressLabel": "How much of the update has arrived",
+    "failed": {
+      "unavailable": "Smaran could not finish getting the update just now. Nothing on this phone has changed.",
+      "corrupt": "The update did not arrive properly, so Smaran did not install it. Nothing on this phone has changed.",
+      "refused": "Your phone did not let Smaran open the installer. You may need to allow Smaran to install apps.",
+      "retry": "Try again",
+      "later": "Not now"
+    }
   }
 }

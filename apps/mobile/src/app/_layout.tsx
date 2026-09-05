@@ -6,9 +6,11 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect, useMemo } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import "@/i18n";
 
+import { UpdateNotice } from "@/components/update";
 import { AppearanceProvider, useAppearance } from "@/hooks/use-appearance";
 import { CareLinkProvider, useCareLink } from "@/hooks/use-care-link";
 import { LanguageProvider, useLanguage } from "@/hooks/use-language";
@@ -16,6 +18,7 @@ import { RecallProvider, useRecall } from "@/hooks/use-recall";
 import { useRoleEnrolment } from "@/hooks/use-role-enrolment";
 import { useSync } from "@/hooks/use-sync";
 import { useTheme } from "@/hooks/use-theme";
+import { UpdateProvider } from "@/hooks/use-update";
 import type { ThemeColors } from "@/theme";
 
 function requirePublishableKey(): string {
@@ -50,7 +53,13 @@ export default function RootLayout() {
         <AppearanceProvider>
           <CareLinkProvider>
             <RecallProvider>
-              <RootNavigator />
+              {/* Outside the gate below on purpose. Whether this phone is
+                  running the newest build is not a question about who is signed
+                  in, and a device left on the landing screen for a month should
+                  still catch up. */}
+              <UpdateProvider>
+                <RootNavigator />
+              </UpdateProvider>
             </RecallProvider>
           </CareLinkProvider>
         </AppearanceProvider>
@@ -116,41 +125,53 @@ function RootNavigator() {
   }
 
   return (
-    <ThemeProvider value={navigationTheme}>
-      <StatusBar style={isDark ? "light" : "dark"} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      >
-        {/* Before anything else a signed-in reader can see: a phone
+    // The navigator brings its own safe-area provider, but only around the
+    // screens inside it — and the update card is deliberately outside, so that
+    // it can be shown over any of them. One at the root gives both a context to
+    // read; React Navigation reuses an existing provider rather than nesting a
+    // second.
+    <SafeAreaProvider>
+      <ThemeProvider value={navigationTheme}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        >
+          {/* Before anything else a signed-in reader can see: a phone
             nobody has connected to a family has no reminders to show and
             nowhere for what it records to go. Setup is the only screen that
             needs a signal, and it needs it once. */}
-        <Stack.Protected guard={isSignedIn && !isLinked}>
-          <Stack.Screen name="setup" />
-        </Stack.Protected>
+          <Stack.Protected guard={isSignedIn && !isLinked}>
+            <Stack.Screen name="setup" />
+          </Stack.Protected>
 
-        <Stack.Protected guard={isSignedIn && isLinked && !isRecalled}>
-          <Stack.Screen name="recall" />
-        </Stack.Protected>
+          <Stack.Protected guard={isSignedIn && isLinked && !isRecalled}>
+            <Stack.Screen name="recall" />
+          </Stack.Protected>
 
-        <Stack.Protected guard={isSignedIn && isLinked && isRecalled}>
-          <Stack.Screen name="(tabs)" />
-          {/* No `animation` override: each platform already knows what a
+          <Stack.Protected guard={isSignedIn && isLinked && isRecalled}>
+            <Stack.Screen name="(tabs)" />
+            {/* No `animation` override: each platform already knows what a
               pushed screen should do, and a phone's own transition is the one
               its owner has already learnt. */}
-          <Stack.Screen name="account" />
-          <Stack.Screen name="games" />
-          <Stack.Screen name="memories" />
-        </Stack.Protected>
+            <Stack.Screen name="account" />
+            <Stack.Screen name="games" />
+            <Stack.Screen name="memories" />
+          </Stack.Protected>
 
-        <Stack.Protected guard={!isSignedIn}>
-          <Stack.Screen name="landing" />
-        </Stack.Protected>
-      </Stack>
-    </ThemeProvider>
+          <Stack.Protected guard={!isSignedIn}>
+            <Stack.Screen name="landing" />
+          </Stack.Protected>
+        </Stack>
+
+        {/* Last, so it paints over whatever screen the reader is on. It draws
+            nothing until there is something to say, and when a release is
+            required it is the only thing on the display that answers a tap. */}
+        <UpdateNotice />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
