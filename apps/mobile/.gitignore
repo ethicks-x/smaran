@@ -46,3 +46,6 @@ example
 # generated native folders
 /ios
 /android
+
+# signing keystores — never committed
+/credentials

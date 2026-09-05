@@ -55,7 +55,8 @@
           "cameraPermission": "Smaran uses the camera so you can take a new picture of yourself for your account."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "./plugins/with-release-signing"
     ],
     "experiments": {
       "typedRoutes": true,
