@@ -2612,6 +2612,21 @@ away from them. It is what "force the user to update" has to mean, and softening
 the app run behind the download and only blocking at the end — is the obvious next move if this
 ever bites in the field.
 
+**`expo-intent-launcher` is imported at the point of use, not at the top of the file.** On
+Android it resolves its native module the moment it is imported, and `lib/updates.ts` is
+reachable from the root layout — so a static import means a dev client built before this
+landed fails to *start* rather than merely being unable to finish an install. Loaded inside
+`handOff()`, a missing module is one caught error and a dialog that says so. Do not hoist it.
+
+**There is a `__DEV__`-only preview.** `EXPO_PUBLIC_UPDATE_PREVIEW=offered|required|
+unavailable|corrupt|refused` puts the card straight into that state with no network, and
+`simulateFetchAndInstall` walks the download/verify/install stages on a timer. It exists
+because a developer's phone is always on the newest build and therefore correctly shows
+nothing — waiting for a real release to look at a dialog is not a way to work on it. It is
+interface-compatible with `fetchAndInstall` and swapped at one seam in the provider, so
+everything around it is the code that actually ships. `updatePreview()` returns null in a
+release build whatever the variable says.
+
 **Consequences.** `android.permission.REQUEST_INSTALL_PACKAGES` is in `app.json`, and the reader
 has to allow Smaran to install apps once, at Android's own prompt — the copy in
 `update.failed.refused` is what points them at it. `expo-intent-launcher` and `js-sha256` are new

@@ -16,6 +16,7 @@ import {
   type FetchStage,
   fetchAndInstall,
 } from "@/lib/updates";
+import { simulateFetchAndInstall, updatePreview } from "@/lib/updates-preview";
 
 /**
  * How long after a check before another one is worth making.
@@ -58,6 +59,16 @@ export type UpdateValue = {
 const UpdateContext = createContext<UpdateValue | null>(null);
 
 /**
+ * A card asked for by `EXPO_PUBLIC_UPDATE_PREVIEW`, for looking at this screen
+ * without publishing a release. Null in every release build and in any
+ * development one that has not asked — see `lib/updates-preview.ts`.
+ *
+ * Read once, at module scope, because it cannot change while the app is
+ * running: the variable is inlined into the bundle at build time.
+ */
+const PREVIEW = updatePreview();
+
+/**
  * Finds out whether this phone is running the newest Smaran, and sees the new
  * one onto it.
  *
@@ -97,9 +108,13 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
     setProgress(0);
 
     void (async () => {
-      // `fetchAndInstall` never rejects — every outcome it has is a returned
-      // value — so there is nothing here to catch.
-      const result = await fetchAndInstall(wanted, {
+      // Neither of these ever rejects — every outcome they have is a returned
+      // value — so there is nothing here to catch. The preview stands in for the
+      // real thing at exactly this seam, so everything around it is the code
+      // that ships rather than a second copy written for the preview.
+      const run = PREVIEW ? simulateFetchAndInstall : fetchAndInstall;
+
+      const result = await run(wanted, {
         onStage: setStage,
         onProgress: setProgress,
       });
@@ -119,6 +134,21 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (PREVIEW) {
+      // Straight to the state being looked at, and no network at all. A
+      // `required` preview starts its simulated download the same way a real
+      // one does, so that path is watched rather than described.
+      setUpdate(PREVIEW.update);
+      setFailure(PREVIEW.failure);
+      setStage(PREVIEW.stage);
+
+      if (PREVIEW.update.urgency === "required") {
+        install(PREVIEW.update);
+      }
+
+      return;
+    }
+
     const check = () => {
       const now = Date.now();
 

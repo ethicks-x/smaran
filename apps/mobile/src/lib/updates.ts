@@ -1,7 +1,6 @@
 import Constants from "expo-constants";
 import { Directory, File, Paths } from "expo-file-system";
 import { getContentUriAsync } from "expo-file-system/legacy";
-import * as IntentLauncher from "expo-intent-launcher";
 import { sha256 } from "js-sha256";
 import { Platform } from "react-native";
 
@@ -499,9 +498,17 @@ const breathe = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
  *
  * The reader still has to allow Smaran to install apps, once, the first time
  * this runs. Android puts that switch in front of them itself.
+ *
+ * `expo-intent-launcher` is imported **here** rather than at the top of the
+ * file, because on Android it resolves its native module the moment it is
+ * imported. This module is reachable from the root layout, so a static import
+ * would mean a dev client built before this feature landed failing to start at
+ * all rather than simply being unable to finish an install. Loaded at the point
+ * of use, a missing module is one caught error and a dialog that says so.
  */
 async function handOff(file: File): Promise<FetchResult> {
   try {
+    const IntentLauncher = await import("expo-intent-launcher");
     const contentUri = await getContentUriAsync(file.uri);
 
     await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
