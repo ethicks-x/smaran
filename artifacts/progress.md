@@ -207,7 +207,7 @@ Note for whoever wires the browser to the API: `apps/api` now sets `CORSMiddlewa
 | `packages/` for shared TS | 🟡 directory exists but is empty — **and the root workspace glob says `apps/packages/*`, which does not match it.** Fix before adding a package |
 | Tests | ⬜ none, anywhere. The sync and migration work was verified with throwaway scripts against a Docker Postgres, and `lib/version.ts` the same way against the live releases API; none of it is committed as a suite, and that is the gap |
 | CI | ⬜ none |
-| Root `README.md` | 🟡 "Overview: To be updated..." |
+| Root `README.md` | ✅ overview, logo, Taskfile quick reference, app/web workflow, docs links, blank Credits. Git guidelines moved to `docs/git_guidelines.md`; API endpoints documented in `docs/api-endpoints.md` |
 
 ---
 

@@ -1,148 +1,147 @@
 <div align="center">
-    
+
+<img src="apps/web/public/logo-dark.svg" alt="Smaran logo" width="120" />
+
 # Smaran
+
+Offline-first cognitive support for elderly people living with dementia in India's
+North Eastern Region — a patient app, a caregiver dashboard, and the sync backend
+between them.
+
+Built for Smart India Hackathon problem **SIH26003** (MDoNER).
 
 </div>
 
+---
+
 ## Overview
 
-To be updated...
+**Smaran** ("to remember") is a monorepo with three deployables:
+
+- **`apps/mobile`** — the patient app. An offline-first Expo (React Native) app the
+  person with dementia uses directly: adaptive cognitive games built from their own
+  family and memories, medicine/hydration/activity reminders, and a photo gallery of
+  the people and places they know. Every core screen works with the network off —
+  the network exists only to sync already-captured data, never to gate a feature.
+- **`apps/web`** — the caregiver dashboard. A Next.js app the family member or carer
+  uses to set up reminders and memory subjects, and to see progress and AI-assisted
+  insights — always compared against the patient's *own* history, never a
+  population average.
+- **`apps/api`** — the FastAPI backend that authenticates both apps, stores what
+  syncs, generates recognition questions, and serves the dashboard's analytics.
+
+The person holding the phone has dementia. Every design decision in `apps/mobile`
+follows from that one fact — see `AGENTS.md` for the full set of constraints this
+project holds itself to.
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-- bun (javascript runtime and package manager)
-- uv (python project manager)
-- tmux (terminal multiplexer)
-- task (task runner, alternative of make)
+- **bun** — JavaScript runtime and package manager
+- **uv** — Python project manager
+- **tmux** — terminal multiplexer, used by the dev dashboard
+- **task** — task runner (an alternative to `make`)
 
 ### Installation
 
-1. bun
-    
+1. **bun**
     - Linux & macOS: `curl -fsSL https://bun.sh/install | bash`
-    - Windows: `powershell -c "irm bun.sh/install.ps1|iex"`  
-    [See More](https://bun.sh/docs/quickstart)
+    - Windows: `powershell -c "irm bun.sh/install.ps1|iex"`
+    [See more](https://bun.sh/docs/quickstart)
 
-2. uv
-
+2. **uv**
     - Linux & macOS: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-    - Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`  
-    [See More](https://docs.astral.sh/uv/getting-started/installation/)
+    - Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
+    [See more](https://docs.astral.sh/uv/getting-started/installation/)
 
-3. tmux
+3. **tmux**
+    - Linux & macOS: available on most package managers
+    - Windows: not natively available ([psmux](https://github.com/psmux/psmux#installation) is an alternative)
+    [See more](https://github.com/tmux/tmux/wiki/Installing) · [Key bindings](https://tmuxcheatsheet.com/)
 
-    - Linux & macOS: *Available to mostly all package managers*
-    - Windows: *Not Available*  ([psmux](https://github.com/psmux/psmux#installation) can be an alternative)  
-    [See More](https://github.com/tmux/tmux/wiki/Installing)  
-    [Key bindings](https://tmuxcheatsheet.com/)
-
-4. task
-
+4. **task**
     - Universal: `npm install -g @go-task/cli`
-    - winget: `winget install Task.Task`  
-    *Note: `task` is available to every major package managers, also [check this out](https://taskfile.dev/docs/installation)*
+    - winget: `winget install Task.Task`
+    *`task` is available on every major package manager — see the
+    [installation docs](https://taskfile.dev/docs/installation).*
 
-### Dev Usage
+Then, from the repo root:
 
-``` bash
-task dev:all            # starts all servers in different windows in a tmux session
-task dev:split          # starts all servers in different panes in a tmux session
-task stop               # stops the tmux session
+```bash
+task setup        # installs JS deps (bun) and Python deps (uv) for every app
 ```
 
 ---
 
-## Git Guidelines
+## Taskfile Commands
 
-### Commit Messages
+Every dev command is defined in `Taskfile.yml` — run `task --list` for the full
+set. The ones you'll actually reach for day to day:
 
-Use the conventional format — precise, imperative, lowercase, no trailing period.
+| Command | What it does |
+|---|---|
+| `task setup` | Install dependencies for all three apps |
+| `task dev:all` | Start the API, web, and mobile dev servers, each in its own tmux window |
+| `task dev:split` | Start the same three servers tiled in one tmux window |
+| `task dev:api` | Start only the FastAPI backend (`:8080`) |
+| `task dev:web` | Start only the caregiver dashboard (`:3000`) |
+| `task dev:mobile` | Start only the Expo dev server for the patient app |
+| `task stop` | Kill the tmux dev session |
+| `task db:migrate` | Apply pending Alembic migrations to the database in `apps/api/.env` |
+
+`task dev:web+api` and `task dev:mobile+api` are also available when you only
+need two of the three servers running side by side.
+
+---
+
+## How It Fits Together
 
 ```
-type(scope): message
+   patient's phone                   family member / carer
+  ┌─────────────────┐               ┌──────────────────────┐
+  │   apps/mobile    │               │       apps/web        │
+  │  (Expo, offline) │               │  (Next.js dashboard)  │
+  └────────┬─────────┘               └───────────┬───────────┘
+           │  syncs when it can                   │  always online
+           └───────────────┬──────────────────────┘
+                            │
+                     ┌──────▼──────┐
+                     │  apps/api   │
+                     │  (FastAPI)  │
+                     └─────────────┘
 ```
 
-- **type**: `feat`, `fix`, `chore`, `refactor`, `docs`, `style`, `test`, `perf`, `build`, `ci`
-- **scope**: the area touched — `api`, `mobile`, `web`, `deps`, `ci`, or a package name
-- **message**: what the commit does, in the present tense (~72 chars max)
+1. **The caregiver signs up** on the web dashboard and claims the caregiver role.
+2. **The patient signs in once** on the phone (Clerk hosted auth) and stays signed
+   in — they are never asked to authenticate again.
+3. **Linking the two**: the phone shows a nine-digit Smaran id. The reader (or
+   whoever is setting the phone up for them) gives that id to their caregiver, who
+   accepts the resulting request on the dashboard. From then on the two accounts
+   are linked.
+4. **Day to day, the patient app needs no network at all.** Games, reminders, and
+   the memory gallery all read and write to on-device storage. When a connection
+   is available — on app open, or when the caregiver adds something new — the app
+   syncs: game results and reminder outcomes go up, and reminders or memory photos
+   the caregiver has added come down.
+5. **The caregiver dashboard is a normal web app** — sign in, see linked patients,
+   set up reminders and memory subjects, and review progress, trends, and
+   AI-assisted insights, all compared against that one patient's own history.
 
-``` bash
-feat(api): add refresh token endpoint
-fix(mobile): prevent crash on empty deck list
-chore(deps): bump expo to sdk 52
-refactor(web): extract card grid into component
-```
+---
 
-Add a body only when the *why* isn't obvious from the subject line:
+## Documentation
 
-```
-fix(api): retry failed sync jobs
+- [`docs/git_guidelines.md`](docs/git_guidelines.md) — commit conventions, branching, and staying in sync
+- [`docs/api-endpoints.md`](docs/api-endpoints.md) — overview of every backend endpoint
+- `AGENTS.md` — the operating manual for this codebase, including the accessibility and
+  offline-first rules every screen must follow
+- `artifacts/` — the living knowledge base: what's actually built, architecture, and
+  decisions already made
 
-The queue dropped jobs when redis restarted mid-flight.
-```
+---
 
-### Atomic Commits
+## Credits
 
-Keep the history clean and readable — one logical change per commit.
-
-- Commit a single change at a time; do not dump bulk changes in one commit.
-- Never mix a refactor, a feature, and a formatting pass together.
-- Stage selectively when a file holds unrelated edits: `git add -p`
-- Every commit should build and run on its own.
-- Fix up mistakes before pushing: `git commit --amend` or `git rebase -i`
-
-### Branching & Pushing
-
-- Working in **your own domain** (`api`, `mobile`, or `web`): commit and push directly to `main`.
-- **Collaborating in someone else's domain**: branch off `main` and open a PR — do not push directly.
-
-``` bash
-git switch main
-git pull --rebase origin main
-git switch -c fix/mobile-sync-crash
-# ... work, commit ...
-git push -u origin fix/mobile-sync-crash
-```
-
-Branch naming: `type/short-description` — e.g. `feat/web-search-bar`, `fix/api-auth-race`.
-
-### Remote Management
-
-``` bash
-git remote -v                                  # list remotes
-git remote add origin <url>                    # add the project remote
-git remote set-url origin <url>                # switch protocol (https <-> ssh)
-git fetch origin --prune                       # sync refs, drop deleted branches
-git push origin --delete <branch>              # remove a merged remote branch
-```
-
-`origin` is the single source of truth. Do not add extra remotes to the shared repo; use a fork if you need one.
-
-### Staying in Sync
-
-Always rebase instead of merging to keep the history linear.
-
-``` bash
-git pull --rebase origin main
-```
-
-Set it as the default once, locally:
-
-``` bash
-git config pull.rebase true
-```
-
-Resolve conflicts, then `git rebase --continue`. Never force-push `main`; if you must force-push your own branch, use `git push --force-with-lease`.
-
-### Before You Commit
-
-A `pre-commit` hook runs `lint-staged` (format + lint on staged files). If it fails, fix the reported issues rather than bypassing it — `--no-verify` is not an option on shared branches.
-
-### Rules of Thumb
-
-- Never commit secrets, `.env` files, build output, or `node_modules`.
-- Pull before you start working, and before you push.
-- Do not commit commented-out code or debug logs.
-- Review your own diff (`git diff --staged`) before every commit.
