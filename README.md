@@ -8,8 +8,6 @@ Offline-first cognitive support for elderly people living with dementia in India
 North Eastern Region — a patient app, a caregiver dashboard, and the sync backend
 between them.
 
-Built for Smart India Hackathon problem **SIH26003** (MDoNER).
-
 </div>
 
 ---
@@ -49,22 +47,22 @@ project holds itself to.
 
 1. **bun**
     - Linux & macOS: `curl -fsSL https://bun.sh/install | bash`
-    - Windows: `powershell -c "irm bun.sh/install.ps1|iex"`
+    - Windows: `powershell -c "irm bun.sh/install.ps1|iex"`  
     [See more](https://bun.sh/docs/quickstart)
 
 2. **uv**
     - Linux & macOS: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-    - Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
+    - Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`  
     [See more](https://docs.astral.sh/uv/getting-started/installation/)
 
 3. **tmux**
     - Linux & macOS: available on most package managers
-    - Windows: not natively available ([psmux](https://github.com/psmux/psmux#installation) is an alternative)
+    - Windows: not natively available ([psmux](https://github.com/psmux/psmux#installation) is an alternative)  
     [See more](https://github.com/tmux/tmux/wiki/Installing) · [Key bindings](https://tmuxcheatsheet.com/)
 
 4. **task**
     - Universal: `npm install -g @go-task/cli`
-    - winget: `winget install Task.Task`
+    - winget: `winget install Task.Task`  
     *`task` is available on every major package manager — see the
     [installation docs](https://taskfile.dev/docs/installation).*
 
@@ -100,11 +98,11 @@ need two of the three servers running side by side.
 ## How It Fits Together
 
 ```
-   patient's phone                   family member / carer
-  ┌─────────────────┐               ┌──────────────────────┐
-  │   apps/mobile    │               │       apps/web        │
-  │  (Expo, offline) │               │  (Next.js dashboard)  │
-  └────────┬─────────┘               └───────────┬───────────┘
+   patient's phone                     family member / carer
+  ┌──────────────────┐                ┌───────────────────────┐
+  │   apps/mobile    │                │       apps/web        │
+  │  (Expo, offline) │                │  (Next.js dashboard)  │
+  └────────┬─────────┘                └───────────┬───────────┘
            │  syncs when it can                   │  always online
            └───────────────┬──────────────────────┘
                             │
