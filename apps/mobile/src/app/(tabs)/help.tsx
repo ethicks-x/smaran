@@ -13,6 +13,7 @@ import {
   Text,
 } from "@/components/ui";
 import { useCareLink } from "@/hooks/use-care-link";
+import { useRefresh } from "@/hooks/use-refresh";
 import { useThemeColors } from "@/hooks/use-theme";
 import { Radius, Spacing, scale } from "@/theme";
 
@@ -40,12 +41,20 @@ const AVATAR_SIZE = scale(72);
 export default function HelpScreen() {
   const { t } = useTranslation();
   const { caregiver } = useCareLink();
+  const refresh = useRefresh();
 
   const name = caregiver?.name?.trim() || null;
   const phone = caregiver?.phone?.trim() || null;
 
   return (
-    <Screen title={t("help.title")} subtitle={t("help.subtitle")}>
+    <Screen
+      title={t("help.title")}
+      subtitle={t("help.subtitle")}
+      // A caregiver who has just changed their number is the one case where
+      // what is on this page is out of date and the reader can do something
+      // about it.
+      onRefresh={refresh}
+    >
       <Section title={t("help.callSection")}>
         {phone ? (
           <>

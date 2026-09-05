@@ -2,6 +2,7 @@
   "common": {
     "back": "Back",
     "goBack": "Go back",
+    "refresh": "Checking for anything new",
     "notSetYet": "Not set yet",
     "cancel": "Cancel",
     "hour": "Hour",

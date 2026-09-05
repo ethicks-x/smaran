@@ -5,18 +5,19 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
-	GameCatalogue,
-	GameGrid,
-	type GameGridTile,
-	HomeGameCount,
+  GameCatalogue,
+  GameGrid,
+  type GameGridTile,
+  HomeGameCount,
 } from "@/components/games";
 import {
-	AddReminderDialog,
-	NextReminderCard,
-	ReminderList,
+  AddReminderDialog,
+  NextReminderCard,
+  ReminderList,
 } from "@/components/today";
 import { ActionButton, EmptyState, Screen, Section } from "@/components/ui";
 import { useLocale } from "@/hooks/use-language";
+import { useRefresh } from "@/hooks/use-refresh";
 import { useReminders } from "@/hooks/use-reminders";
 
 /**
@@ -37,68 +38,75 @@ import { useReminders } from "@/hooks/use-reminders";
  * day, because it is the caregiver's errand and not the reader's.
  */
 export default function TodayScreen() {
-	const { user } = useUser();
-	const { t } = useTranslation();
-	const locale = useLocale();
-	const { nextUp, rest, available, add, markDone } = useReminders();
+  const { user } = useUser();
+  const { t } = useTranslation();
+  const locale = useLocale();
+  const { nextUp, rest, available, add, markDone } = useReminders();
+  const refresh = useRefresh();
 
-	const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(false);
 
-	// Nothing at all today, which is different from everything being done: the
-	// card says "nothing to do just now", an empty day says so more warmly.
-	const empty = nextUp === null && rest.length === 0;
+  // Nothing at all today, which is different from everything being done: the
+  // card says "nothing to do just now", an empty day says so more warmly.
+  const empty = nextUp === null && rest.length === 0;
 
-	const firstName = user?.firstName?.trim();
+  const firstName = user?.firstName?.trim();
 
-	return (
-		<Screen title={greeting(t, firstName)} subtitle={formatToday(locale)}>
-			{empty ? (
-				<EmptyState
-					icon="reminder"
-					title={t("today.emptyTitle")}
-					message={t("today.emptyMessage")}
-				/>
-			) : (
-				<NextReminderCard
-					occurrence={nextUp}
-					onDone={() => nextUp && markDone(nextUp)}
-				/>
-			)}
+  return (
+    <Screen
+      title={greeting(t, firstName)}
+      subtitle={formatToday(locale)}
+      // The reminders a caregiver sets land here, and the reader is often
+      // looking at this page while they set them.
+      onRefresh={refresh}
+    >
+      {empty ? (
+        <EmptyState
+          icon="reminder"
+          title={t("today.emptyTitle")}
+          message={t("today.emptyMessage")}
+        />
+      ) : (
+        <NextReminderCard
+          occurrence={nextUp}
+          onDone={() => nextUp && markDone(nextUp)}
+        />
+      )}
 
-			{rest.length > 0 ? (
-				<Section title={t("today.restOfDay")}>
-					<ReminderList occurrences={rest} />
-				</Section>
-			) : null}
+      {rest.length > 0 ? (
+        <Section title={t("today.restOfDay")}>
+          <ReminderList occurrences={rest} />
+        </Section>
+      ) : null}
 
-			{/* Hidden rather than disabled when the store could not be opened: a
+      {/* Hidden rather than disabled when the store could not be opened: a
           button that cannot do its job should not be offered at all. */}
-			{available ? (
-				<ActionButton
-					label={t("today.addReminder")}
-					variant="outlined"
-					onPress={() => setAdding(true)}
-				/>
-			) : null}
+      {available ? (
+        <ActionButton
+          label={t("today.addReminder")}
+          variant="outlined"
+          onPress={() => setAdding(true)}
+        />
+      ) : null}
 
-			{/* A second way into the games, alongside the Games tab. Three boards
+      {/* A second way into the games, alongside the Games tab. Three boards
           are offered by name and the fourth tile opens the tab with the rest,
           so the common case is one tap from the screen the reader starts on
           and the full list is still one tap away. */}
-			{/* <Section
+      {/* <Section
 				title={t("games.home.section")}
 				description={t("games.home.description")}
 			>
 				<GameGrid tiles={homeTiles(t)} />
 			</Section> */}
 
-			<AddReminderDialog
-				visible={adding}
-				onClose={() => setAdding(false)}
-				onAdd={add}
-			/>
-		</Screen>
-	);
+      <AddReminderDialog
+        visible={adding}
+        onClose={() => setAdding(false)}
+        onAdd={add}
+      />
+    </Screen>
+  );
 }
 
 /**
@@ -108,28 +116,28 @@ export default function TodayScreen() {
  * game that is not there.
  */
 function homeTiles(t: TFunction): GameGridTile[] {
-	const games: GameGridTile[] = GameCatalogue.slice(0, HomeGameCount).map(
-		(game) => ({
-			id: game.id,
-			icon: game.icon,
-			title: t(game.nameKey),
-			description: t(game.descriptionKey),
-			kind: "game",
-			onPress: () => router.push(game.route),
-		}),
-	);
+  const games: GameGridTile[] = GameCatalogue.slice(0, HomeGameCount).map(
+    (game) => ({
+      id: game.id,
+      icon: game.icon,
+      title: t(game.nameKey),
+      description: t(game.descriptionKey),
+      kind: "game",
+      onPress: () => router.push(game.route),
+    }),
+  );
 
-	return [
-		...games,
-		{
-			id: "all",
-			icon: "games",
-			title: t("games.home.all"),
-			description: t("games.home.allHint"),
-			kind: "more",
-			onPress: () => router.push("/games"),
-		},
-	];
+  return [
+    ...games,
+    {
+      id: "all",
+      icon: "games",
+      title: t("games.home.all"),
+      description: t("games.home.allHint"),
+      kind: "more",
+      onPress: () => router.push("/games"),
+    },
+  ];
 }
 
 /**
@@ -138,15 +146,15 @@ function homeTiles(t: TFunction): GameGridTile[] {
  * takes a suffix — is the translator's decision, not the layout's.
  */
 function greeting(
-	t: ReturnType<typeof useTranslation>["t"],
-	name: string | undefined,
+  t: ReturnType<typeof useTranslation>["t"],
+  name: string | undefined,
 ) {
-	const hour = new Date().getHours(); // Returns 0 - 23
-	const partOfDay = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
+  const hour = new Date().getHours(); // Returns 0 - 23
+  const partOfDay = hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening";
 
-	return name
-		? t(`greeting.named${partOfDay}`, { name })
-		: t(`greeting.${partOfDay.toLowerCase() as Lowercase<typeof partOfDay>}`);
+  return name
+    ? t(`greeting.named${partOfDay}`, { name })
+    : t(`greeting.${partOfDay.toLowerCase() as Lowercase<typeof partOfDay>}`);
 }
 
 /**
@@ -155,9 +163,9 @@ function greeting(
  * half in one script and half in another is harder to read than either.
  */
 function formatToday(locale: string) {
-	return new Date().toLocaleDateString(locale, {
-		weekday: "long",
-		day: "numeric",
-		month: "long",
-	});
+  return new Date().toLocaleDateString(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 }

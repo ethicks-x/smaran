@@ -11,6 +11,7 @@ import {
 import { EmptyState, Screen, Section } from "@/components/ui";
 import type { MemorySubjectKind } from "@/db/schema";
 import { useMemorySubjects } from "@/hooks/use-memory-subjects";
+import { useRefresh } from "@/hooks/use-refresh";
 
 /**
  * How many subjects a category shows here before the rest move behind a tile.
@@ -47,10 +48,18 @@ const PREVIEW = COLUMNS * 2 - 1;
 export default function MemoriesScreen() {
   const { t } = useTranslation();
   const { groups, any } = useMemorySubjects();
+  const refresh = useRefresh();
 
   if (!any) {
     return (
-      <Screen title={t("memories.title")} subtitle={t("memories.subtitle")}>
+      <Screen
+        title={t("memories.title")}
+        subtitle={t("memories.subtitle")}
+        // The screen a family's first photograph arrives on, so the pull is
+        // worth most here: an empty page is exactly when somebody wonders
+        // whether anything has come through yet.
+        onRefresh={refresh}
+      >
         <EmptyState
           icon="memories"
           title={t("memories.emptyTitle")}
@@ -64,6 +73,7 @@ export default function MemoriesScreen() {
     <Screen
       title={t("memories.title")}
       subtitle={t("memories.subtitle")}
+      onRefresh={refresh}
       // A long page once a family has filled it in, and the way back to the
       // other tabs should not be several flicks above the reader.
       stickyHeader

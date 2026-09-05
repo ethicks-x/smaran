@@ -5,6 +5,7 @@ import { KIND_SUBTITLE, KIND_TITLE, SubjectGrid } from "@/components/memories";
 import { EmptyState, Screen } from "@/components/ui";
 import type { MemorySubjectKind } from "@/db/schema";
 import { useMemorySubjects } from "@/hooks/use-memory-subjects";
+import { useRefresh } from "@/hooks/use-refresh";
 import { SUBJECT_KINDS } from "@/lib/memory-subjects";
 
 /**
@@ -24,6 +25,7 @@ export default function MemoryCategoryScreen() {
   const { kind } = useLocalSearchParams<{ kind: string }>();
   const { t } = useTranslation();
   const { groups } = useMemorySubjects();
+  const refresh = useRefresh();
 
   const category = asKind(kind);
   const subjects = category
@@ -39,6 +41,7 @@ export default function MemoryCategoryScreen() {
         title={t("memories.title")}
         onBack={() => router.back()}
         withTabBar={false}
+        onRefresh={refresh}
       >
         <EmptyState
           icon="memories"
@@ -55,6 +58,7 @@ export default function MemoryCategoryScreen() {
       subtitle={t(KIND_SUBTITLE[category])}
       onBack={() => router.back()}
       withTabBar={false}
+      onRefresh={refresh}
       // A long page by definition — this is the one that exists because the
       // category did not fit — so the way back stays on screen throughout.
       stickyHeader

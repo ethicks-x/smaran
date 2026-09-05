@@ -2634,3 +2634,44 @@ dependencies. iOS returns `unsupported` and does nothing: there is no sideload p
 
 **Would change it if:** the project ever ships through Play or an MDM, at which point the store
 does all of this properly and this module should be deleted rather than kept alongside.
+
+## D-53 · 2026-09-05 · Pull-to-refresh, on the screens a caregiver can change from somewhere else
+
+**The reader had no way to ask.** A drain runs when the app opens and when it comes back to
+the foreground (`useSync`), and there is still no connectivity trigger (D-33). So a phone
+sitting open in front of somebody while a caregiver adds a reminder or a photograph on the
+dashboard shows yesterday's page until they leave the app and come back — which is not a
+thing anybody thinks to do, least of all this reader.
+
+**`Screen` takes an `onRefresh`, and owns the spinner.** The prop is the work; the
+`refreshing` state lives inside `Screen`, so a screen that wants the gesture supplies a
+function and nothing else. `useRefresh()` is what all four callers pass: it runs the same
+`sync()` the app runs on open — up first, then down — and kicks the care link refresh
+alongside it. Nothing is returned and nothing is read from it. The pulled rows land in the
+local store, and the screens update through the store's own listeners, exactly as they do
+after a background drain.
+
+**Four screens have it: Today, Memories, a memory category, and Help.** Those are the pages
+whose contents come from somewhere other than this phone. Everything else does not:
+
+- **Games**, and the boards themselves, are a hardcoded catalogue and a running game. A pull
+  in the middle of a round is a scroll gesture that would end it.
+- **Account**, and the four screens under it, are this phone's own preferences and Clerk's
+  copy of the reader's name. Nothing there arrives over the sync boundary. The one thing on
+  that screen that *is* a network errand — "Start fresh" — is a deliberate, twice-confirmed
+  button, and must not become a gesture.
+- **Landing, recall and setup** are not the app yet.
+
+A pull that cannot change what is on the page is worse than no pull: it teaches the reader
+that the gesture does nothing, on the screens where it does.
+
+**It is never the only way to anything (§2.3).** Everything the pull does happens on its own
+on the next app open. It is an accelerator for a reader who is watching and waiting, not a
+step in any flow — a phone whose owner never discovers the gesture loses nothing at all.
+
+**The spinner is held for 700ms minimum.** With the radio off a drain gives up in
+milliseconds, and a spinner that appears and vanishes inside a frame reads as a gesture that
+did not work, so it gets pulled again. Holding it for a beat is the whole of the feedback.
+
+**Would change it if:** a connectivity trigger lands (D-33), at which case this stays but
+stops being the only way to catch a change without backgrounding the app.
