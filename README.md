@@ -134,6 +134,8 @@ need two of the three servers running side by side.
 
 - [`docs/git_guidelines.md`](docs/git_guidelines.md) — commit conventions, branching, and staying in sync
 - [`docs/api-endpoints.md`](docs/api-endpoints.md) — overview of every backend endpoint
+- [`apps/mobile/README.md`](apps/mobile/README.md) — building the Android APK, signing it,
+  and publishing a release the app can update itself from
 - `AGENTS.md` — the operating manual for this codebase, including the accessibility and
   offline-first rules every screen must follow
 - `artifacts/` — the living knowledge base: what's actually built, architecture, and

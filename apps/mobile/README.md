@@ -76,6 +76,98 @@ bunx expo prebuild
 bun run ios               # or: bun run android
 ```
 
+## Building
+
+Smaran is not on Google Play. It is handed to a family on a device somebody set
+up for them, and the app updates itself from GitHub releases afterwards — so the
+APK you build here is the thing people actually install, and the numbers on it
+are what the updater compares. `src/lib/updates.ts` explains that side of it.
+
+### Every build
+
+Two rules, and both fail quietly rather than loudly if you break them:
+
+- **`version` in `app.json` must equal the git tag you publish.** It is the only
+  version the updater compares. `versionName` in `android/app/build.gradle` is
+  what Android shows and is invisible to `checkForUpdate`, so if the two drift,
+  the app installs an update, still reports the old version, and offers the same
+  update again on every launch — for ever.
+- **`android.versionCode` in `app.json` must go up on every release.** Android
+  refuses to install an APK that does not raise it, and refuses it silently: the
+  installer opens and closes with no message.
+
+Never edit anything under `android/` by hand. It is generated, gitignored, and
+`expo prebuild` **clears** it rather than merging — everything that has to
+survive is written by `plugins/with-release-signing.js` instead.
+
+### Which command
+
+| When | Command |
+|---|---|
+| Day to day, onto a device or emulator | `bun run android` |
+| After changing `app.json`, adding a native module, or pulling one | `bunx expo prebuild -p android` first |
+| Release APK | `cd android && ./gradlew assembleRelease` |
+| Machine runs out of memory mid-build | add `CMAKE_BUILD_PARALLEL_LEVEL=2` and `--max-workers=2 --no-parallel` |
+| Smaller APK, phones only | `-PreactNativeArchitectures=arm64-v8a` |
+| Emulator only | `-PreactNativeArchitectures=x86_64` |
+| Something is stale in a way that makes no sense | `cd android && ./gradlew clean` |
+
+The full release build, with the memory guards, on a machine that cannot spare
+16 GB:
+
+```bash
+cd android
+CMAKE_BUILD_PARALLEL_LEVEL=2 ./gradlew assembleRelease \
+  -PreactNativeArchitectures=armeabi-v7a,arm64-v8a \
+  --max-workers=2 --no-parallel
+```
+
+The default builds four ABIs; `x86` and `x86_64` are emulator-only, so dropping
+them halves the native link work and the APK size. `arm64-v8a` alone covers
+every Android phone from roughly 2015 on and is smaller again — which matters
+here, because somebody downloads it over the connections this app is written
+around. Don't pipe `gradlew` through `tail`: it swallows the exit code and a
+failed build reports success.
+
+The APK lands at `android/app/build/outputs/apk/release/app-release.apk`.
+
+### Signing
+
+Release APKs are signed with the upload keystore in `credentials/`, which is
+gitignored and is **not** in the repository — get it from whoever holds it, and
+keep using the same one for ever. The day it changes, no installed Smaran can
+accept an update again.
+
+The passwords go in `.env` (`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+`ANDROID_KEY_PASSWORD` — see `.env.example`), and
+`plugins/with-release-signing.js` copies the keystore in and writes the gradle
+signing config on every prebuild.
+
+| Condition | What happens |
+|---|---|
+| Keystore and passwords both present | release builds are signed with it |
+| No keystore in `credentials/` | prebuild says nothing, release falls back to the debug key — fine for working on the app, never for a build anybody installs |
+| Keystore but no passwords | prebuild stops with an error, rather than quietly producing an APK no phone can accept as an update |
+
+A debug build and a release build are signed with different keys, so **a dev
+build cannot be updated by a release APK.** To test the updater end to end,
+install a release build first, then update it with another release build signed
+with the same keystore.
+
+### Publishing a release
+
+1. Bump `version` and `android.versionCode` in `app.json`.
+2. Build the release APK as above.
+3. Create a GitHub release on the repo in `EXPO_PUBLIC_UPDATE_REPO`, tagged
+   exactly the `version` from step 1 — `1.2.0` or `v1.2.0`, both parse.
+4. Attach the APK. **Check the asset shows a digest** — `checkForUpdate` refuses
+   any release whose APK has no published SHA-256 and reports it as nothing
+   available, because an APK it cannot verify is not something to put in front
+   of this reader.
+
+Drafts and prereleases are skipped, and position in the list decides nothing —
+the newest valid stable semver tag wins.
+
 ## Checks
 
 ```bash
