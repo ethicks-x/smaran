@@ -37,6 +37,12 @@ export type UpdateStage =
   /** There is one, and the reader has not answered yet. */
   | "offered"
   | FetchStage
+  /**
+   * Android has the file and the installer has been opened. As far as this app
+   * can see, the last thing it will ever know about this update — whether it
+   * lands is between the reader and the system from here.
+   */
+  | "handedOff"
   /** It did not work. What went wrong is in `failure`. */
   | "failed";
 
@@ -142,9 +148,13 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       busy.current = false;
 
       if (result === "handed-off") {
-        // Android has the file and the reader is looking at the installer. What
-        // happens next is theirs, and if they finish it this screen goes away
-        // with the process it is running in.
+        // Android has the file and the reader is looking at the installer. If
+        // they finish it, this screen goes away with the process it is running
+        // in — so the state below is only ever seen by somebody the install did
+        // *not* work for, and it exists to give that person a way out. Left on
+        // `installing` the card would have no buttons at all, which is a dead
+        // end for exactly the reader least able to get out of one.
+        setStage("handedOff");
         return;
       }
 
@@ -253,12 +263,16 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
     () => ({
       update,
       stage,
-      // A required update that has actually failed stops being required.
-      // Insisting means the app does not offer a way out of installing; it
-      // cannot mean an elderly person is locked out of their reminders because
-      // GitHub was down or the phone was full. The next launch asks again, and
-      // by then the thing that stopped it may well have passed.
-      isRequired: update?.urgency === "required" && stage !== "failed",
+      // The next launch asks again, and by then the thing that stopped it —
+      // GitHub down, the phone full — may well have passed.
+      // A required update stops being required once it has failed, and once it
+      // has been handed to the installer. Insisting means the app does not
+      // offer a way out of *installing*; it cannot mean an elderly person is
+      // held on a card about an install that has already left the app's hands.
+      isRequired:
+        update?.urgency === "required" &&
+        stage !== "failed" &&
+        stage !== "handedOff",
       progress,
       failure,
       install: () => {

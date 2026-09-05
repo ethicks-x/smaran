@@ -102,6 +102,25 @@ export function UpdateNotice() {
         </>
       ) : null}
 
+      {/* The install has left the app. Two buttons, because from here there are
+          exactly two things left that could be true: the reader is looking at
+          this because Android refused quietly, or because they changed their
+          mind. Neither of them should be stuck on a card. */}
+      {stage === "handedOff" ? (
+        <>
+          <ActionButton
+            label={t("update.handedOffRetry")}
+            onPress={install}
+            variant="outlined"
+          />
+          <ActionButton
+            label={t("update.handedOffClose")}
+            onPress={dismiss}
+            variant="text"
+          />
+        </>
+      ) : null}
+
       {stage === "failed" ? (
         <>
           <ActionButton
@@ -150,6 +169,8 @@ function messageKey(stage: UpdateStage, failure: UpdateFailure | null) {
       return "update.verifying" as const;
     case "installing":
       return "update.installing" as const;
+    case "handedOff":
+      return "update.handedOff" as const;
     case "failed":
       return FAILURE_MESSAGES[failure ?? "unavailable"];
     default:
