@@ -2675,3 +2675,35 @@ did not work, so it gets pulled again. Holding it for a beat is the whole of the
 
 **Would change it if:** a connectivity trigger lands (D-33), at which case this stays but
 stops being the only way to catch a change without backgrounding the app.
+
+## D-54 · 2026-09-05 · The marketing page's APK link is resolved from GitHub, not hand-pasted
+
+**The problem it replaces.** `app/page.tsx`'s "Patients APK" button linked straight to
+`.../releases/download/1.0.0/smaran-v1.0.0-stable.apk` — a URL someone had to remember to
+bump by hand on every release, and one that was already a full minor version behind
+(`1.1.2` had shipped) by the time this was noticed.
+
+**`lib/github.ts`'s `getLatestApkDownloadUrl()` calls the public releases endpoint
+(`api.github.com/repos/ethicks-x/smaran/releases`, no auth needed for a public repo) and
+walks it newest-first for the first non-draft, non-prerelease entry carrying a `.apk`
+asset.** It is marked `server-only` and called from a new `app/page.tsx`, which is now a
+thin async server component; the animated page itself moved, unchanged, to
+`components/landing/LandingPage.tsx` and takes the resolved URL (or `null`) as a prop. The
+fetch is tagged `next: { revalidate: 3600 }` — an hour-old link on a marketing page costs
+nothing, and it saves a GitHub call per visitor.
+
+**On `null`** — GitHub unreachable, or no release has shipped an APK yet — the button falls
+back to the repo's `/releases` page instead of a dead direct link, and opens it in a new tab
+rather than attempting a same-tab download.
+
+**Mirrors, but does not share code with, the mobile app's own updater** (`src/lib/updates.ts`,
+D-52), which resolves the same "newest stable release, first `.apk` on it" question on-device
+for its self-update flow. The two are independent by choice: the web fetch runs server-side
+with Next's revalidation cache, the mobile one runs on the client with a SHA-256 check against
+the digest GitHub recorded on upload before handing the file to Android's installer — enough
+different concerns that a shared package would be an abstraction for two call sites, not one
+for future ones.
+
+**Would change it if:** the web app moves to serving Android installs from something other
+than GitHub Releases (e.g. Play, or an internal artifact store), at which point this function
+is the one place that needs to change.

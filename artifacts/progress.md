@@ -186,6 +186,7 @@ Tailwind v4, Recharts and framer-motion are in.
 | Screens fed by the API | ✅ Dashboard, Patients, Patient Detail (Overview, Memory Subjects, Reminders tab, Progress, Casual Play), Patient Edit Modal, Add Memory flow, Add Reminder Modal / Reminders Manager, and Activity are fully wired to live API endpoints (`/dashboard/summary`, `/dashboard/patients/*`, `/dashboard/activity`). `ReminderList` and `ReminderForm` read and write both schedule shapes — weekly, and the one-off `HH:MM@YYYY-MM-DD` a phone can now send up (D-43). |
 | Identity on screen | 🟡 the header shows the real Clerk user; Settings still renders the mock caregiver |
 | Data fetching/caching | ⬜ TanStack Query not installed |
+| Landing page APK link | ✅ `lib/github.ts` `getLatestApkDownloadUrl()` (server-only, hourly-revalidated `fetch`) resolves the `.apk` asset off the newest non-draft, non-prerelease GitHub release; `app/page.tsx` is now a server component that fetches it and hands it to `components/landing/LandingPage.tsx` (the old page body, unchanged otherwise). Falls back to the repo's releases page if GitHub is unreachable or no release has an APK yet — no more hand-pasted download URL to update per release. |
 
 Next on this app: point one screen at `api()` — `/users/me` or `/dashboard/summary` — and
 delete the mock behind it.
