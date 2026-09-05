@@ -21,6 +21,7 @@ import {
   SettingsRow,
   Text,
 } from "@/components/ui";
+import { UpdateRow } from "@/components/update";
 import { useApi } from "@/hooks/use-api";
 import { useAppearance, useAppearanceOptions } from "@/hooks/use-appearance";
 import { useLanguage } from "@/hooks/use-language";
@@ -129,6 +130,10 @@ export default function SettingsScreen() {
             </Text>
             <Detail label={t("account.rows.about.version")} value={version} />
           </SettingsRow>
+          {/* Directly under the version it is about, so the answer to "which
+              Smaran is this?" and the way to get a newer one read as one
+              thought rather than two rows that happen to be near each other. */}
+          <UpdateRow />
           <RefreshRow />
           <SettingsRow
             icon="signOut"

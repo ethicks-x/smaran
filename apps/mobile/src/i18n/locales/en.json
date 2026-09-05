@@ -489,6 +489,18 @@
         "body": "Smaran is made to be read easily and used slowly: large type, big buttons, and never more than a few choices at once.",
         "version": "Version"
       },
+      "update": {
+        "label": "Check for a newer Smaran",
+        "description": "Ask now, instead of waiting",
+        "body": "Smaran looks for a newer version by itself every time you open it. You can also ask right now — it takes a moment, and nothing on this phone changes unless you say yes afterwards.",
+        "action": "Check now",
+        "asking": "Smaran is asking…",
+        "current": "This phone already has the newest Smaran.",
+        "available": "There is a newer Smaran. The message on your screen will help you get it.",
+        "unavailable": "Smaran could not ask just now. Nothing on this phone has changed.",
+        "unsupported": "Smaran only updates itself on Android phones.",
+        "busy": "Smaran is already getting an update."
+      },
       "refresh": {
         "label": "Refresh this phone",
         "description": "Get everything again from your family",
@@ -655,12 +667,14 @@
     "installing": "Almost there. Your phone will ask you to install Smaran — please say yes.",
     "progress": "{{percent}} done",
     "progressLabel": "How much of the update has arrived",
+    "checkLabel": "How much of the update has been checked",
     "details": {
       "installed": "On this phone",
       "latest": "New version",
       "unknownVersion": "Not known",
       "size": "Download size",
       "downloaded": "Arrived so far",
+      "checked": "Checked so far",
       "downloadedValue": "{{done}} of {{total}}",
       "megabytes": "{{size}} MB"
     },

@@ -227,7 +227,14 @@ export type FetchResult =
 
 export type FetchListeners = {
   onStage: (stage: FetchStage) => void;
-  /** How far the download has come, 0–1. Only sent during `downloading`. */
+  /**
+   * How far the current stage has come, 0–1. Sent during `downloading` and
+   * during `verifying` — both are minutes long on the phones this app is built
+   * for — and reset to zero as each of them begins, so a bar drawn from it
+   * always measures the stage the reader is being told about rather than the
+   * one before it. Nothing is sent during `installing`, which is a handover
+   * rather than a piece of work.
+   */
   onProgress: (fraction: number) => void;
 };
 
@@ -288,8 +295,9 @@ export async function fetchAndInstall(
   }
 
   listeners.onStage("verifying");
+  listeners.onProgress(0);
 
-  const digest = await hashFile(target);
+  const digest = await hashFile(target, listeners.onProgress);
 
   if (digest !== update.sha256) {
     // A truncated download and a substituted one are indistinguishable from
@@ -440,11 +448,25 @@ function hasRoomFor(bytes: number): boolean {
  * Returns null if the file could not be read, which is treated as a mismatch by
  * the caller — the whole point is that only bytes we have actually measured get
  * installed.
+ *
+ * Progress is reported on the same breath the loop takes anyway. A hundred
+ * megabytes of JavaScript arithmetic is long enough that a reader watching a
+ * still bar would reasonably conclude the app had stopped, and the fraction is
+ * exact here — unlike a download, the total is a file already on this disk.
  */
-async function hashFile(file: File): Promise<string | null> {
+async function hashFile(
+  file: File,
+  onProgress: (fraction: number) => void,
+): Promise<string | null> {
   const hasher = sha256.create();
   const reader = file.readableStream().getReader();
 
+  // `size` is what the loop is measured against, and a device that will not
+  // report it leaves the bar at zero rather than dividing by nothing. The stage
+  // still finishes; only the number is missing.
+  const total = file.size ?? 0;
+
+  let hashed = 0;
   let sinceBreath = 0;
 
   try {
@@ -456,13 +478,21 @@ async function hashFile(file: File): Promise<string | null> {
       }
 
       hasher.update(value);
+      hashed += value.byteLength;
       sinceBreath += value.byteLength;
 
       if (sinceBreath >= HASH_YIELD_BYTES) {
         sinceBreath = 0;
+
+        if (total > 0) {
+          onProgress(hashed / total);
+        }
+
         await breathe();
       }
     }
+
+    onProgress(1);
 
     return hasher.hex();
   } catch {

@@ -35,7 +35,8 @@ export type UpdateDetailsProps = {
  *
  * While the download runs, the size row turns into how much of it has arrived,
  * which is the same fact made useful — a bar says "some", "45 MB of 120 MB"
- * says whether it is worth waiting for.
+ * says whether it is worth waiting for. Checking the bytes afterwards counts
+ * the same file the same way, and says so.
  */
 export function UpdateDetails({ update, stage, progress }: UpdateDetailsProps) {
   const { t } = useTranslation();
@@ -44,7 +45,11 @@ export function UpdateDetails({ update, stage, progress }: UpdateDetailsProps) {
   const size = (bytes: number) =>
     t("update.details.megabytes", { size: megabytes(bytes, locale) });
 
-  const downloading = stage === "downloading";
+  // Both long stages measure themselves the same way — a fraction of the same
+  // file — so they share a row and differ only in the word for what is being
+  // counted. Installing is a handover rather than a piece of work, and falls
+  // back to the plain size.
+  const counting = stage === "downloading" || stage === "verifying";
 
   // A build that does not name its own version is a real case rather than a
   // defensive one — `checkForUpdate` refuses to compare anything at all when it
@@ -68,13 +73,9 @@ export function UpdateDetails({ update, stage, progress }: UpdateDetailsProps) {
         value={displayVersion(update.version)}
       />
       <Row
-        label={
-          downloading
-            ? t("update.details.downloaded")
-            : t("update.details.size")
-        }
+        label={t(COUNTED[counting ? stage : "size"])}
         value={
-          downloading
+          counting
             ? t("update.details.downloadedValue", {
                 done: size(arrived(update.bytes, progress)),
                 total: size(update.bytes),
@@ -85,6 +86,19 @@ export function UpdateDetails({ update, stage, progress }: UpdateDetailsProps) {
     </Surface>
   );
 }
+
+/**
+ * What the third row is called, per stage.
+ *
+ * Spelled out rather than built from the stage, so each one is a literal the
+ * catalogue's type is checked against — a key this row could not find would be
+ * a blank label beside a number with nothing to say what it counts.
+ */
+const COUNTED = {
+  downloading: "update.details.downloaded",
+  verifying: "update.details.checked",
+  size: "update.details.size",
+} as const;
 
 /** A label and its value, on one line, reading left to right. */
 function Row({ label, value }: { label: string; value: string }) {

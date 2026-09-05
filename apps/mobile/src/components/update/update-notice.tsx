@@ -44,6 +44,12 @@ export function UpdateNotice() {
 
   const version = update.version;
 
+  // Checking the bytes is minutes of arithmetic on a cheap tablet, not the
+  // instant its one sentence implies, so it gets the same bar the download
+  // does. Without one, the longest silence in the whole flow is the stage that
+  // looks most like the app having stopped.
+  const counting = stage === "downloading" || stage === "verifying";
+
   return (
     <Dialog
       visible
@@ -56,11 +62,11 @@ export function UpdateNotice() {
       message={t(messageKey(stage, failure), { version })}
       details={
         <View style={styles.details}>
-          {stage === "downloading" ? (
+          {counting ? (
             <View style={styles.progress}>
               <ProgressBar
                 value={progress}
-                accessibilityLabel={t("update.progressLabel")}
+                accessibilityLabel={t(PROGRESS_LABELS[stage])}
               />
               <Text variant="body" color="textSecondary" center>
                 {t("update.progress", {
@@ -70,9 +76,9 @@ export function UpdateNotice() {
             </View>
           ) : null}
 
-          {/* Under the bar rather than over it: while the download runs the
-              thing to watch is the one that moves, and the numbers behind it
-              are for whoever wants them. */}
+          {/* Under the bar rather than over it: while there is work running,
+              the thing to watch is the one that moves, and the numbers behind
+              it are for whoever wants them. */}
           <UpdateDetails update={update} stage={stage} progress={progress} />
         </View>
       }
@@ -113,6 +119,18 @@ export function UpdateNotice() {
     </Dialog>
   );
 }
+
+/**
+ * What the bar is measuring, for a reader who cannot see it.
+ *
+ * A literal per stage rather than a stem and the stage, for the same reason
+ * {@link messageKey} is written out: a missing key here would leave the one
+ * moving thing on the card unnamed to a screen reader.
+ */
+const PROGRESS_LABELS = {
+  downloading: "update.progressLabel",
+  verifying: "update.checkLabel",
+} as const;
 
 /**
  * Which sentence goes under the title.

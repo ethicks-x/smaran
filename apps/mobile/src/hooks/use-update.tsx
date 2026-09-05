@@ -15,6 +15,7 @@ import {
   checkForUpdate,
   type FetchStage,
   fetchAndInstall,
+  type UpdateCheck,
 } from "@/lib/updates";
 import { simulateFetchAndInstall, updatePreview } from "@/lib/updates-preview";
 
@@ -42,6 +43,16 @@ export type UpdateStage =
 /** Why the last attempt stopped, in the only terms the app can act on. */
 export type UpdateFailure = "unavailable" | "corrupt" | "refused";
 
+/**
+ * How a check ended, for a caller that asked for one by hand.
+ *
+ * The same four answers `checkForUpdate` gives, plus `busy` — a check asked for
+ * while a download is already running, which is not a failure and not an answer
+ * either. The automatic checks discard all of this; only a reader who pressed a
+ * button is owed a sentence about it.
+ */
+export type UpdateCheckOutcome = UpdateCheck["status"] | "busy";
+
 export type UpdateValue = {
   update: AvailableUpdate | null;
   stage: UpdateStage;
@@ -54,6 +65,15 @@ export type UpdateValue = {
   install: () => void;
   /** Not now — until the next launch. */
   dismiss: () => void;
+  /**
+   * Ask GitHub now, ignoring the four-hour interval, and say what came back.
+   *
+   * For the row on Settings and nothing else. An update it finds opens the card
+   * over the screen the same way an automatic check's would, so the caller
+   * usually has nothing to do with the answer beyond telling a reader who found
+   * nothing that there was nothing to find.
+   */
+  check: () => Promise<UpdateCheckOutcome>;
 };
 
 const UpdateContext = createContext<UpdateValue | null>(null);
@@ -133,6 +153,72 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  /**
+   * Ask GitHub, and put whatever comes back on screen.
+   *
+   * `force` is what separates the reader pressing a button from the app
+   * noticing it is in the foreground again: an automatic check honours the
+   * four-hour interval, a hand-run one cannot, or the row on Settings would
+   * answer "nothing to do" without having asked anybody anything.
+   *
+   * The status is returned as well as acted on. Nothing on the automatic path
+   * reads it — for that caller a quiet failure is the correct outcome and the
+   * reason there is no `catch` anywhere near this — but a reader who pressed a
+   * button is owed a sentence, and this is where that sentence comes from.
+   */
+  const runCheck = useCallback(
+    async (force: boolean): Promise<UpdateCheckOutcome> => {
+      if (PREVIEW) {
+        // No network, and the same card the variable asked for. A hand-run
+        // check in preview brings back whichever state is being worked on,
+        // which is what makes the Settings row testable without a release.
+        setUpdate(PREVIEW.update);
+        setFailure(PREVIEW.failure);
+        setStage(PREVIEW.stage);
+
+        return "available";
+      }
+
+      const now = Date.now();
+
+      if (busy.current) {
+        // A download is already running and the card is already up. Asking
+        // again would race it for the same file on disk.
+        return "busy";
+      }
+
+      if (!force && now - lastCheckedAt.current < MIN_INTERVAL_MS) {
+        return "current";
+      }
+
+      // Set before the call rather than after: the point is to stop a second
+      // trigger starting a second check, and a check takes as long as a slow
+      // connection does.
+      lastCheckedAt.current = now;
+
+      const result = await checkForUpdate();
+
+      if (result.status !== "available") {
+        // Nothing to say, and — importantly — nothing taken away either. A
+        // check that could not reach GitHub leaves an offer already on screen
+        // exactly where it was.
+        return result.status;
+      }
+
+      setUpdate(result.update);
+
+      if (result.update.urgency === "required") {
+        setStage("downloading");
+        install(result.update);
+      } else {
+        setStage("offered");
+      }
+
+      return "available";
+    },
+    [install],
+  );
+
   useEffect(() => {
     if (PREVIEW) {
       // Straight to the state being looked at, and no network at all. A
@@ -149,52 +235,19 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const check = () => {
-      const now = Date.now();
-
-      if (busy.current || now - lastCheckedAt.current < MIN_INTERVAL_MS) {
-        return;
-      }
-
-      // Set before the call rather than after: the point is to stop a second
-      // trigger starting a second check, and a check takes as long as a slow
-      // connection does.
-      lastCheckedAt.current = now;
-
-      void (async () => {
-        const result = await checkForUpdate();
-
-        if (result.status !== "available") {
-          // Nothing to say, and — importantly — nothing taken away either. A
-          // check that could not reach GitHub leaves an offer already on screen
-          // exactly where it was.
-          return;
-        }
-
-        setUpdate(result.update);
-
-        if (result.update.urgency === "required") {
-          setStage("downloading");
-          install(result.update);
-        } else {
-          setStage("offered");
-        }
-      })();
-    };
-
-    check();
+    void runCheck(false);
 
     const subscription = AppState.addEventListener(
       "change",
       (state: AppStateStatus) => {
         if (state === "active") {
-          check();
+          void runCheck(false);
         }
       },
     );
 
     return () => subscription.remove();
-  }, [install]);
+  }, [install, runCheck]);
 
   const value = useMemo<UpdateValue>(
     () => ({
@@ -217,8 +270,9 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
         setStage("idle");
         setFailure(null);
       },
+      check: () => runCheck(true),
     }),
-    [update, stage, progress, failure, install],
+    [update, stage, progress, failure, install, runCheck],
   );
 
   return (
@@ -244,4 +298,7 @@ const FALLBACK: UpdateValue = {
   failure: null,
   install: () => {},
   dismiss: () => {},
+  // "Not Android", which is the honest answer for anything rendered without the
+  // provider: there is nowhere for a check to put its result.
+  check: async () => "unsupported",
 };

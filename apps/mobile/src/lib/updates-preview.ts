@@ -41,7 +41,7 @@ const DOWNLOAD_MS = 6000;
 const TICK_MS = 120;
 
 /** How long the card sits on "checking that everything arrived safely". */
-const VERIFY_MS = 1800;
+const VERIFY_MS = 3000;
 
 export type UpdatePreview = {
   update: AvailableUpdate;
@@ -136,7 +136,15 @@ export async function simulateFetchAndInstall(
   }
 
   listeners.onStage("verifying");
-  await wait(VERIFY_MS);
+  listeners.onProgress(0);
+
+  // Checked at the same granularity it is drawn at, for the same reason the
+  // real one reports progress: a hundred megabytes hashed in JavaScript is long
+  // enough that a still bar reads as a stuck app.
+  for (let elapsed = 0; elapsed <= VERIFY_MS; elapsed += TICK_MS) {
+    listeners.onProgress(elapsed / VERIFY_MS);
+    await wait(TICK_MS);
+  }
 
   listeners.onStage("installing");
 
