@@ -144,7 +144,7 @@ export default function AddMemorySubjectPage() {
         );
       }
 
-      router.push(`/patients/${params.id}?tab=memories`);
+      router.push(`/patients/${params.id}/memories`);
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -169,7 +169,7 @@ export default function AddMemorySubjectPage() {
     <DashboardShell>
       <div className="mx-auto max-w-xl">
         <Link
-          href={`/patients/${params.id}?tab=memories`}
+          href={`/patients/${params.id}/memories`}
           className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink-500 hover:text-ink-900"
         >
           <ArrowLeft size={15} /> Back to Memory Subjects
