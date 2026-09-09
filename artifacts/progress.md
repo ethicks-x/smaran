@@ -187,6 +187,7 @@ Tailwind v4, Recharts and framer-motion are in.
 | Identity on screen | 🟡 the header shows the real Clerk user; Settings still renders the mock caregiver |
 | Data fetching/caching | ⬜ TanStack Query not installed |
 | Landing page APK link | ✅ `lib/github.ts` `getLatestApkDownloadUrl()` (server-only, hourly-revalidated `fetch`) resolves the `.apk` asset off the newest non-draft, non-prerelease GitHub release; `app/page.tsx` is now a server component that fetches it and hands it to `components/landing/LandingPage.tsx` (the old page body, unchanged otherwise). Falls back to the repo's releases page if GitHub is unreachable or no release has an APK yet — no more hand-pasted download URL to update per release. |
+| Loading skeletons | ✅ Dashboard, Patients, Activity, Reminders tab and Notifications already showed pulse skeletons while their client-side fetch was in flight — Notifications now matches the others' block style instead of a bare spinner. The two server components that block on `await` before rendering anything — `app/page.tsx` (GitHub release lookup) and `app/patients/[id]/page.tsx` (four sequential API calls) — had no visual feedback at all during that wait; added `app/loading.tsx` and `app/patients/[id]/loading.tsx`, which Next.js shows automatically via Suspense while those awaits resolve. The patient-detail one renders `DashboardShell` around the skeleton so the sidebar/header don't flash away during the wait. |
 
 Next on this app: point one screen at `api()` — `/users/me` or `/dashboard/summary` — and
 delete the mock behind it.

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Brain, CheckCheck, Heart, Loader } from "lucide-react";
+import { AlertTriangle, Brain, CheckCheck, Heart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Button } from "@/components/ui/Button";
@@ -113,8 +113,13 @@ export default function NotificationsPage() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader className="animate-spin text-indigo-600" size={24} />
+        <div className="space-y-2.5">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="h-20 animate-pulse rounded-2xl bg-black/[0.04] dark:bg-white/[0.04]"
+            />
+          ))}
         </div>
       )}
 
