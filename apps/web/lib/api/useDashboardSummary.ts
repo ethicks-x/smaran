@@ -5,7 +5,7 @@ import type { DashboardSummaryApi } from "@/lib/types";
 import { useApi } from "./client";
 
 export function useDashboardSummary() {
-  const { apiFetch } = useApi();
+  const { apiFetch, isLoaded } = useApi();
   const [data, setData] = useState<DashboardSummaryApi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +24,7 @@ export function useDashboardSummary() {
   }, [apiFetch]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     let cancelled = false;
     apiFetch<DashboardSummaryApi>("/dashboard/summary")
       .then((res) => !cancelled && setData(res))
@@ -36,7 +37,7 @@ export function useDashboardSummary() {
     return () => {
       cancelled = true;
     };
-  }, [apiFetch]);
+  }, [apiFetch, isLoaded]);
 
   return { data, loading, error, refetch };
 }

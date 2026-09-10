@@ -12,7 +12,7 @@ interface UseMyPatientsResult {
 }
 
 export function useMyPatients(): UseMyPatientsResult {
-  const { apiFetch } = useApi();
+  const { apiFetch, isLoaded } = useApi();
   const [patients, setPatients] = useState<PatientCardApi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +39,9 @@ export function useMyPatients(): UseMyPatientsResult {
   }, [fetchPatients]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     fetchPatients();
-  }, [fetchPatients]);
+  }, [fetchPatients, isLoaded]);
 
   return {
     patients,
