@@ -12,6 +12,7 @@ import {
   User,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -241,12 +242,13 @@ export default function AddMemorySubjectPage() {
                   />
 
                   {photoPreview ? (
-                    <div className="relative overflow-hidden rounded-xl border border-black/10">
-                      {/* biome-ignore lint/performance/noImgElement: a local object URL, not a remote asset */}
-                      <img
+                    <div className="relative overflow-hidden rounded-xl border border-black/10 h-48">
+                      <Image
                         src={photoPreview}
                         alt={photo?.name ?? "The picture you chose"}
-                        className="h-48 w-full object-cover"
+                        fill
+                        unoptimized
+                        className="object-cover"
                       />
                       <button
                         type="button"

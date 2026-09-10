@@ -2,6 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { Bell, Menu, Search } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useUnreadCount } from "@/lib/useUnreadCount";
@@ -55,12 +56,18 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           href="/settings"
           className="flex items-center gap-2.5 rounded-xl pl-1 pr-3 py-1 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
         >
-          {/** biome-ignore lint/performance/noImgElement: Image is used for visual purposes only */}
-          <img
-            src={user?.imageUrl}
-            alt=""
-            className="h-9 w-9 rounded-full border-2 border-white/80 dark:border-white/20 object-cover"
-          />
+          {user?.imageUrl ? (
+            <Image
+              src={user.imageUrl}
+              alt=""
+              width={36}
+              height={36}
+              unoptimized
+              className="h-9 w-9 rounded-full border-2 border-white/80 dark:border-white/20 object-cover"
+            />
+          ) : (
+            <div className="h-9 w-9 rounded-full border-2 border-white/80 dark:border-white/20 bg-black/5 dark:bg-white/5" />
+          )}
           <div className="hidden text-left sm:block">
             <p className="text-sm font-semibold leading-none text-ink-900">
               {name}

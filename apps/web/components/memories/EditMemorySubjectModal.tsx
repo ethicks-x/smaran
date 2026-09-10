@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, UploadCloud, X } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
@@ -193,12 +194,13 @@ export function EditMemorySubjectModal({
             />
 
             {photoPreview ? (
-              <div className="relative mt-1.5 overflow-hidden rounded-xl border border-black/10 dark:border-white/10">
-                {/** biome-ignore lint/performance/noImgElement: a local preview or a signed URL, not a static asset */}
-                <img
+              <div className="relative mt-1.5 overflow-hidden rounded-xl border border-black/10 dark:border-white/10 h-40">
+                <Image
                   src={photoPreview}
                   alt={photo?.name ?? subject.name ?? "Current photo"}
-                  className="h-40 w-full object-cover"
+                  fill
+                  unoptimized
+                  className="object-cover"
                 />
                 <button
                   type="button"
