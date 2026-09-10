@@ -5,12 +5,13 @@ import type { UserProfileApi } from "@/lib/types";
 import { useApi } from "./client";
 
 export function useCurrentUser() {
-  const { apiFetch } = useApi();
+  const { apiFetch, isLoaded } = useApi();
   const [user, setUser] = useState<UserProfileApi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isLoaded) return;
     let cancelled = false;
 
     apiFetch<UserProfileApi>("/users/me")
@@ -29,7 +30,7 @@ export function useCurrentUser() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiFetch]);
+  }, [apiFetch, isLoaded]);
 
   return { user, loading, error };
 }

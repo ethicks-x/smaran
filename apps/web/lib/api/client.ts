@@ -19,7 +19,7 @@ export class ApiError extends Error {
  * client component that needs to call the FastAPI backend.
  */
 export function useApi() {
-  const { getToken } = useAuth();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const getTokenRef = useRef(getToken);
 
   useEffect(() => {
@@ -50,5 +50,5 @@ export function useApi() {
     [],
   );
 
-  return { apiFetch };
+  return { apiFetch, isLoaded, isSignedIn };
 }

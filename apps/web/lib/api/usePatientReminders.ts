@@ -27,7 +27,7 @@ interface UsePatientRemindersResult {
 export function usePatientReminders(
   patientId: string,
 ): UsePatientRemindersResult {
-  const { apiFetch } = useApi();
+  const { apiFetch, isLoaded } = useApi();
   const [reminders, setReminders] = useState<ReminderApi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,10 +111,10 @@ export function usePatientReminders(
   };
 
   useEffect(() => {
-    if (patientId) {
+    if (patientId && isLoaded) {
       fetchReminders();
     }
-  }, [patientId, fetchReminders]);
+  }, [patientId, fetchReminders, isLoaded]);
 
   return {
     reminders,

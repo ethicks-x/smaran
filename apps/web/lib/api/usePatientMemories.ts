@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useCallback, useEffect, useState } from "react";
 import { useApi } from "@/hooks/use-api";
 import type { MemorySubjectApi } from "@/lib/types";
@@ -25,6 +26,7 @@ interface UsePatientMemoriesResult {
 export function usePatientMemories(
   patientId: string,
 ): UsePatientMemoriesResult {
+  const { isLoaded } = useAuth();
   const api = useApi();
   const [memories, setMemories] = useState<MemorySubjectApi[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,10 +68,10 @@ export function usePatientMemories(
   );
 
   useEffect(() => {
-    if (patientId) {
+    if (patientId && isLoaded) {
       fetchMemories();
     }
-  }, [patientId, fetchMemories]);
+  }, [patientId, fetchMemories, isLoaded]);
 
   return { memories, loading, error, refetch, deleteMemory, isDeleting };
 }

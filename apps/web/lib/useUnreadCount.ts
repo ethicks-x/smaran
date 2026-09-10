@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import { useApi } from "@/hooks/use-api";
 
@@ -11,10 +12,12 @@ interface Notification {
 }
 
 export function useUnreadCount() {
+  const { isLoaded } = useAuth();
   const api = useApi();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    if (!isLoaded) return;
     async function fetchAndCalculate() {
       try {
         const notifications = await api<Notification[]>(
@@ -46,7 +49,7 @@ export function useUnreadCount() {
       window.removeEventListener("storage", handleStorageChange);
       clearInterval(interval);
     };
-  }, [api]);
+  }, [api, isLoaded]);
 
   return count;
 }

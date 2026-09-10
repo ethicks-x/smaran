@@ -7,7 +7,7 @@ import { useApi } from "./client";
 type RequestDecision = "active" | "revoked";
 
 export function useCareRequests() {
-  const { apiFetch } = useApi();
+  const { apiFetch, isLoaded } = useApi();
   const [requests, setRequests] = useState<CareRequestApi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +30,7 @@ export function useCareRequests() {
   }, [apiFetch]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     let cancelled = false;
 
     setLoading(true);
@@ -56,7 +57,7 @@ export function useCareRequests() {
     return () => {
       cancelled = true;
     };
-  }, [apiFetch]);
+  }, [apiFetch, isLoaded]);
 
   const decide = useCallback(
     async (requestId: string, status: RequestDecision) => {
