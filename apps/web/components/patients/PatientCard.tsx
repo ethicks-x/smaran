@@ -1,4 +1,5 @@
 import { ChevronRight, Clock, Gamepad2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import type { PatientCardApi } from "@/lib/types";
@@ -24,12 +25,18 @@ export function PatientCard({
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3.5">
-          {/** biome-ignore lint/performance/noImgElement: Image is used for visual purposes only */}
-          <img
-            src={patient.avatar_url ?? undefined}
-            alt={patient.full_name}
-            className="h-14 w-14 rounded-2xl object-cover"
-          />
+          {patient.avatar_url ? (
+            <Image
+              src={patient.avatar_url}
+              alt={patient.full_name}
+              width={56}
+              height={56}
+              unoptimized
+              className="h-14 w-14 rounded-2xl object-cover"
+            />
+          ) : (
+            <div className="h-14 w-14 rounded-2xl bg-black/5 dark:bg-white/5" />
+          )}
           <div>
             <p className="font-display text-base font-semibold text-ink-900">
               {patient.full_name}

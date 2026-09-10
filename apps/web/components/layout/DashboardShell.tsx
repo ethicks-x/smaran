@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
   Bell,
-  Brain,
   LayoutDashboard,
   Settings,
   Users,

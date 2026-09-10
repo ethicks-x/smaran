@@ -1,6 +1,7 @@
 "use client";
 
 import { BellPlus, Heart, Pencil } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -37,12 +38,18 @@ export function PatientProfileHeader({
       <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-surface p-6 shadow-[0_2px_8px_rgba(44,31,88,0.06)] dark:shadow-none">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
           <div className="flex items-center gap-4">
-            {/** biome-ignore lint/performance/noImgElement: Image is used for visual purposes only */}
-            <img
-              src={patient.avatar_url ?? undefined}
-              alt={patient.full_name}
-              className="h-20 w-20 rounded-2xl object-cover sm:h-24 sm:w-24"
-            />
+            {patient.avatar_url ? (
+              <Image
+                src={patient.avatar_url}
+                alt={patient.full_name}
+                width={96}
+                height={96}
+                unoptimized
+                className="h-20 w-20 rounded-2xl object-cover sm:h-24 sm:w-24"
+              />
+            ) : (
+              <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-black/5 dark:bg-white/5" />
+            )}
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="font-display text-2xl font-bold text-ink-900">

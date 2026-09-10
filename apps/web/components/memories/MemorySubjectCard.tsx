@@ -1,4 +1,5 @@
 import { MapPin, Package, Pencil, Trash2, User } from "lucide-react";
+import Image from "next/image";
 import { Badge } from "@/components/ui/Badge";
 import type { MemorySubjectApi } from "@/lib/types";
 
@@ -27,11 +28,12 @@ export function MemorySubjectCard({
     <div className="group overflow-hidden rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-surface shadow-[0_2px_8px_rgba(44,31,88,0.06)] dark:shadow-none transition-shadow hover:shadow-[0_12px_40px_rgba(44,31,88,0.12)]">
       {subject.photo_url ? (
         <div className="relative h-40 w-full overflow-hidden">
-          {/** biome-ignore lint/performance/noImgElement: Dynamic Images */}
-          <img
+          <Image
             src={subject.photo_url}
             alt={subject.name ?? "Memory"}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            fill
+            unoptimized
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
         </div>
       ) : (
