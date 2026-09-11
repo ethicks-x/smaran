@@ -7,6 +7,7 @@ module resolves the Clerk user id asynchronously through Clerk's Backend API.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 
 from clerk_backend_api import Clerk
@@ -26,6 +27,9 @@ class ClerkUserProfile:
 
 
 _clerk_client: Clerk | None = None
+_profile_cache: dict[str, tuple[float, ClerkUserProfile]] = {}
+CACHE_TTL_SECONDS = 300  # 5 minutes
+MAX_CACHE_SIZE = 1000
 
 
 def get_clerk_client() -> Clerk:
@@ -41,14 +45,30 @@ async def resolve_clerk_user(user_id: str | None) -> ClerkUserProfile | None:
 
     If Clerk is unreachable, secret is unconfigured, or the user id does not exist, this
     returns a graceful fallback containing the user_id rather than failing the request.
+
+    A 5-minute TTL cache is used to avoid redundant external network calls for the same user.
     """
     if not user_id:
         return None
+
+    now = time.time()
+    cached = _profile_cache.get(user_id)
+    if cached is not None:
+        cached_time, profile = cached
+        if now - cached_time < CACHE_TTL_SECONDS:
+            return profile
+        else:
+            del _profile_cache[user_id]
+
     try:
         client = get_clerk_client()
         user = await client.users.get_async(user_id=user_id)
         if user is None:
-            return ClerkUserProfile(user_id=user_id)
+            profile = ClerkUserProfile(user_id=user_id)
+            if len(_profile_cache) >= MAX_CACHE_SIZE:
+                _profile_cache.clear()
+            _profile_cache[user_id] = (now, profile)
+            return profile
 
         first = user.first_name
         last = user.last_name
@@ -82,7 +102,7 @@ async def resolve_clerk_user(user_id: str | None) -> ClerkUserProfile | None:
             if not phone:
                 phone = user.phone_numbers[0].phone_number
 
-        return ClerkUserProfile(
+        profile = ClerkUserProfile(
             user_id=user.id,
             first_name=first,
             last_name=last,
@@ -91,6 +111,10 @@ async def resolve_clerk_user(user_id: str | None) -> ClerkUserProfile | None:
             email=email,
             phone=phone,
         )
+        if len(_profile_cache) >= MAX_CACHE_SIZE:
+            _profile_cache.clear()
+        _profile_cache[user_id] = (now, profile)
+        return profile
     except Exception:
         return ClerkUserProfile(user_id=user_id)
 
