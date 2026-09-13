@@ -7,6 +7,7 @@ module resolves the Clerk user id asynchronously through Clerk's Backend API.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 
 from clerk_backend_api import Clerk
@@ -28,6 +29,11 @@ class ClerkUserProfile:
 _clerk_client: Clerk | None = None
 
 
+_user_cache: dict[str, tuple[float, ClerkUserProfile]] = {}
+CACHE_TTL = 300.0  # 5 minutes
+MAX_CACHE_SIZE = 1000
+
+
 def get_clerk_client() -> Clerk:
     """Singleton Clerk client configured with the server secret key."""
     global _clerk_client
@@ -44,6 +50,13 @@ async def resolve_clerk_user(user_id: str | None) -> ClerkUserProfile | None:
     """
     if not user_id:
         return None
+
+    now = time.monotonic()
+    if user_id in _user_cache:
+        cached_time, cached_profile = _user_cache[user_id]
+        if now - cached_time < CACHE_TTL:
+            return cached_profile
+
     try:
         client = get_clerk_client()
         user = await client.users.get_async(user_id=user_id)
@@ -82,7 +95,7 @@ async def resolve_clerk_user(user_id: str | None) -> ClerkUserProfile | None:
             if not phone:
                 phone = user.phone_numbers[0].phone_number
 
-        return ClerkUserProfile(
+        profile = ClerkUserProfile(
             user_id=user.id,
             first_name=first,
             last_name=last,
@@ -91,8 +104,22 @@ async def resolve_clerk_user(user_id: str | None) -> ClerkUserProfile | None:
             email=email,
             phone=phone,
         )
+        _user_cache[user_id] = (now, profile)
+
+        if len(_user_cache) > MAX_CACHE_SIZE:
+            # Evict oldest entry (first item in dict)
+            _user_cache.pop(next(iter(_user_cache)))
+
+        return profile
     except Exception:
-        return ClerkUserProfile(user_id=user_id)
+        profile = ClerkUserProfile(user_id=user_id)
+        # Cache failures for only 30 seconds to recover faster from transient errors
+        _user_cache[user_id] = (now - CACHE_TTL + 30.0, profile)
+
+        if len(_user_cache) > MAX_CACHE_SIZE:
+            _user_cache.pop(next(iter(_user_cache)))
+
+        return profile
 
 
 __all__ = ["ClerkUserProfile", "get_clerk_client", "resolve_clerk_user"]
