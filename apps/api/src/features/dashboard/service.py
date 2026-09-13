@@ -1032,13 +1032,19 @@ async def get_activity_feed(
         subj_stmt = select(MemorySubject).where(MemorySubject.id.in_(subject_ids))
         subjects_map = {s.id: s for s in (await session.scalars(subj_stmt)).all()}
 
+    # Pre-resolve Clerk details for the patients to avoid N+1 across events
+    patient_names_map: dict[UUID, str | None] = {}
+    patient_avatars_map: dict[UUID, str | None] = {}
+    for p_id, p_obj in patients_map.items():
+        patient_names_map[p_id] = await _resolve_patient_display_name(p_obj)
+        patient_avatars_map[p_id] = await _resolve_patient_avatar(p_obj)
+
     feed_items: list[QuestionEventOut] = []
 
     # Map SessionEvent items
     for se in s_events:
-        p = patients_map.get(se.patient_id)
-        p_name = await _resolve_patient_display_name(p) if p else None
-        p_avatar = await _resolve_patient_avatar(p) if p else None
+        p_name = patient_names_map.get(se.patient_id)
+        p_avatar = patient_avatars_map.get(se.patient_id)
         act_label = ACTIVITY_LABELS.get(
             se.game_id, se.game_id.replace("_", " ").replace("-", " ").title()
         )
@@ -1065,9 +1071,8 @@ async def get_activity_feed(
 
     # Map QuestionEvent items
     for e in q_events:
-        p = patients_map.get(e.patient_id)
-        p_name = await _resolve_patient_display_name(p) if p else None
-        p_avatar = await _resolve_patient_avatar(p) if p else None
+        p_name = patient_names_map.get(e.patient_id)
+        p_avatar = patient_avatars_map.get(e.patient_id)
         subj = subjects_map.get(e.subject_id) if e.subject_id else None
         subj_name = subj.name if subj else None
 
