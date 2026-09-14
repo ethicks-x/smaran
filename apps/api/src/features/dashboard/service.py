@@ -168,42 +168,51 @@ async def _compute_patient_card(
     avatar = await _resolve_patient_avatar(patient)
 
     # Session stats from session_events (primary) and game_sessions (legacy)
-    session_events_stmt = (
-        select(SessionEvent)
-        .where(SessionEvent.patient_id == patient.id)
-        .order_by(SessionEvent.ended_at.desc())
-    )
-    s_events = (await session.scalars(session_events_stmt)).all()
+    s_stats_stmt = select(
+        func.count(SessionEvent.id),
+        func.sum(SessionEvent.attempts),
+        func.sum(SessionEvent.correct),
+        func.avg(SessionEvent.accuracy),
+        func.max(SessionEvent.ended_at),
+    ).where(SessionEvent.patient_id == patient.id)
+    s_stats_res = (await session.execute(s_stats_stmt)).first()
+    if s_stats_res:
+        s_count, s_attempts, s_correct, s_avg_acc, s_last_active = s_stats_res
+    else:
+        s_count, s_attempts, s_correct, s_avg_acc, s_last_active = 0, 0, 0, 0.0, None
+
+    s_count = s_count or 0
+    s_attempts = s_attempts or 0
+    s_correct = s_correct or 0
+    s_avg_acc = s_avg_acc or 0.0
 
     legacy_sessions_count_stmt = select(func.count(GameSession.id)).where(
         GameSession.patient_id == patient.id
     )
     legacy_count = (await session.scalar(legacy_sessions_count_stmt)) or 0
-    sessions_count = len(s_events) + legacy_count
+    sessions_count = s_count + legacy_count
 
     # Calculate overall accuracy
-    if s_events:
-        total_attempts = sum(e.attempts for e in s_events)
-        total_correct = sum(e.correct for e in s_events)
-        if total_attempts > 0:
-            accuracy = round((total_correct / total_attempts) * 100)
-        else:
-            accuracy = round((sum(e.accuracy for e in s_events) / len(s_events)) * 100)
+    if s_count > 0:
+        accuracy = round((s_correct / s_attempts) * 100) if s_attempts > 0 else round(s_avg_acc * 100)
     else:
         # Fallback to QuestionEvent if any
-        events_stmt = select(QuestionEvent.is_correct).where(
+        q_total_stmt = select(func.count(QuestionEvent.id)).where(
             QuestionEvent.patient_id == patient.id,
             QuestionEvent.is_correct.is_not(None),
         )
-        q_events = (await session.scalars(events_stmt)).all()
-        total_answered = len(q_events)
-        correct_count = sum(1 for c in q_events if c is True)
-        accuracy = round((correct_count / total_answered) * 100) if total_answered > 0 else 0
+        q_total = (await session.scalar(q_total_stmt)) or 0
 
-    last_active_at = None
-    if s_events:
-        last_active_at = s_events[0].ended_at
-    else:
+        q_correct_stmt = select(func.count(QuestionEvent.id)).where(
+            QuestionEvent.patient_id == patient.id,
+            QuestionEvent.is_correct.is_(True),
+        )
+        q_correct = (await session.scalar(q_correct_stmt)) or 0
+
+        accuracy = round((q_correct / q_total) * 100) if q_total > 0 else 0
+
+    last_active_at = s_last_active
+    if not last_active_at:
         last_session_stmt = (
             select(GameSession.started_at)
             .where(GameSession.patient_id == patient.id)
