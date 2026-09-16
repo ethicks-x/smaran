@@ -1,3 +1,3 @@
-## 2023-10-27 - Clerk API N+1 Optimization
-**Learning:** Resolving external APIs (like Clerk) inside lists (e.g., getting avatars/names for a feed of events) causes massive N+1 network requests latency.
-**Action:** Always wrap single-item external identity lookups with a short-lived in-memory LRU cache to drastically speed up list/feed generation endpoints.
+## $(date +%Y-%m-%d) - [SQL Aggregation over Memory Iteration]
+**Learning:** Using Python's sum() or iterative loops to compute averages or counts from large sets of SQLAlchemy objects (e.g. `_compute_patient_card` aggregating stats on all historical `SessionEvent`s) leads to O(N) memory allocation per request. This creates serious load bottlenecks in list endpoints as the app scales.
+**Action:** When aggregating rows, write `select(func.count(), func.sum(), etc...)` directly against the database so only a single scalar tuple O(1) returns over the wire to Python, significantly speeding up data-intensive dashboard lists.

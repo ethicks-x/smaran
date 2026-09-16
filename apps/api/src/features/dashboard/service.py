@@ -73,6 +73,8 @@ if TYPE_CHECKING:
     from fastapi import UploadFile
     from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import case
+
 
 ACTIVITY_LABELS: dict[str, str] = {
     "who_is_this": "Who is this?",
@@ -167,43 +169,59 @@ async def _compute_patient_card(
     name = await _resolve_patient_display_name(patient)
     avatar = await _resolve_patient_avatar(patient)
 
-    # Session stats from session_events (primary) and game_sessions (legacy)
-    session_events_stmt = (
-        select(SessionEvent)
-        .where(SessionEvent.patient_id == patient.id)
-        .order_by(SessionEvent.ended_at.desc())
-    )
-    s_events = (await session.scalars(session_events_stmt)).all()
+    # ⚡ Bolt Optimization: Replace O(N) memory load with O(1) SQL aggregation
+    # Calculate session count, accuracy, and last active time in a single query per table.
+    s_events_stmt = select(
+        func.count(SessionEvent.id),
+        func.sum(SessionEvent.attempts),
+        func.sum(SessionEvent.correct),
+        func.sum(SessionEvent.accuracy),
+        func.max(SessionEvent.ended_at),
+    ).where(SessionEvent.patient_id == patient.id)
+    s_events_stats = (await session.execute(s_events_stmt)).first()
+
+    (
+        s_count,
+        s_attempts,
+        s_correct,
+        s_accuracy_sum,
+        s_last_active,
+    ) = s_events_stats or (0, 0, 0, 0.0, None)
+    s_count = s_count or 0
+    s_attempts = s_attempts or 0
+    s_correct = s_correct or 0
+    s_accuracy_sum = s_accuracy_sum or 0.0
 
     legacy_sessions_count_stmt = select(func.count(GameSession.id)).where(
         GameSession.patient_id == patient.id
     )
     legacy_count = (await session.scalar(legacy_sessions_count_stmt)) or 0
-    sessions_count = len(s_events) + legacy_count
+    sessions_count = s_count + legacy_count
 
     # Calculate overall accuracy
-    if s_events:
-        total_attempts = sum(e.attempts for e in s_events)
-        total_correct = sum(e.correct for e in s_events)
-        if total_attempts > 0:
-            accuracy = round((total_correct / total_attempts) * 100)
+    if s_count > 0:
+        if s_attempts > 0:
+            accuracy = round((s_correct / s_attempts) * 100)
         else:
-            accuracy = round((sum(e.accuracy for e in s_events) / len(s_events)) * 100)
+            accuracy = round((s_accuracy_sum / s_count) * 100)
     else:
         # Fallback to QuestionEvent if any
-        events_stmt = select(QuestionEvent.is_correct).where(
+        events_stmt = select(
+            func.count(QuestionEvent.id),
+            func.sum(case((QuestionEvent.is_correct, 1), else_=0)),
+        ).where(
             QuestionEvent.patient_id == patient.id,
             QuestionEvent.is_correct.is_not(None),
         )
-        q_events = (await session.scalars(events_stmt)).all()
-        total_answered = len(q_events)
-        correct_count = sum(1 for c in q_events if c is True)
-        accuracy = round((correct_count / total_answered) * 100) if total_answered > 0 else 0
+        events_stats = (await session.execute(events_stmt)).first()
+        (q_count, q_correct) = events_stats or (0, 0)
+        q_count = q_count or 0
+        q_correct = q_correct or 0
 
-    last_active_at = None
-    if s_events:
-        last_active_at = s_events[0].ended_at
-    else:
+        accuracy = round((q_correct / q_count) * 100) if q_count > 0 else 0
+
+    last_active_at = s_last_active
+    if not last_active_at:
         last_session_stmt = (
             select(GameSession.started_at)
             .where(GameSession.patient_id == patient.id)
