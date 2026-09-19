@@ -194,7 +194,9 @@ async def _compute_patient_card(
 
     # Calculate overall accuracy
     if s_count > 0:
-        accuracy = round((s_correct / s_attempts) * 100) if s_attempts > 0 else round(s_avg_acc * 100)
+        accuracy = (
+            round((s_correct / s_attempts) * 100) if s_attempts > 0 else round(s_avg_acc * 100)
+        )
     else:
         # Fallback to QuestionEvent if any
         q_total_stmt = select(func.count(QuestionEvent.id)).where(
@@ -1018,19 +1020,32 @@ async def get_activity_feed(
     patients_stmt = select(Patient).where(Patient.id.in_(target_ids))
     patients_map = {p.id: p for p in (await session.scalars(patients_stmt)).all()}
 
-    # Fetch SessionEvent rows
+    # Calculate total count efficiently
+    se_count_stmt = select(func.count(SessionEvent.id)).where(
+        SessionEvent.patient_id.in_(target_ids)
+    )
+    qe_count_stmt = select(func.count(QuestionEvent.id)).where(
+        QuestionEvent.patient_id.in_(target_ids)
+    )
+    se_count = (await session.scalar(se_count_stmt)) or 0
+    qe_count = (await session.scalar(qe_count_stmt)) or 0
+    total = se_count + qe_count
+
+    # Fetch SessionEvent rows with limit
     se_stmt = (
         select(SessionEvent)
         .where(SessionEvent.patient_id.in_(target_ids))
         .order_by(SessionEvent.ended_at.desc())
+        .limit(offset + limit)
     )
     s_events = (await session.scalars(se_stmt)).all()
 
-    # Fetch QuestionEvent rows
+    # Fetch QuestionEvent rows with limit
     qe_stmt = (
         select(QuestionEvent)
         .where(QuestionEvent.patient_id.in_(target_ids))
         .order_by(QuestionEvent.asked_at.desc())
+        .limit(offset + limit)
     )
     q_events = (await session.scalars(qe_stmt)).all()
 
@@ -1109,7 +1124,6 @@ async def get_activity_feed(
 
     # Sort combined feed newest first
     feed_items.sort(key=lambda item: item.asked_at, reverse=True)
-    total = len(feed_items)
     paged = feed_items[offset : offset + limit]
 
     return ActivityFeedOut(events=paged, total=total)
