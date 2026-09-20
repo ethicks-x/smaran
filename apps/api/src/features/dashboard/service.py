@@ -158,85 +158,150 @@ async def _resolve_patient_avatar(patient: Patient) -> str | None:
     return None
 
 
+async def _compute_patient_cards(
+    session: AsyncSession,
+    pairs: list[tuple[Patient, PatientCaregiver]],
+) -> list[PatientCardOut]:
+    """Calculate session count, accuracy, and last active time for a list of patients efficiently."""
+    if not pairs:
+        return []
+
+    patient_ids = [p.id for p, _ in pairs]
+
+    # Session stats from session_events (primary) and game_sessions (legacy)
+    s_stats_stmt = (
+        select(
+            SessionEvent.patient_id,
+            func.count(SessionEvent.id),
+            func.sum(SessionEvent.attempts),
+            func.sum(SessionEvent.correct),
+            func.avg(SessionEvent.accuracy),
+            func.max(SessionEvent.ended_at),
+        )
+        .where(SessionEvent.patient_id.in_(patient_ids))
+        .group_by(SessionEvent.patient_id)
+    )
+
+    s_stats_rows = (await session.execute(s_stats_stmt)).all()
+    s_stats_map = {row[0]: row[1:] for row in s_stats_rows}
+
+    legacy_count_stmt = (
+        select(GameSession.patient_id, func.count(GameSession.id))
+        .where(GameSession.patient_id.in_(patient_ids))
+        .group_by(GameSession.patient_id)
+    )
+
+    legacy_count_rows = (await session.execute(legacy_count_stmt)).all()
+    legacy_count_map = {row[0]: row[1] for row in legacy_count_rows}
+
+    patients_needing_fallback_acc = []
+    patients_needing_fallback_date = []
+    for p_id in patient_ids:
+        row = s_stats_map.get(p_id)
+        if row:
+            s_count, _, _, _, s_last_active = row
+            s_count = s_count or 0
+        else:
+            s_count = 0
+            s_last_active = None
+
+        if s_count == 0:
+            patients_needing_fallback_acc.append(p_id)
+        if not s_last_active:
+            patients_needing_fallback_date.append(p_id)
+
+    q_total_map = {}
+    q_correct_map = {}
+    if patients_needing_fallback_acc:
+        q_total_stmt = (
+            select(QuestionEvent.patient_id, func.count(QuestionEvent.id))
+            .where(
+                QuestionEvent.patient_id.in_(patients_needing_fallback_acc),
+                QuestionEvent.is_correct.is_not(None),
+            )
+            .group_by(QuestionEvent.patient_id)
+        )
+        q_total_map = {r[0]: r[1] for r in (await session.execute(q_total_stmt)).all()}
+
+        q_correct_stmt = (
+            select(QuestionEvent.patient_id, func.count(QuestionEvent.id))
+            .where(
+                QuestionEvent.patient_id.in_(patients_needing_fallback_acc),
+                QuestionEvent.is_correct.is_(True),
+            )
+            .group_by(QuestionEvent.patient_id)
+        )
+        q_correct_map = {r[0]: r[1] for r in (await session.execute(q_correct_stmt)).all()}
+
+    last_gs_map = {}
+    if patients_needing_fallback_date:
+        last_gs_stmt = (
+            select(GameSession.patient_id, func.max(GameSession.started_at))
+            .where(GameSession.patient_id.in_(patients_needing_fallback_date))
+            .group_by(GameSession.patient_id)
+        )
+        last_gs_map = {r[0]: r[1] for r in (await session.execute(last_gs_stmt)).all()}
+
+    cards: list[PatientCardOut] = []
+    for patient, link in pairs:
+        name = await _resolve_patient_display_name(patient)
+        avatar = await _resolve_patient_avatar(patient)
+
+        row = s_stats_map.get(patient.id)
+        if row:
+            s_count, s_attempts, s_correct, s_avg_acc, s_last_active = row
+        else:
+            s_count, s_attempts, s_correct, s_avg_acc, s_last_active = 0, 0, 0, 0.0, None
+
+        s_count = s_count or 0
+        s_attempts = s_attempts or 0
+        s_correct = s_correct or 0
+        s_avg_acc = s_avg_acc or 0.0
+
+        legacy_count = legacy_count_map.get(patient.id, 0)
+        sessions_count = s_count + legacy_count
+
+        if s_count > 0:
+            accuracy = (
+                round((s_correct / s_attempts) * 100) if s_attempts > 0 else round(s_avg_acc * 100)
+            )
+        else:
+            q_total = q_total_map.get(patient.id, 0)
+            q_correct = q_correct_map.get(patient.id, 0)
+            accuracy = round((q_correct / q_total) * 100) if q_total > 0 else 0
+
+        last_active_at = s_last_active
+        if not last_active_at:
+            last_active_at = last_gs_map.get(patient.id)
+
+        cards.append(
+            PatientCardOut(
+                id=patient.id,
+                user_id=patient.user_id,
+                full_name=name,
+                avatar_url=avatar,
+                dob=patient.dob,
+                address=patient.address,
+                contact_number=patient.contact_number,
+                preferred_language=patient.preferred_language,
+                relationship=link.relation,
+                sessions_count=sessions_count,
+                overall_accuracy=accuracy,
+                last_active_at=last_active_at,
+            )
+        )
+
+    return cards
+
+
 async def _compute_patient_card(
     session: AsyncSession,
     patient: Patient,
     link: PatientCaregiver,
 ) -> PatientCardOut:
     """Calculate session count, accuracy, and last active time for a single patient."""
-    name = await _resolve_patient_display_name(patient)
-    avatar = await _resolve_patient_avatar(patient)
-
-    # Session stats from session_events (primary) and game_sessions (legacy)
-    s_stats_stmt = select(
-        func.count(SessionEvent.id),
-        func.sum(SessionEvent.attempts),
-        func.sum(SessionEvent.correct),
-        func.avg(SessionEvent.accuracy),
-        func.max(SessionEvent.ended_at),
-    ).where(SessionEvent.patient_id == patient.id)
-    s_stats_res = (await session.execute(s_stats_stmt)).first()
-    if s_stats_res:
-        s_count, s_attempts, s_correct, s_avg_acc, s_last_active = s_stats_res
-    else:
-        s_count, s_attempts, s_correct, s_avg_acc, s_last_active = 0, 0, 0, 0.0, None
-
-    s_count = s_count or 0
-    s_attempts = s_attempts or 0
-    s_correct = s_correct or 0
-    s_avg_acc = s_avg_acc or 0.0
-
-    legacy_sessions_count_stmt = select(func.count(GameSession.id)).where(
-        GameSession.patient_id == patient.id
-    )
-    legacy_count = (await session.scalar(legacy_sessions_count_stmt)) or 0
-    sessions_count = s_count + legacy_count
-
-    # Calculate overall accuracy
-    if s_count > 0:
-        accuracy = (
-            round((s_correct / s_attempts) * 100) if s_attempts > 0 else round(s_avg_acc * 100)
-        )
-    else:
-        # Fallback to QuestionEvent if any
-        q_total_stmt = select(func.count(QuestionEvent.id)).where(
-            QuestionEvent.patient_id == patient.id,
-            QuestionEvent.is_correct.is_not(None),
-        )
-        q_total = (await session.scalar(q_total_stmt)) or 0
-
-        q_correct_stmt = select(func.count(QuestionEvent.id)).where(
-            QuestionEvent.patient_id == patient.id,
-            QuestionEvent.is_correct.is_(True),
-        )
-        q_correct = (await session.scalar(q_correct_stmt)) or 0
-
-        accuracy = round((q_correct / q_total) * 100) if q_total > 0 else 0
-
-    last_active_at = s_last_active
-    if not last_active_at:
-        last_session_stmt = (
-            select(GameSession.started_at)
-            .where(GameSession.patient_id == patient.id)
-            .order_by(GameSession.started_at.desc())
-            .limit(1)
-        )
-        last_active_at = await session.scalar(last_session_stmt)
-
-    return PatientCardOut(
-        id=patient.id,
-        user_id=patient.user_id,
-        full_name=name,
-        avatar_url=avatar,
-        dob=patient.dob,
-        address=patient.address,
-        contact_number=patient.contact_number,
-        preferred_language=patient.preferred_language,
-        relationship=link.relation,
-        sessions_count=sessions_count,
-        overall_accuracy=accuracy,
-        last_active_at=last_active_at,
-    )
+    cards = await _compute_patient_cards(session, [(patient, link)])
+    return cards[0]
 
 
 async def get_dashboard_summary(session: AsyncSession, caregiver_id: str) -> DashboardSummaryOut:
@@ -251,13 +316,8 @@ async def get_dashboard_summary(session: AsyncSession, caregiver_id: str) -> Das
     )
     patient_pairs = (await session.execute(links_stmt)).all()
 
-    patient_cards: list[PatientCardOut] = []
-    patient_ids: list[UUID] = []
-
-    for patient, link in patient_pairs:
-        patient_ids.append(patient.id)
-        card = await _compute_patient_card(session, patient, link)
-        patient_cards.append(card)
+    patient_cards = await _compute_patient_cards(session, patient_pairs)
+    patient_ids = [p.id for p, _ in patient_pairs]
 
     total_patients = len(patient_cards)
 
@@ -310,11 +370,7 @@ async def list_patients(session: AsyncSession, caregiver_id: str) -> list[Patien
         )
     )
     pairs = (await session.execute(stmt)).all()
-    cards: list[PatientCardOut] = []
-    for patient, link in pairs:
-        card = await _compute_patient_card(session, patient, link)
-        cards.append(card)
-    return cards
+    return await _compute_patient_cards(session, pairs)
 
 
 async def create_patient(

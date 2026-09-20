@@ -7,3 +7,6 @@
 ## 2024-05-19 - Pagination Before Memory
 **Learning:** Fetching all rows for a feed before applying pagination in Python causes O(N) memory usage and massive database transfer overhead.
 **Action:** Always push `limit` down to the SQL query when building paginated endpoints. Use `SELECT COUNT(*)` to calculate the total if needed.
+## 2024-11-20 - Dashboard Batching Optimization
+**Learning:** `_compute_patient_card` executed 3 SQL aggregates per patient. When a caregiver had 10 patients, rendering the dashboard caused 30 sequential N+1 queries due to the loop over patients and the `AsyncSession` lock on `.gather`.
+**Action:** Introduced `_compute_patient_cards` which pre-fetches all stats for the given patients via `GROUP BY patient_id` across the `SessionEvent`, `GameSession`, and `QuestionEvent` tables, reducing dashboard loading to O(1) database queries (approx 4 total queries).
