@@ -836,9 +836,15 @@ async def get_patient_progress(
             )
         )
 
+    # Pre-group QuestionEvents by session_id to avoid O(N*M) lookup
+    q_events_by_session: dict[UUID, list[QuestionEvent]] = {}
+    for e in q_events:
+        if e.session_id is not None:
+            q_events_by_session.setdefault(e.session_id, []).append(e)
+
     # Map legacy GameSession records
     for s in legacy_sessions:
-        s_q = [e for e in q_events if e.session_id == s.id]
+        s_q = q_events_by_session.get(s.id, [])
         answered_count = len(s_q)
         correct_count = sum(1 for e in s_q if e.is_correct is True)
         acc = round((correct_count / answered_count) * 100) if answered_count > 0 else 0

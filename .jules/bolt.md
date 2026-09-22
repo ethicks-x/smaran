@@ -10,3 +10,6 @@
 ## 2024-11-20 - Dashboard Batching Optimization
 **Learning:** `_compute_patient_card` executed 3 SQL aggregates per patient. When a caregiver had 10 patients, rendering the dashboard caused 30 sequential N+1 queries due to the loop over patients and the `AsyncSession` lock on `.gather`.
 **Action:** Introduced `_compute_patient_cards` which pre-fetches all stats for the given patients via `GROUP BY patient_id` across the `SessionEvent`, `GameSession`, and `QuestionEvent` tables, reducing dashboard loading to O(1) database queries (approx 4 total queries).
+## 2024-11-21 - Replace O(N^2) Loop with O(N) Hash Map Lookup in Dashboard Progress
+**Learning:** The dashboard `get_patient_progress` function was recalculating a list comprehension over all `q_events` inside a loop over all `legacy_sessions`. This was an O(N*M) algorithmic bottleneck that grew severely as patient history expanded, leading to significant CPU spin and response delays on the patient progress tab.
+**Action:** Always pre-group one-to-many relationships in a dictionary/hash map before the loop. Replacing the nested list comprehension with an O(1) dictionary lookup `.get(session_id, [])` reduces the entire mapping process to O(N + M).
