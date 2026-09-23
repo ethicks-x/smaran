@@ -13,3 +13,7 @@
 ## 2024-11-21 - Replace O(N^2) Loop with O(N) Hash Map Lookup in Dashboard Progress
 **Learning:** The dashboard `get_patient_progress` function was recalculating a list comprehension over all `q_events` inside a loop over all `legacy_sessions`. This was an O(N*M) algorithmic bottleneck that grew severely as patient history expanded, leading to significant CPU spin and response delays on the patient progress tab.
 **Action:** Always pre-group one-to-many relationships in a dictionary/hash map before the loop. Replacing the nested list comprehension with an O(1) dictionary lookup `.get(session_id, [])` reduces the entire mapping process to O(N + M).
+
+## 2023-10-24 - Pre-fetching aggregated data in dashboard summary
+**Learning:** In the FastAPI / SQLAlchemy backend, building a dashboard that iterates over patients (e.g. `get_attention_flags` called inside `get_notifications`) can cause severe N+1 query bottlenecks if it queries the database (`session.scalar`, `session.scalars`) inside the loop for each patient's activity history.
+**Action:** Use `.in_()` clauses and `.group_by()` to pre-fetch aggregated data (like max dates) for all target patients outside the loop, build dictionaries by `patient_id`, and then perform constant-time lookups inside the loop. This converts O(N) queries into a constant number of queries regardless of patient count.
