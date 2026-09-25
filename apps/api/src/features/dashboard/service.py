@@ -1222,23 +1222,52 @@ async def get_attention_flags(
     two_days_ago = now - timedelta(days=2)
     fourteen_days_ago = now - timedelta(days=14)
 
+    if not target_patients:
+        return flags
+
+    target_ids = [p.id for p in target_patients]
+
+    # Pre-fetch last active times to avoid N+1 inside loop
+    last_se_stmt = (
+        select(SessionEvent.patient_id, func.max(SessionEvent.ended_at))
+        .where(SessionEvent.patient_id.in_(target_ids))
+        .group_by(SessionEvent.patient_id)
+    )
+    last_se_map = {row[0]: row[1] for row in (await session.execute(last_se_stmt)).all()}
+
+    last_gs_stmt = (
+        select(GameSession.patient_id, func.max(GameSession.started_at))
+        .where(GameSession.patient_id.in_(target_ids))
+        .group_by(GameSession.patient_id)
+    )
+    last_gs_map = {row[0]: row[1] for row in (await session.execute(last_gs_stmt)).all()}
+
+    # Pre-fetch recent sessions to avoid N+1 inside loop
+    recent_se_stmt = (
+        select(SessionEvent)
+        .where(
+            SessionEvent.patient_id.in_(target_ids),
+            SessionEvent.ended_at >= fourteen_days_ago,
+        )
+        .order_by(SessionEvent.ended_at.asc())
+    )
+    all_recent_se = (await session.scalars(recent_se_stmt)).all()
+
+    # Pre-group SessionEvents by patient_id
+    recent_se_map: dict[UUID, list[SessionEvent]] = {}
+    for e in all_recent_se:
+        recent_se_map.setdefault(e.patient_id, []).append(e)
+
     for p in target_patients:
         name = await _resolve_patient_display_name(p)
 
         # 1. Inactivity Flag: check SessionEvent and GameSession
-        last_se_time = await session.scalar(
-            select(SessionEvent.ended_at)
-            .where(SessionEvent.patient_id == p.id)
-            .order_by(SessionEvent.ended_at.desc())
-            .limit(1)
-        )
-        last_gs_time = await session.scalar(
-            select(GameSession.started_at)
-            .where(GameSession.patient_id == p.id)
-            .order_by(GameSession.started_at.desc())
-            .limit(1)
-        )
-        last_session = last_se_time or last_gs_time
+        last_se_time = last_se_map.get(p.id)
+        last_gs_time = last_gs_map.get(p.id)
+
+        last_session = last_se_time
+        if last_gs_time and (not last_session or last_gs_time > last_session):
+            last_session = last_gs_time
 
         if last_session and last_session < two_days_ago:
             days_inactive = (now - last_session).days
@@ -1256,16 +1285,7 @@ async def get_attention_flags(
             )
 
         # 2. Performance Deviation against 14-day baseline
-        recent_se = (
-            await session.scalars(
-                select(SessionEvent)
-                .where(
-                    SessionEvent.patient_id == p.id,
-                    SessionEvent.ended_at >= fourteen_days_ago,
-                )
-                .order_by(SessionEvent.ended_at.asc())
-            )
-        ).all()
+        recent_se = recent_se_map.get(p.id, [])
 
         if len(recent_se) >= 4:
             baseline_se = [e for e in recent_se if e.ended_at < two_days_ago]
